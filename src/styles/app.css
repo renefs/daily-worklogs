@@ -1,0 +1,240 @@
+@import '@mantine/core/styles.css';
+@import '@mantine/dates/styles.css';
+@import '@mantine/notifications/styles.css';
+@import '@mantine/spotlight/styles.css';
+
+:root {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Outfit', 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+body {
+  font-family: var(--font-sans);
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  background-color: var(--mantine-color-body);
+  color: var(--mantine-color-text);
+  margin: 0;
+  padding: 0;
+}
+
+/* Allow text selection in editor, viewer, and readable text */
+.selectable-text,
+.cm-editor,
+.markdown-body,
+input,
+textarea {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(140, 140, 140, 0.25);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(140, 140, 140, 0.45);
+}
+
+/* CodeMirror Editor Styles */
+.cm-editor {
+  height: 100% !important;
+  font-family: var(--font-mono) !important;
+  border-radius: 8px;
+}
+
+.cm-scroller {
+  padding: 12px 0;
+  font-family: var(--font-mono) !important;
+  line-height: 1.6 !important;
+}
+
+.cm-content {
+  padding: 0 16px !important;
+}
+
+.cm-line {
+  padding: 0 4px !important;
+}
+
+.cm-focused {
+  outline: none !important;
+}
+
+/* Markdown Rendered Typography */
+.markdown-body {
+  line-height: 1.7;
+  font-size: 15px;
+  color: inherit;
+}
+
+.markdown-body h1 {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+  border-bottom: 2px solid var(--mantine-color-default-border);
+  padding-bottom: 0.4rem;
+  margin-top: 1rem;
+  margin-bottom: 1.25rem;
+  letter-spacing: -0.02em;
+}
+
+.markdown-body h2 {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--mantine-color-default-border);
+  padding-bottom: 0.3rem;
+  letter-spacing: -0.01em;
+}
+
+.markdown-body h3 {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.markdown-body ul, 
+.markdown-body ol {
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.markdown-body li {
+  margin-bottom: 0.35rem;
+}
+
+/* Task Checklists */
+.markdown-body ul.task-list {
+  list-style-type: none;
+  padding-left: 0.25rem;
+}
+
+.markdown-body li.task-list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 0.4rem;
+}
+
+.markdown-body li.task-list-item input[type="checkbox"] {
+  margin-top: 5px;
+  cursor: pointer;
+  accent-color: var(--mantine-primary-color-filled);
+  width: 16px;
+  height: 16px;
+}
+
+.markdown-body blockquote {
+  border-left: 4px solid var(--mantine-primary-color-filled);
+  margin: 1rem 0;
+  padding: 0.5rem 1rem;
+  background-color: var(--mantine-color-default-hover);
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+}
+
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.2rem 0;
+}
+
+.markdown-body th, 
+.markdown-body td {
+  border: 1px solid var(--mantine-color-default-border);
+  padding: 8px 14px;
+  text-align: left;
+}
+
+.markdown-body th {
+  background-color: var(--mantine-color-default-hover);
+  font-weight: 600;
+}
+
+.markdown-body pre {
+  background-color: var(--mantine-color-dark-8, #1e1e24);
+  color: #f8f8f2;
+  padding: 14px;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  margin: 1rem 0;
+}
+
+.markdown-body code:not(pre code) {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background-color: var(--mantine-color-default-hover);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--mantine-primary-color-filled);
+}
+
+/* Glassmorphism utility */
+.glass-panel {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background-color: rgba(var(--mantine-color-body), 0.85);
+}
+
+/* Calendar Date Indicators */
+.has-note-indicator {
+  position: relative;
+}
+
+.has-note-indicator::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: var(--mantine-primary-color-filled);
+}
+
+/* Electron App Titlebar drag region for macOS */
+.app-drag-region {
+  -webkit-app-region: drag;
+}
+
+.app-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* Nav Segmented Control Styling */
+.nav-segmented-control {
+  background-color: var(--mantine-color-default-hover) !important;
+  border: 1px solid var(--mantine-color-default-border) !important;
+  padding: 3px !important;
+}
+
+.nav-segmented-control button {
+  padding: 4px 10px !important;
+  transition: all 0.15s ease !important;
+}
+
+.nav-segmented-control button[data-active="true"] {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+
