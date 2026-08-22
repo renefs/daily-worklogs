@@ -169,7 +169,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       await window.electronAPI.deleteNote(dateToDelete);
       await get().refreshNotesList();
-      await get().loadNoteForDate(dateToDelete);
+      if (get().selectedDate === dateToDelete) {
+        await get().loadNoteForDate(dateToDelete);
+      }
     } catch (err) {
       console.error('Failed to delete note:', err);
     }

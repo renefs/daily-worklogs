@@ -11,14 +11,19 @@ import {
   Paper,
   ActionIcon,
   Tooltip,
+  Menu,
+  Modal,
 } from '@mantine/core';
 import { DatePicker } from '@mantine/dates';
+import { notifications } from '@mantine/notifications';
 import {
   IconPlus,
   IconSearch,
   IconFileText,
   IconFolder,
   IconFolderOpen,
+  IconTrash,
+  IconEdit,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
@@ -27,6 +32,12 @@ import { useAppStore } from '../../store/useAppStore';
 export const AppSidebar: React.FC = () => {
   const { t, i18n } = useTranslation();
   const [search, setSearch] = useState('');
+  const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    note: { date: string; filename: string };
+  } | null>(null);
 
   const {
     selectedDate,
@@ -34,6 +45,7 @@ export const AppSidebar: React.FC = () => {
     setCurrentView,
     notesList,
     settings,
+    deleteActiveNote,
   } = useAppStore();
 
   const todayStr = dayjs().format('YYYY-MM-DD');
@@ -57,6 +69,19 @@ export const AppSidebar: React.FC = () => {
   const handleOpenToday = () => {
     setSelectedDate(todayStr);
     setCurrentView('daily');
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!noteToDelete) return;
+    const targetDate = noteToDelete;
+    await deleteActiveNote(targetDate);
+    notifications.show({
+      title: t('editor.deleteNote'),
+      message: `${targetDate}.md`,
+      color: 'red',
+      icon: <IconTrash size={16} />,
+    });
+    setNoteToDelete(null);
   };
 
   return (
@@ -157,6 +182,14 @@ export const AppSidebar: React.FC = () => {
                 <UnstyledButton
                   key={note.date}
                   onClick={() => handleSelectDate(note.date)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setContextMenu({
+                      x: e.clientX,
+                      y: e.clientY,
+                      note,
+                    });
+                  }}
                   p="xs"
                   style={{
                     borderRadius: 6,
@@ -167,6 +200,7 @@ export const AppSidebar: React.FC = () => {
                       ? '1px solid var(--mantine-primary-color-light-hover)'
                       : '1px solid transparent',
                     transition: 'all 0.15s ease',
+                    width: '100%',
                   }}
                 >
                   <Group justify="space-between" wrap="nowrap">
@@ -207,6 +241,93 @@ export const AppSidebar: React.FC = () => {
         </ScrollArea>
       </div>
 
+      {/* Context Menu */}
+      <Menu
+        opened={!!contextMenu}
+        onClose={() => setContextMenu(null)}
+        shadow="md"
+        width={200}
+        radius="md"
+        position="bottom-start"
+        withinPortal
+      >
+        <Menu.Target>
+          <div
+            style={{
+              position: 'fixed',
+              top: contextMenu?.y ?? 0,
+              left: contextMenu?.x ?? 0,
+              width: 1,
+              height: 1,
+              pointerEvents: 'none',
+              visibility: 'hidden',
+            }}
+          />
+        </Menu.Target>
+        <Menu.Dropdown>
+          {contextMenu && (
+            <>
+              <Menu.Item
+                leftSection={<IconEdit size={14} />}
+                onClick={() => {
+                  handleSelectDate(contextMenu.note.date);
+                  setContextMenu(null);
+                }}
+              >
+                {t('calendar.openInDaily')}
+              </Menu.Item>
+              {settings?.vaultPath && (
+                <Menu.Item
+                  leftSection={<IconFolderOpen size={14} />}
+                  onClick={() => {
+                    if (window.electronAPI && settings?.vaultPath) {
+                      window.electronAPI.openInFileManager(
+                        `${settings.vaultPath}/${contextMenu.note.filename}`
+                      );
+                    }
+                    setContextMenu(null);
+                  }}
+                >
+                  {t('settings.openInFinder')}
+                </Menu.Item>
+              )}
+              <Menu.Divider />
+              <Menu.Item
+                color="red"
+                leftSection={<IconTrash size={14} />}
+                onClick={() => {
+                  setNoteToDelete(contextMenu.note.date);
+                  setContextMenu(null);
+                }}
+              >
+                {t('editor.deleteNote')}
+              </Menu.Item>
+            </>
+          )}
+        </Menu.Dropdown>
+      </Menu>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        opened={!!noteToDelete}
+        onClose={() => setNoteToDelete(null)}
+        title={t('editor.deleteNote')}
+        centered
+        radius="md"
+      >
+        <Text size="sm" mb="lg">
+          {t('editor.deleteConfirm', { date: noteToDelete })}
+        </Text>
+        <Group justify="flex-end" gap="xs">
+          <Button variant="default" onClick={() => setNoteToDelete(null)}>
+            {t('common.cancel')}
+          </Button>
+          <Button color="red" onClick={handleConfirmDelete}>
+            {t('common.delete')}
+          </Button>
+        </Group>
+      </Modal>
+
       {/* Vault Path Footer Widget */}
       {settings && (
         <Paper
@@ -227,7 +348,17 @@ export const AppSidebar: React.FC = () => {
                 <ActionIcon
                   size="xs"
                   variant="subtle"
-                  onClick={() => window.electronAPI?.openInFileManager(settings.vaultPath)}
+                  onClick={() => {
+                    if (window.electronAPI && settings?.vaultPath) {
+                      window.electronAPI.openInFileManager(settings.vaultPath);
+                    } else {
+                      notifications.show({
+                        title: t('settings.openInFinder'),
+                        message: 'Native File Manager is available in the Electron desktop application window.',
+                        color: 'blue',
+                      });
+                    }
+                  }}
                 >
                   <IconFolderOpen size={14} />
                 </ActionIcon>
