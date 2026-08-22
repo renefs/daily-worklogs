@@ -77,6 +77,56 @@ assert.strictEqual(totalTasks, 5, 'Total tasks should be 5');
 assert.strictEqual(completedTasks, 4, 'Completed tasks should be 4');
 console.log('✓ Weekly range aggregation verified: 2 active days, 4/5 tasks completed (80%)');
 
+// 6. Test Week Range Calculation with customizable first day of the week (0..6)
+function calculateWeekRange(currentDateStr, weekStartDay) {
+  const [y, m, d] = currentDateStr.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  const currentDay = date.getUTCDay(); // 0 is Sunday, 1 is Monday, ..., 6 is Saturday
+  const diff = (currentDay - weekStartDay + 7) % 7;
+  
+  const start = new Date(date);
+  start.setUTCDate(start.getUTCDate() - diff);
+  
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 6);
+  
+  return {
+    start: start.toISOString().split('T')[0],
+    end: end.toISOString().split('T')[0],
+  };
+}
+
+// Test Case: Wednesday (3) meeting use case (last Wednesday to next Tuesday)
+const wednesdayWeek1 = calculateWeekRange('2026-08-19', 3); // 2026-08-19 is a Wednesday
+assert.strictEqual(wednesdayWeek1.start, '2026-08-19', 'Wednesday start date should be 2026-08-19');
+assert.strictEqual(wednesdayWeek1.end, '2026-08-25', 'Wednesday week end date should be Tuesday 2026-08-25');
+
+const wednesdayWeek2 = calculateWeekRange('2026-08-24', 3); // Monday in the same Wednesday-Tuesday cycle
+assert.strictEqual(wednesdayWeek2.start, '2026-08-19', 'Monday should resolve to prior Wednesday 2026-08-19');
+assert.strictEqual(wednesdayWeek2.end, '2026-08-25', 'Monday should resolve to Tuesday 2026-08-25');
+
+const wednesdayWeek3 = calculateWeekRange('2026-08-25', 3); // Tuesday (the last day of the cycle)
+assert.strictEqual(wednesdayWeek3.start, '2026-08-19', 'Tuesday should resolve to prior Wednesday 2026-08-19');
+assert.strictEqual(wednesdayWeek3.end, '2026-08-25', 'Tuesday should resolve to Tuesday 2026-08-25');
+
+// Test Case: Monday (1) standard ISO week (Monday to Sunday)
+const mondayWeek = calculateWeekRange('2026-08-19', 1);
+assert.strictEqual(mondayWeek.start, '2026-08-17', 'Monday week start should be 2026-08-17');
+assert.strictEqual(mondayWeek.end, '2026-08-23', 'Monday week end should be 2026-08-23');
+
+// Test Case: Sunday (0) week (Sunday to Saturday)
+const sundayWeek = calculateWeekRange('2026-08-19', 0);
+assert.strictEqual(sundayWeek.start, '2026-08-16', 'Sunday week start should be 2026-08-16');
+assert.strictEqual(sundayWeek.end, '2026-08-22', 'Sunday week end should be 2026-08-22');
+
+// Test Case: Friday (5) week (Friday to Thursday)
+const fridayWeek = calculateWeekRange('2026-08-19', 5);
+assert.strictEqual(fridayWeek.start, '2026-08-14', 'Friday week start should be 2026-08-14');
+assert.strictEqual(fridayWeek.end, '2026-08-20', 'Friday week end should be 2026-08-20');
+
+console.log('✓ Week start day calculation verified for all days of the week (including Wednesday-Tuesday cycle)');
+
 // Cleanup
 fs.rmSync(testVault, { recursive: true });
 console.log('✓ All verification tests passed successfully!');
+

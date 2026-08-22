@@ -41,24 +41,14 @@ export const WeeklyView: React.FC = () => {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'document' | 'tasks'>('document');
 
-  // Calculate week start and end based on user's weekStartDay setting (1=Monday, 0=Sunday, 6=Saturday)
+  // Calculate week start and end based on user's weekStartDay setting (0=Sunday ... 6=Saturday)
   const weekRange = useMemo(() => {
     const d = dayjs(currentWeekDate);
-    const weekStartSetting = settings?.weekStartDay ?? 1;
+    const weekStartSetting = (settings?.weekStartDay ?? 1) as number;
 
-    let start = d;
-    if (weekStartSetting === 1) {
-      // Monday start
-      start = d.startOf('isoWeek');
-    } else if (weekStartSetting === 0) {
-      // Sunday start
-      start = d.day(0);
-    } else if (weekStartSetting === 6) {
-      // Saturday start
-      const currentDay = d.day(); // 0 is Sunday, 6 is Saturday
-      start = currentDay === 6 ? d : d.subtract(currentDay + 1, 'day');
-    }
-
+    const currentDay = d.day(); // 0 is Sunday, 1 is Monday, ..., 6 is Saturday
+    const diff = (currentDay - weekStartSetting + 7) % 7;
+    const start = d.subtract(diff, 'day');
     const end = start.add(6, 'day');
     return {
       start: start.format('YYYY-MM-DD'),

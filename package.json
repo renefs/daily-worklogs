@@ -12,6 +12,7 @@
     "build:linux": "tsc && vite build && electron-builder --linux",
     "build:renderer": "tsc && vite build",
     "typecheck": "tsc --noEmit",
+    "test": "node test/verify-worklog.test.mjs",
     "preview": "vite preview"
   },
   "keywords": [

@@ -41,7 +41,7 @@ import {
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
-import { ColumnBehavior, DEFAULT_KANBAN_COLUMNS, KanbanColumnConfig } from '../../types';
+import { ColumnBehavior, DEFAULT_KANBAN_COLUMNS, KanbanColumnConfig, WeekStartDay } from '../../types';
 import {
   AVAILABLE_COLUMN_COLORS,
   AVAILABLE_COLUMN_ICONS,
@@ -152,8 +152,10 @@ export const SettingsModal: React.FC = () => {
     updateSettings({ themeColor: color });
   };
 
-  const handleWeekStartChange = (val: string) => {
-    updateSettings({ weekStartDay: parseInt(val, 10) as any });
+  const handleWeekStartChange = (val: string | null) => {
+    if (val !== null) {
+      updateSettings({ weekStartDay: parseInt(val, 10) as WeekStartDay });
+    }
   };
 
   const handleTemplateChange = (templateId: string | null) => {
@@ -465,14 +467,19 @@ export const SettingsModal: React.FC = () => {
                   <Text size="xs" c="dimmed">
                     {t('settings.weekStartDescription')}
                   </Text>
-                  <SegmentedControl
+                  <Select
                     value={String(settings.weekStartDay)}
                     onChange={handleWeekStartChange}
                     data={[
                       { value: '1', label: t('settings.monday') },
-                      { value: '0', label: t('settings.sunday') },
+                      { value: '2', label: t('settings.tuesday') },
+                      { value: '3', label: t('settings.wednesday') },
+                      { value: '4', label: t('settings.thursday') },
+                      { value: '5', label: t('settings.friday') },
                       { value: '6', label: t('settings.saturday') },
+                      { value: '0', label: t('settings.sunday') },
                     ]}
+                    allowDeselect={false}
                     size="sm"
                   />
                 </Stack>
