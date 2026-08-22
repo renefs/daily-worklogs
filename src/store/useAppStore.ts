@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
-import { AppSettings, AppViewMode, DailyNote } from '../types';
+import { AppSettings, AppViewMode, DailyNote, TaskItem, TaskPriority, TaskStatus } from '../types';
 import i18n from '../i18n';
 
 dayjs.extend(isoWeek);
@@ -17,6 +17,13 @@ interface AppState {
   isSettingsOpen: boolean;
   isLoading: boolean;
 
+  // Tasks state
+  tasks: TaskItem[];
+  activeTask: TaskItem | null;
+  isTaskModalOpen: boolean;
+  taskModalInitialStatus: TaskStatus;
+  isTasksLoading: boolean;
+
   // Actions
   initApp: () => Promise<void>;
   loadSettings: () => Promise<void>;
@@ -31,6 +38,26 @@ interface AppState {
   applyTemplate: (templateId: string) => void;
   setIsSettingsOpen: (open: boolean) => void;
   toggleTaskInNote: (taskText: string, checked: boolean) => void;
+
+  // Task actions
+  refreshTasksList: () => Promise<void>;
+  createOrUpdateTask: (taskData: {
+    filename?: string;
+    title: string;
+    status: TaskStatus;
+    priority?: TaskPriority;
+    created?: string;
+    due?: string;
+    startedDate?: string;
+    completedDate?: string;
+    tags?: string[];
+    content: string;
+  }) => Promise<TaskItem | null>;
+  updateTaskStatus: (filename: string, status: TaskStatus) => Promise<void>;
+  deleteTask: (filename: string) => Promise<void>;
+  logTaskToDailyNote: (task: TaskItem, targetDate?: string) => Promise<boolean>;
+  openTaskModal: (task?: TaskItem | null, defaultStatus?: TaskStatus) => void;
+  closeTaskModal: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -44,6 +71,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   isSettingsOpen: false,
   isLoading: true,
 
+  tasks: [],
+  activeTask: null,
+  isTaskModalOpen: false,
+  taskModalInitialStatus: 'todo',
+  isTasksLoading: false,
+
+
   initApp: async () => {
     try {
       if (window.electronAPI) {
@@ -53,11 +87,13 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
         set({ settings, isLoading: false });
         await get().refreshNotesList();
+        await get().refreshTasksList();
         await get().loadNoteForDate(get().selectedDate);
       } else {
         // Fallback for browser testing if opened outside electron
         set({
           settings: {
+
             vaultPath: '/mock/vault',
             language: 'en',
             themeColor: 'indigo',
@@ -215,4 +251,109 @@ export const useAppStore = create<AppState>((set, get) => ({
       get().saveActiveNote();
     }
   },
+
+  refreshTasksList: async () => {
+    if (!window.electronAPI) return;
+    try {
+      set({ isTasksLoading: true });
+      const tasks = await window.electronAPI.listTasks();
+      set({ tasks: tasks || [], isTasksLoading: false });
+    } catch (err) {
+      console.error('Failed to list tasks:', err);
+      set({ isTasksLoading: false });
+    }
+  },
+
+  createOrUpdateTask: async (taskData) => {
+    if (!window.electronAPI) return null;
+    try {
+      const res = await window.electronAPI.writeTask(taskData);
+      if (res.success) {
+        await get().refreshTasksList();
+        return res.task;
+      }
+      return null;
+    } catch (err) {
+      console.error('Failed to write task:', err);
+      return null;
+    }
+  },
+
+  updateTaskStatus: async (filename: string, status: TaskStatus) => {
+    // Optimistically update status in local state for instant drag feedback
+    const previousTasks = get().tasks;
+    set({
+      tasks: previousTasks.map((t) => (t.filename === filename ? { ...t, status } : t)),
+    });
+
+    if (!window.electronAPI) return;
+    try {
+      const res = await window.electronAPI.updateTaskStatus(filename, status);
+      if (res.success) {
+        await get().refreshTasksList();
+      } else {
+        // Rollback on error
+        set({ tasks: previousTasks });
+      }
+    } catch (err) {
+      console.error('Failed to update task status:', err);
+      set({ tasks: previousTasks });
+    }
+  },
+
+  deleteTask: async (filename: string) => {
+    if (!window.electronAPI) return;
+    try {
+      await window.electronAPI.deleteTask(filename);
+      await get().refreshTasksList();
+      if (get().activeTask?.filename === filename) {
+        set({ activeTask: null, isTaskModalOpen: false });
+      }
+    } catch (err) {
+      console.error('Failed to delete task:', err);
+    }
+  },
+
+  logTaskToDailyNote: async (task: TaskItem, targetDate?: string) => {
+    if (!window.electronAPI) return false;
+    const dateToUse = targetDate || get().selectedDate || dayjs().format('YYYY-MM-DD');
+    try {
+      const res = await window.electronAPI.logTaskToDailyNote({
+        date: dateToUse,
+        taskTitle: task.title,
+        status: task.status,
+        priority: task.priority,
+        filename: task.filename,
+      });
+
+      if (res.success) {
+        // If the date logged matches the currently loaded active note or selected date, reload it
+        await get().refreshNotesList();
+        if (get().selectedDate === dateToUse) {
+          await get().loadNoteForDate(dateToUse);
+        }
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Failed to log task to daily note:', err);
+      return false;
+    }
+  },
+
+  openTaskModal: (task = null, defaultStatus = 'todo') => {
+    set({
+      activeTask: task,
+      taskModalInitialStatus: defaultStatus,
+      isTaskModalOpen: true,
+    });
+  },
+
+  closeTaskModal: () => {
+    set({
+      activeTask: null,
+      isTaskModalOpen: false,
+    });
+  },
 }));
+

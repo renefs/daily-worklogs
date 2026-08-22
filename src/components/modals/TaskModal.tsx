@@ -1,0 +1,493 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Modal,
+  TextInput,
+  Select,
+  TagsInput,
+  Button,
+  Group,
+  Stack,
+  Tabs,
+  Text,
+  Badge,
+  ActionIcon,
+  Tooltip,
+  Paper,
+  Divider,
+  useMantineColorScheme,
+} from '@mantine/core';
+import { DatePickerInput } from '@mantine/dates';
+import { notifications } from '@mantine/notifications';
+import {
+  IconCheck,
+  IconTrash,
+  IconDeviceFloppy,
+  IconEdit,
+  IconEye,
+  IconCalendar,
+  IconTag,
+  IconFlag,
+  IconListCheck,
+  IconFolderOpen,
+  IconFilePlus,
+  IconClockPlay,
+  IconClockCheck,
+} from '@tabler/icons-react';
+import CodeMirror from '@uiw/react-codemirror';
+import { markdown } from '@codemirror/lang-markdown';
+import { oneDark } from '@codemirror/theme-one-dark';
+import dayjs from 'dayjs';
+import { useTranslation } from 'react-i18next';
+import { useAppStore } from '../../store/useAppStore';
+import { TaskPriority, TaskStatus } from '../../types';
+import { MarkdownViewer } from '../viewer/MarkdownViewer';
+
+
+export const TaskModal: React.FC = () => {
+  const { t } = useTranslation();
+  const { colorScheme } = useMantineColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  const {
+    isTaskModalOpen,
+    activeTask,
+    taskModalInitialStatus,
+    closeTaskModal,
+    createOrUpdateTask,
+    deleteTask,
+    logTaskToDailyNote,
+    settings,
+  } = useAppStore();
+
+  const [title, setTitle] = useState('');
+  const [status, setStatus] = useState<TaskStatus>('todo');
+  const [priority, setPriority] = useState<TaskPriority>('medium');
+  const [dueDate, setDueDate] = useState<Date | null>(null);
+  const [startedDate, setStartedDate] = useState<Date | null>(null);
+  const [completedDate, setCompletedDate] = useState<Date | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
+  const [content, setContent] = useState('');
+  const [activeTab, setActiveTab] = useState<string | null>('write');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLogging, setIsLogging] = useState(false);
+
+  // Initialize or reset form when modal opens / task changes
+  useEffect(() => {
+    if (isTaskModalOpen) {
+      if (activeTask) {
+        setTitle(activeTask.title || '');
+        setStatus(activeTask.status || 'todo');
+        setPriority(activeTask.priority || 'medium');
+        setDueDate(activeTask.due ? dayjs(activeTask.due).toDate() : null);
+        setStartedDate(activeTask.startedDate ? dayjs(activeTask.startedDate).toDate() : null);
+        setCompletedDate(activeTask.completedDate ? dayjs(activeTask.completedDate).toDate() : null);
+        setTags(activeTask.tags || []);
+        setContent(activeTask.content || '');
+      } else {
+        setTitle('');
+        setStatus(taskModalInitialStatus || 'todo');
+        setPriority('medium');
+        setDueDate(null);
+        setStartedDate(taskModalInitialStatus === 'in_progress' ? new Date() : null);
+        setCompletedDate(taskModalInitialStatus === 'done' ? new Date() : null);
+        setTags([]);
+        setContent('');
+      }
+      setActiveTab('write');
+      setIsDeleting(false);
+      setIsSaving(false);
+      setIsLogging(false);
+    }
+  }, [isTaskModalOpen, activeTask, taskModalInitialStatus]);
+
+  const handleStatusChange = (newStatus: TaskStatus) => {
+    setStatus(newStatus);
+    const today = new Date();
+    if (newStatus === 'in_progress' && !startedDate) {
+      setStartedDate(today);
+    }
+    if (newStatus === 'done' && !completedDate) {
+      setCompletedDate(today);
+    } else if (newStatus !== 'done' && completedDate) {
+      setCompletedDate(null);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!title.trim()) return;
+
+    setIsSaving(true);
+    try {
+      const formattedDue = dueDate ? dayjs(dueDate).format('YYYY-MM-DD') : undefined;
+      const formattedStarted = startedDate ? dayjs(startedDate).format('YYYY-MM-DD') : undefined;
+      const formattedCompleted = completedDate ? dayjs(completedDate).format('YYYY-MM-DD') : undefined;
+
+      const result = await createOrUpdateTask({
+        filename: activeTask?.filename,
+        title: title.trim(),
+        status,
+        priority,
+        due: formattedDue,
+        startedDate: formattedStarted,
+        completedDate: formattedCompleted,
+        tags,
+        content,
+      });
+
+      if (result) {
+        notifications.show({
+          title: t('tasks.taskSaved'),
+          message: `${result.title}`,
+          color: 'teal',
+          icon: <IconCheck size={16} />,
+        });
+        closeTaskModal();
+      }
+    } catch (err) {
+      console.error('Failed to save task:', err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleLogToDaily = async () => {
+    if (!activeTask && !title.trim()) return;
+    setIsLogging(true);
+    try {
+      const taskToLog = activeTask || {
+        id: 'new',
+        filename: '',
+        filepath: '',
+        title: title.trim(),
+        status,
+        priority,
+        created: dayjs().format('YYYY-MM-DD'),
+        content,
+      };
+
+      const success = await logTaskToDailyNote(taskToLog);
+      if (success) {
+        notifications.show({
+          title: t('tasks.taskLoggedToDaily'),
+          message: title.trim() || activeTask?.title || '',
+          color: 'teal',
+          icon: <IconCheck size={16} />,
+        });
+      }
+    } catch (err) {
+      console.error('Failed to log task to note:', err);
+    } finally {
+      setIsLogging(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!activeTask) return;
+    setIsSaving(true);
+    try {
+      await deleteTask(activeTask.filename);
+      notifications.show({
+        title: t('tasks.taskDeleted'),
+        message: activeTask.title,
+        color: 'red',
+        icon: <IconTrash size={16} />,
+      });
+      closeTaskModal();
+    } catch (err) {
+      console.error('Failed to delete task:', err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleOpenFileInFileManager = () => {
+    if (window.electronAPI && activeTask?.filepath) {
+      window.electronAPI.openInFileManager(activeTask.filepath);
+    }
+  };
+
+  const priorityOptions = [
+    { value: 'low', label: t('tasks.priorityLow'), color: 'gray' },
+    { value: 'medium', label: t('tasks.priorityMedium'), color: 'blue' },
+    { value: 'high', label: t('tasks.priorityHigh'), color: 'orange' },
+    { value: 'urgent', label: t('tasks.priorityUrgent'), color: 'red' },
+  ];
+
+  const statusOptions = [
+    { value: 'backlog', label: t('tasks.statusBacklog') },
+    { value: 'todo', label: t('tasks.statusTodo') },
+    { value: 'in_progress', label: t('tasks.statusInProgress') },
+    { value: 'waiting', label: t('tasks.statusWaiting') },
+    { value: 'done', label: t('tasks.statusDone') },
+  ];
+
+  return (
+    <Modal
+      opened={isTaskModalOpen}
+      onClose={closeTaskModal}
+      title={
+        <Group gap="xs">
+          <IconListCheck size={20} color="var(--mantine-primary-color-filled)" />
+          <Text fw={700} size="md">
+            {activeTask ? t('tasks.editTask') : t('tasks.newTask')}
+          </Text>
+          {activeTask?.filename && (
+            <Badge variant="dot" color="gray" size="sm">
+              {activeTask.filename}
+            </Badge>
+          )}
+        </Group>
+      }
+      size="lg"
+      radius="md"
+      centered
+      padding="md"
+    >
+      <Stack gap="md">
+        {/* Title input */}
+        <TextInput
+          label="Title"
+          placeholder={t('tasks.titlePlaceholder')}
+          value={title}
+          onChange={(e) => setTitle(e.currentTarget.value)}
+          required
+          autoFocus
+          radius="md"
+          size="md"
+          styles={{
+            input: {
+              fontWeight: 600,
+            },
+          }}
+        />
+
+        {/* Row 1: Status & Priority */}
+        <Group grow align="flex-start">
+          <Select
+            label="Status"
+            value={status}
+            onChange={(val) => val && handleStatusChange(val as TaskStatus)}
+            data={statusOptions}
+            radius="md"
+            allowDeselect={false}
+            renderOption={({ option }) => {
+              const colors: Record<string, string> = {
+                backlog: 'gray',
+                todo: 'blue',
+                in_progress: 'indigo',
+                waiting: 'yellow',
+                done: 'teal',
+              };
+              return (
+                <Group gap="xs">
+                  <Badge size="xs" color={colors[option.value] || 'blue'} variant="dot">
+                    {option.label}
+                  </Badge>
+                </Group>
+              );
+            }}
+          />
+
+          <Select
+            label={t('tasks.priority')}
+            value={priority}
+            onChange={(val) => val && setPriority(val as TaskPriority)}
+            data={priorityOptions.map((p) => ({ value: p.value, label: p.label }))}
+            leftSection={<IconFlag size={16} />}
+            radius="md"
+            allowDeselect={false}
+            renderOption={({ option }) => {
+              const pObj = priorityOptions.find((p) => p.value === option.value);
+              return (
+                <Group gap="xs">
+                  <Badge size="xs" color={pObj?.color || 'gray'} variant="filled">
+                    {option.label}
+                  </Badge>
+                </Group>
+              );
+            }}
+          />
+        </Group>
+
+        {/* Row 2: Due Date & Tags */}
+        <Group grow align="flex-start">
+          <DatePickerInput
+            label={t('tasks.dueDate')}
+            placeholder={t('tasks.noDueDate')}
+            value={dueDate}
+            onChange={setDueDate}
+            leftSection={<IconCalendar size={16} />}
+            clearable
+            radius="md"
+          />
+
+          <TagsInput
+            label={t('tasks.tags')}
+            placeholder={t('tasks.addTagPlaceholder')}
+            value={tags}
+            onChange={setTags}
+            leftSection={<IconTag size={16} />}
+            clearable
+            radius="md"
+          />
+        </Group>
+
+        {/* Row 3: Tracking & Lifecycle Dates (Started & Completed) */}
+        <Group grow align="flex-start">
+          <DatePickerInput
+            label={t('tasks.startedDate')}
+            placeholder={t('tasks.noStartedDate')}
+            value={startedDate}
+            onChange={setStartedDate}
+            leftSection={<IconClockPlay size={16} />}
+            clearable
+            radius="md"
+          />
+
+          <DatePickerInput
+            label={t('tasks.completedDate')}
+            placeholder={t('tasks.noCompletedDate')}
+            value={completedDate}
+            onChange={setCompletedDate}
+            leftSection={<IconClockCheck size={16} />}
+            clearable
+            radius="md"
+          />
+        </Group>
+
+        {/* Markdown Content Section */}
+        <div>
+          <Group justify="space-between" align="center" mb={6}>
+            <Text size="sm" fw={500}>
+              {t('tasks.markdownEditor')}
+            </Text>
+            <Tabs value={activeTab} onChange={setActiveTab} variant="pills" radius="md">
+              <Tabs.List>
+                <Tabs.Tab value="write" leftSection={<IconEdit size={14} />}>
+                  {t('editor.write')}
+                </Tabs.Tab>
+                <Tabs.Tab value="preview" leftSection={<IconEye size={14} />}>
+                  {t('tasks.markdownPreview')}
+                </Tabs.Tab>
+              </Tabs.List>
+            </Tabs>
+          </Group>
+
+          {activeTab === 'write' ? (
+            <div
+              style={{
+                height: 220,
+                border: '1px solid var(--mantine-color-default-border)',
+                borderRadius: 8,
+                overflow: 'hidden',
+                backgroundColor: isDark ? '#141517' : '#ffffff',
+                fontSize: `${settings?.editorFontSize ? settings.editorFontSize - 1 : 14}px`,
+              }}
+            >
+              <CodeMirror
+                value={content}
+                height="100%"
+                theme={isDark ? oneDark : 'light'}
+                extensions={[markdown()]}
+                onChange={(val) => setContent(val)}
+                placeholder={t('tasks.descriptionPlaceholder')}
+                basicSetup={{
+                  lineNumbers: false,
+                  foldGutter: false,
+                  highlightActiveLine: false,
+                  autocompletion: true,
+                }}
+                style={{ height: '100%' }}
+              />
+            </div>
+          ) : (
+            <Paper
+              withBorder
+              p="sm"
+              radius="md"
+              style={{ height: 220, overflow: 'auto', backgroundColor: 'var(--mantine-color-body)' }}
+            >
+              <MarkdownViewer content={content || '_No description provided_'} allowToggleTasks={false} />
+            </Paper>
+          )}
+        </div>
+
+        {/* Info & Metadata indicator */}
+        <Group justify="space-between" wrap="nowrap">
+          <Text size="xs" c="dimmed">
+            {t('tasks.frontmatterInfo')}
+          </Text>
+          {activeTask?.filepath && (
+            <Tooltip label={t('tasks.openInFileManager')} withArrow>
+              <ActionIcon variant="subtle" size="sm" onClick={handleOpenFileInFileManager}>
+                <IconFolderOpen size={16} />
+              </ActionIcon>
+            </Tooltip>
+          )}
+        </Group>
+
+        <Divider />
+
+        {/* Action Buttons */}
+        <Group justify="space-between" align="center">
+          <Group gap="xs">
+            {activeTask && (
+              isDeleting ? (
+                <Group gap="xs">
+                  <Text size="xs" c="red" fw={600}>
+                    Confirm delete?
+                  </Text>
+                  <Button color="red" size="xs" radius="md" onClick={handleDelete} loading={isSaving}>
+                    {t('common.delete')}
+                  </Button>
+                  <Button variant="default" size="xs" radius="md" onClick={() => setIsDeleting(false)}>
+                    {t('common.cancel')}
+                  </Button>
+                </Group>
+              ) : (
+                <Button
+                  variant="subtle"
+                  color="red"
+                  size="sm"
+                  leftSection={<IconTrash size={16} />}
+                  onClick={() => setIsDeleting(true)}
+                >
+                  {t('common.delete')}
+                </Button>
+              )
+            )}
+
+            <Button
+              variant="light"
+              color="indigo"
+              size="sm"
+              leftSection={<IconFilePlus size={16} />}
+              onClick={handleLogToDaily}
+              loading={isLogging}
+              radius="md"
+            >
+              {t('tasks.logToDailyNote')}
+            </Button>
+          </Group>
+
+          <Group gap="xs">
+            <Button variant="default" onClick={closeTaskModal} radius="md">
+              {t('common.cancel')}
+            </Button>
+            <Button
+              color="primary"
+              leftSection={<IconDeviceFloppy size={16} />}
+              onClick={handleSave}
+              disabled={!title.trim()}
+              loading={isSaving}
+              radius="md"
+            >
+              {t('common.save')}
+            </Button>
+          </Group>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+};
