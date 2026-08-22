@@ -33,7 +33,7 @@ dayjs.extend(isoWeek);
 
 export const WeeklyView: React.FC = () => {
   const { t, i18n } = useTranslation();
-  const { settings, selectedDate } = useAppStore();
+  const { settings, selectedDate, notesList } = useAppStore();
   const [currentWeekDate, setCurrentWeekDate] = useState<string>(selectedDate);
   const [periodSummary, setPeriodSummary] = useState<PeriodSummary | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -78,7 +78,7 @@ export const WeeklyView: React.FC = () => {
 
   useEffect(() => {
     fetchWeekData();
-  }, [weekRange.start, weekRange.end]);
+  }, [weekRange.start, weekRange.end, notesList]);
 
   const handlePrevWeek = () => {
     setCurrentWeekDate(dayjs(currentWeekDate).subtract(7, 'day').format('YYYY-MM-DD'));

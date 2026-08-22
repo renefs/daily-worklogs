@@ -30,7 +30,7 @@ import { ExportModal } from '../modals/ExportModal';
 
 export const MonthlyView: React.FC = () => {
   const { t, i18n } = useTranslation();
-  const { selectedDate } = useAppStore();
+  const { selectedDate, notesList } = useAppStore();
   const [currentMonthDate, setCurrentMonthDate] = useState<string>(selectedDate);
   const [periodSummary, setPeriodSummary] = useState<PeriodSummary | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -60,7 +60,7 @@ export const MonthlyView: React.FC = () => {
 
   useEffect(() => {
     fetchMonthData();
-  }, [monthRange.start, monthRange.end]);
+  }, [monthRange.start, monthRange.end, notesList]);
 
   const handlePrevMonth = () => {
     setCurrentMonthDate(dayjs(currentMonthDate).subtract(1, 'month').format('YYYY-MM-DD'));
