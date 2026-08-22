@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Group,
-  Button,
   ActionIcon,
   Tooltip,
   SegmentedControl,
@@ -17,31 +16,24 @@ import {
   IconSun,
   IconMoon,
   IconBook2,
-  IconLanguage,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
 import { AppViewMode } from '../../types';
 
 export const AppHeader: React.FC = () => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const {
     currentView,
     setCurrentView,
     setIsSettingsOpen,
-    updateSettings,
   } = useAppStore();
 
   const isMac =
     typeof window !== 'undefined' &&
     (window.electronAPI?.platform === 'darwin' ||
       /Macintosh|Mac OS X/i.test(navigator.userAgent));
-
-  const handleToggleLanguage = () => {
-    const nextLang = i18n.language === 'en' ? 'es' : 'en';
-    updateSettings({ language: nextLang });
-  };
 
   return (
     <Group
@@ -137,24 +129,8 @@ export const AppHeader: React.FC = () => {
         />
       </div>
 
-      {/* Right Controls: Language, Theme, Settings */}
+      {/* Right Controls: Theme, Settings */}
       <Group gap={8} wrap="nowrap" className="app-no-drag" style={{ flexShrink: 0 }}>
-        {/* Language Quick Toggle */}
-        <Tooltip label={i18n.language === 'en' ? 'Cambiar a Español' : 'Switch to English'} withArrow position="bottom">
-          <Button
-            variant="subtle"
-            size="xs"
-            px={8}
-            h={30}
-            leftSection={<IconLanguage size={15} stroke={1.8} />}
-            onClick={handleToggleLanguage}
-            radius="md"
-            style={{ fontWeight: 600, fontSize: 12 }}
-          >
-            {i18n.language.toUpperCase()}
-          </Button>
-        </Tooltip>
-
         {/* Dark/Light Mode */}
         <Tooltip label={colorScheme === 'dark' ? 'Light Mode' : 'Dark Mode'} withArrow position="bottom">
           <ActionIcon
