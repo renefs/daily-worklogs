@@ -10,6 +10,37 @@ export interface DailyNote {
   tasksCompleted?: number;
 }
 
+export type TaskStatus = 'backlog' | 'todo' | 'in_progress' | 'waiting' | 'done';
+
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+export interface TaskActivityEntry {
+  date: string;
+  action: string;
+  note?: string;
+}
+
+export interface TaskItem {
+  id: string; // Filename or identifier without extension
+  filename: string; // e.g. "my-task.md"
+  filepath: string;
+  title: string;
+  status: TaskStatus;
+  priority?: TaskPriority;
+  created: string; // YYYY-MM-DD
+  due?: string; // YYYY-MM-DD
+  startedDate?: string; // YYYY-MM-DD
+  completedDate?: string; // YYYY-MM-DD
+  tags?: string[];
+  content: string; // Markdown body
+  rawContent?: string;
+  lastModified?: string;
+  frontmatter?: Record<string, any>;
+  checklistTotal?: number;
+  checklistCompleted?: number;
+  activityLog?: TaskActivityEntry[];
+}
+
 export type WeekStartDay = 0 | 1 | 6; // 0 = Sunday, 1 = Monday, 6 = Saturday
 
 export interface NoteTemplate {
@@ -33,7 +64,13 @@ export interface AppSettings {
   editorFontSize: number;
 }
 
-export type AppViewMode = 'daily' | 'weekly' | 'monthly' | 'calendar' | 'settings';
+export type AppViewMode = 'daily' | 'weekly' | 'monthly' | 'calendar' | 'tasks' | 'settings';
+
+export interface DailyChecklistItem {
+  date: string;
+  text: string;
+  completed: boolean;
+}
 
 export interface WorklogDaySummary {
   date: string;
@@ -42,6 +79,7 @@ export interface WorklogDaySummary {
   tasksTotal: number;
   tasksCompleted: number;
   sections: Array<{ title: string; body: string }>;
+  checklistItems?: DailyChecklistItem[];
 }
 
 export interface PeriodSummary {
@@ -53,4 +91,12 @@ export interface PeriodSummary {
   totalTasks: number;
   completedTasks: number;
   days: WorklogDaySummary[];
+  periodTasks?: TaskItem[];
+  completedTasksList?: TaskItem[];
+  inProgressTasksList?: TaskItem[];
+  waitingTasksList?: TaskItem[];
+  backlogTasksList?: TaskItem[];
+  dailyChecklistItems?: DailyChecklistItem[];
+  tagBreakdown?: Record<string, { total: number; completed: number }>;
+  priorityBreakdown?: Record<string, { total: number; completed: number }>;
 }
