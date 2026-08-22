@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { MantineProvider, createTheme } from '@mantine/core';
+import { MantineProvider, createTheme, DEFAULT_THEME, MantineColorsTuple } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { useAppStore } from './store/useAppStore';
 import { AppLayout } from './components/layout/AppLayout';
@@ -12,8 +12,14 @@ export const App: React.FC = () => {
   }, [initApp]);
 
   const theme = useMemo(() => {
+    const primaryColorKey = settings?.themeColor || 'indigo';
+    const primaryShades = (DEFAULT_THEME.colors[primaryColorKey] || DEFAULT_THEME.colors.indigo) as MantineColorsTuple;
+
     return createTheme({
-      primaryColor: settings?.themeColor || 'indigo',
+      primaryColor: 'primary',
+      colors: {
+        primary: primaryShades,
+      },
       fontFamily: 'var(--font-sans)',
       headings: {
         fontFamily: 'var(--font-display)',
