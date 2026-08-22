@@ -10,7 +10,68 @@ export interface DailyNote {
   tasksCompleted?: number;
 }
 
-export type TaskStatus = 'backlog' | 'todo' | 'in_progress' | 'waiting' | 'done';
+export type ColumnBehavior = 'backlog' | 'todo' | 'in_progress' | 'waiting' | 'done' | 'cancelled';
+
+export interface KanbanColumnConfig {
+  id: string; // unique status id, e.g. "backlog", "todo", "in_progress", "waiting", "done", "cancelled", etc.
+  title: string;
+  titleKey?: string;
+  color: string;
+  iconName?: string;
+  visible: boolean;
+  behavior: ColumnBehavior;
+  isCustom?: boolean;
+}
+
+export const DEFAULT_KANBAN_COLUMNS: KanbanColumnConfig[] = [
+  {
+    id: 'backlog',
+    title: 'Backlog',
+    titleKey: 'tasks.columnBacklog',
+    color: 'gray',
+    iconName: 'inbox',
+    visible: true,
+    behavior: 'backlog',
+  },
+  {
+    id: 'todo',
+    title: 'To do',
+    titleKey: 'tasks.columnTodo',
+    color: 'blue',
+    iconName: 'circle-dot',
+    visible: true,
+    behavior: 'todo',
+  },
+  {
+    id: 'in_progress',
+    title: 'In progress',
+    titleKey: 'tasks.columnInProgress',
+    color: 'indigo',
+    iconName: 'player-play',
+    visible: true,
+    behavior: 'in_progress',
+  },
+  {
+    id: 'waiting',
+    title: 'Waiting',
+    titleKey: 'tasks.columnWaiting',
+    color: 'yellow',
+    iconName: 'hourglass',
+    visible: true,
+    behavior: 'waiting',
+  },
+  {
+    id: 'done',
+    title: 'Done',
+    titleKey: 'tasks.columnDone',
+    color: 'teal',
+    iconName: 'circle-check',
+    visible: true,
+    behavior: 'done',
+  },
+];
+
+export type TaskStatus = 'backlog' | 'todo' | 'in_progress' | 'waiting' | 'done' | string;
 
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
@@ -58,6 +119,7 @@ export interface AppSettings {
   weekStartDay: WeekStartDay;
   defaultTemplateId: string;
   templates: NoteTemplate[];
+  kanbanColumns?: KanbanColumnConfig[];
   autoSave: boolean;
   autoSaveDelay: number; // in ms
   dateFormat: string;

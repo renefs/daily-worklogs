@@ -28,59 +28,16 @@ import {
   IconCalendar,
   IconTag,
   IconChecklist,
-  IconInbox,
-  IconCircleDot,
-  IconPlayerPlay,
-  IconHourglass,
-  IconCircleCheck,
   IconAlertCircle,
   IconLayoutKanban,
   IconRefresh,
+  IconAdjustments,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
-import { TaskItem, TaskPriority, TaskStatus } from '../../types';
-
-interface ColumnConfig {
-  id: TaskStatus;
-  titleKey: string;
-  color: string;
-  icon: React.ReactNode;
-}
-
-const COLUMNS: ColumnConfig[] = [
-  {
-    id: 'backlog',
-    titleKey: 'tasks.columnBacklog',
-    color: 'gray',
-    icon: <IconInbox size={17} />,
-  },
-  {
-    id: 'todo',
-    titleKey: 'tasks.columnTodo',
-    color: 'blue',
-    icon: <IconCircleDot size={17} />,
-  },
-  {
-    id: 'in_progress',
-    titleKey: 'tasks.columnInProgress',
-    color: 'indigo',
-    icon: <IconPlayerPlay size={17} />,
-  },
-  {
-    id: 'waiting',
-    titleKey: 'tasks.columnWaiting',
-    color: 'yellow',
-    icon: <IconHourglass size={17} />,
-  },
-  {
-    id: 'done',
-    titleKey: 'tasks.columnDone',
-    color: 'teal',
-    icon: <IconCircleCheck size={17} />,
-  },
-];
+import { DEFAULT_KANBAN_COLUMNS, KanbanColumnConfig, TaskItem, TaskPriority } from '../../types';
+import { getColumnIcon, getColumnTitle } from '../kanban/columnUtils';
 
 export const KanbanView: React.FC = () => {
   const { t } = useTranslation();
@@ -88,19 +45,41 @@ export const KanbanView: React.FC = () => {
   const isDark = colorScheme === 'dark';
 
   const {
+    settings,
     tasks,
     isTasksLoading,
     refreshTasksList,
     updateTaskStatus,
     deleteTask,
     openTaskModal,
+    openSettings,
   } = useAppStore();
 
   const [search, setSearch] = useState('');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [tagFilter, setTagFilter] = useState<string>('all');
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
-  const [dragOverColumn, setDragOverColumn] = useState<TaskStatus | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+
+  // All configured columns
+  const allColumns: KanbanColumnConfig[] = useMemo(() => {
+    return settings?.kanbanColumns && settings.kanbanColumns.length > 0
+      ? settings.kanbanColumns
+      : DEFAULT_KANBAN_COLUMNS;
+  }, [settings?.kanbanColumns]);
+
+  // Filter only visible columns for board display
+  const visibleColumns = useMemo(() => {
+    const vis = allColumns.filter((c) => c.visible !== false);
+    return vis.length > 0 ? vis : allColumns.slice(0, 1);
+  }, [allColumns]);
+
+  // Create behavior map for fast lookup
+  const columnBehaviorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    allColumns.forEach((c) => map.set(c.id, c.behavior));
+    return map;
+  }, [allColumns]);
 
   // Collect all unique tags from tasks
   const allTags = useMemo(() => {
@@ -143,21 +122,32 @@ export const KanbanView: React.FC = () => {
 
   // Group tasks by column status
   const tasksByColumn = useMemo(() => {
-    const map: Record<TaskStatus, TaskItem[]> = {
-      backlog: [],
-      todo: [],
-      in_progress: [],
-      waiting: [],
-      done: [],
-    };
+    const map: Record<string, TaskItem[]> = {};
+
+    allColumns.forEach((col) => {
+      map[col.id] = [];
+    });
+
+    const defaultFallbackStatus = visibleColumns[0]?.id || 'todo';
+    if (!map[defaultFallbackStatus]) {
+      map[defaultFallbackStatus] = [];
+    }
 
     filteredTasks.forEach((task) => {
-      const status = task.status && map[task.status] ? task.status : 'todo';
-      map[status].push(task);
+      const taskStatus = task.status || defaultFallbackStatus;
+      if (map[taskStatus]) {
+        map[taskStatus].push(task);
+      } else {
+        // If task has an unrecognized status, put in fallback column or dynamically assign
+        if (!map[taskStatus]) {
+          map[taskStatus] = [];
+        }
+        map[taskStatus].push(task);
+      }
     });
 
     return map;
-  }, [filteredTasks]);
+  }, [filteredTasks, allColumns, visibleColumns]);
 
   // Drag Handlers
   const handleDragStart = (e: React.DragEvent, task: TaskItem) => {
@@ -171,7 +161,7 @@ export const KanbanView: React.FC = () => {
     setDragOverColumn(null);
   };
 
-  const handleDragOver = (e: React.DragEvent, columnId: TaskStatus) => {
+  const handleDragOver = (e: React.DragEvent, columnId: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     if (dragOverColumn !== columnId) {
@@ -179,8 +169,7 @@ export const KanbanView: React.FC = () => {
     }
   };
 
-  const handleDragLeave = (e: React.DragEvent, columnId: TaskStatus) => {
-    // Only clear if leaving the column element itself
+  const handleDragLeave = (e: React.DragEvent, columnId: string) => {
     const related = e.relatedTarget as HTMLElement | null;
     if (!related || !e.currentTarget.contains(related)) {
       if (dragOverColumn === columnId) {
@@ -189,7 +178,7 @@ export const KanbanView: React.FC = () => {
     }
   };
 
-  const handleDrop = async (e: React.DragEvent, targetStatus: TaskStatus) => {
+  const handleDrop = async (e: React.DragEvent, targetStatus: string) => {
     e.preventDefault();
     setDragOverColumn(null);
     setDraggingTaskId(null);
@@ -201,8 +190,11 @@ export const KanbanView: React.FC = () => {
 
       if (filename && sourceStatus !== targetStatus) {
         await updateTaskStatus(filename, targetStatus);
+        const targetCol = allColumns.find((c) => c.id === targetStatus);
+        const colTitle = targetCol ? getColumnTitle(targetCol, t) : targetStatus;
+
         notifications.show({
-          title: t('tasks.statusUpdated', { status: t(`tasks.status${targetStatus.charAt(0).toUpperCase() + targetStatus.slice(1).replace('_', '')}`) }),
+          title: t('tasks.statusUpdated', { status: colTitle }),
           message: filename,
           color: 'teal',
           autoClose: 2000,
@@ -259,10 +251,15 @@ export const KanbanView: React.FC = () => {
     }
   };
 
-  const totalDone = tasksByColumn.done.length;
+  // Count done or cancelled tasks
+  const totalCompleted = useMemo(() => {
+    return tasks.filter((t) => {
+      const b = columnBehaviorMap.get(t.status) || t.status;
+      return b === 'done' || b === 'cancelled';
+    }).length;
+  }, [tasks, columnBehaviorMap]);
 
   return (
-
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 12 }}>
       {/* Top Header & Toolbar */}
       <Group justify="space-between" align="center" wrap="wrap">
@@ -284,15 +281,32 @@ export const KanbanView: React.FC = () => {
           <div>
             <Title order={3}>{t('tasks.title')}</Title>
             <Text size="xs" c="dimmed">
-              {tasks.length} {t('common.tasks')} • {totalDone} {t('tasks.statusDone').toLowerCase()}
+              {tasks.length} {t('common.tasks')} • {totalCompleted} {t('tasks.statusDone').toLowerCase()}
             </Text>
           </div>
         </Group>
 
         <Group gap="xs">
           <Tooltip label="Refresh tasks" withArrow>
-            <ActionIcon variant="default" size="lg" radius="md" onClick={() => refreshTasksList()} loading={isTasksLoading}>
+            <ActionIcon
+              variant="default"
+              size="lg"
+              radius="md"
+              onClick={() => refreshTasksList()}
+              loading={isTasksLoading}
+            >
               <IconRefresh size={16} />
+            </ActionIcon>
+          </Tooltip>
+
+          <Tooltip label={t('tasks.boardSettings')} withArrow>
+            <ActionIcon
+              variant="default"
+              size="lg"
+              radius="md"
+              onClick={() => openSettings('kanban')}
+            >
+              <IconAdjustments size={16} />
             </ActionIcon>
           </Tooltip>
 
@@ -300,7 +314,7 @@ export const KanbanView: React.FC = () => {
             variant="filled"
             color="primary"
             leftSection={<IconPlus size={16} />}
-            onClick={() => openTaskModal(null, 'todo')}
+            onClick={() => openTaskModal(null, visibleColumns[0]?.id || 'todo')}
             radius="md"
           >
             {t('tasks.newTask')}
@@ -366,15 +380,16 @@ export const KanbanView: React.FC = () => {
           flex: 1,
           minHeight: 0,
           display: 'grid',
-          gridTemplateColumns: 'repeat(5, minmax(240px, 1fr))',
+          gridTemplateColumns: `repeat(${visibleColumns.length}, minmax(260px, 1fr))`,
           gap: 12,
           overflowX: 'auto',
           paddingBottom: 4,
         }}
       >
-        {COLUMNS.map((col) => {
+        {visibleColumns.map((col) => {
           const columnTasks = tasksByColumn[col.id] || [];
           const isTargeted = dragOverColumn === col.id;
+          const colTitle = getColumnTitle(col, t);
 
           return (
             <div
@@ -398,7 +413,7 @@ export const KanbanView: React.FC = () => {
                   ? '2px dashed var(--mantine-primary-color-filled)'
                   : '1px solid var(--mantine-color-default-border)',
                 transition: 'all 0.18s ease',
-                minWidth: 240,
+                minWidth: 260,
                 overflow: 'hidden',
               }}
             >
@@ -414,11 +429,13 @@ export const KanbanView: React.FC = () => {
                 }}
               >
                 <Group gap={6} wrap="nowrap">
-                  <span style={{ color: `var(--mantine-color-${col.color}-filled)` }}>{col.icon}</span>
-                  <Text fw={700} size="sm">
-                    {t(col.titleKey)}
+                  <span style={{ color: `var(--mantine-color-${col.color || 'blue'}-filled)` }}>
+                    {getColumnIcon(col.iconName, 17)}
+                  </span>
+                  <Text fw={700} size="sm" truncate>
+                    {colTitle}
                   </Text>
-                  <Badge size="xs" color={col.color} variant="light">
+                  <Badge size="xs" color={col.color || 'blue'} variant="light">
                     {columnTasks.length}
                   </Badge>
                 </Group>
@@ -427,7 +444,7 @@ export const KanbanView: React.FC = () => {
                   <ActionIcon
                     variant="subtle"
                     size="sm"
-                    color={col.color}
+                    color={col.color || 'blue'}
                     onClick={() => openTaskModal(null, col.id)}
                   >
                     <IconPlus size={15} />
@@ -441,6 +458,10 @@ export const KanbanView: React.FC = () => {
                   {columnTasks.map((task) => {
                     const isDragging = draggingTaskId === task.id;
                     const priorityColor = getPriorityColor(task.priority);
+                    const taskBehavior = columnBehaviorMap.get(task.status) || col.behavior;
+                    const isDone = taskBehavior === 'done';
+                    const isCancelled = taskBehavior === 'cancelled';
+                    const isClosed = isDone || isCancelled;
 
                     return (
                       <Paper
@@ -454,7 +475,7 @@ export const KanbanView: React.FC = () => {
                         radius="md"
                         style={{
                           cursor: 'grab',
-                          opacity: isDragging ? 0.4 : 1,
+                          opacity: isDragging ? 0.4 : isCancelled ? 0.75 : 1,
                           transform: isDragging ? 'scale(0.98)' : 'none',
                           transition: 'box-shadow 0.15s ease, transform 0.15s ease, opacity 0.15s ease',
                           backgroundColor: isDark ? 'var(--mantine-color-dark-6)' : '#ffffff',
@@ -467,8 +488,18 @@ export const KanbanView: React.FC = () => {
                           <Group justify="space-between" align="center" wrap="nowrap">
                             <Group gap={4} wrap="nowrap">
                               {task.priority && (
-                                <Badge size="xs" color={priorityColor} variant="filled" style={{ textTransform: 'capitalize' }}>
+                                <Badge
+                                  size="xs"
+                                  color={priorityColor}
+                                  variant="filled"
+                                  style={{ textTransform: 'capitalize' }}
+                                >
                                   {t(`tasks.priority${task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}`)}
+                                </Badge>
+                              )}
+                              {isCancelled && (
+                                <Badge size="xs" color="red" variant="outline">
+                                  {t('tasks.statusCancelled')}
                                 </Badge>
                               )}
                               {renderDueDateBadge(task.due)}
@@ -493,16 +524,18 @@ export const KanbanView: React.FC = () => {
                                   {t('tasks.editTask')}
                                 </Menu.Item>
 
-                                <Menu.Label>Move to</Menu.Label>
-                                {COLUMNS.filter((targetCol) => targetCol.id !== task.status).map((targetCol) => (
-                                  <Menu.Item
-                                    key={targetCol.id}
-                                    onClick={() => updateTaskStatus(task.filename, targetCol.id)}
-                                    leftSection={targetCol.icon}
-                                  >
-                                    {t(targetCol.titleKey)}
-                                  </Menu.Item>
-                                ))}
+                                <Menu.Label>{t('tasks.moveTo')}</Menu.Label>
+                                {visibleColumns
+                                  .filter((targetCol) => targetCol.id !== task.status)
+                                  .map((targetCol) => (
+                                    <Menu.Item
+                                      key={targetCol.id}
+                                      onClick={() => updateTaskStatus(task.filename, targetCol.id)}
+                                      leftSection={getColumnIcon(targetCol.iconName, 14)}
+                                    >
+                                      {getColumnTitle(targetCol, t)}
+                                    </Menu.Item>
+                                  ))}
 
                                 {window.electronAPI && task.filepath && (
                                   <>
@@ -529,13 +562,12 @@ export const KanbanView: React.FC = () => {
 
                           {/* Task Title */}
                           <Text
-
                             fw={600}
                             size="sm"
                             style={{
                               lineHeight: 1.35,
-                              textDecoration: task.status === 'done' ? 'line-through' : 'none',
-                              color: task.status === 'done' ? 'var(--mantine-color-dimmed)' : 'inherit',
+                              textDecoration: isClosed ? 'line-through' : 'none',
+                              color: isClosed ? 'var(--mantine-color-dimmed)' : 'inherit',
                             }}
                           >
                             {task.title}

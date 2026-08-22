@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   TextInput,
@@ -39,9 +39,9 @@ import { oneDark } from '@codemirror/theme-one-dark';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
-import { TaskPriority, TaskStatus } from '../../types';
+import { DEFAULT_KANBAN_COLUMNS, TaskPriority, TaskStatus } from '../../types';
 import { MarkdownViewer } from '../viewer/MarkdownViewer';
-
+import { getColumnIcon, getColumnTitle } from '../kanban/columnUtils';
 
 export const TaskModal: React.FC = () => {
   const { t } = useTranslation();
@@ -72,6 +72,35 @@ export const TaskModal: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isLogging, setIsLogging] = useState(false);
 
+  const availableColumns = useMemo(() => {
+    return settings?.kanbanColumns && settings.kanbanColumns.length > 0
+      ? settings.kanbanColumns
+      : DEFAULT_KANBAN_COLUMNS;
+  }, [settings?.kanbanColumns]);
+
+  const statusOptions = useMemo(() => {
+    const opts = availableColumns.map((c) => ({
+      value: c.id,
+      label: getColumnTitle(c, t),
+      color: c.color || 'blue',
+      iconName: c.iconName,
+      behavior: c.behavior,
+    }));
+
+    // If task has a custom status not currently in columns, include it
+    if (status && !opts.some((o) => o.value === status)) {
+      opts.push({
+        value: status,
+        label: status,
+        color: 'gray',
+        iconName: 'circle-dot',
+        behavior: 'todo',
+      });
+    }
+
+    return opts;
+  }, [availableColumns, status, t]);
+
   // Initialize or reset form when modal opens / task changes
   useEffect(() => {
     if (isTaskModalOpen) {
@@ -85,12 +114,16 @@ export const TaskModal: React.FC = () => {
         setTags(activeTask.tags || []);
         setContent(activeTask.content || '');
       } else {
+        const initialStatus = taskModalInitialStatus || availableColumns[0]?.id || 'todo';
+        const targetCol = availableColumns.find((c) => c.id === initialStatus);
+        const behavior = targetCol?.behavior || 'todo';
+
         setTitle('');
-        setStatus(taskModalInitialStatus || 'todo');
+        setStatus(initialStatus);
         setPriority('medium');
         setDueDate(null);
-        setStartedDate(taskModalInitialStatus === 'in_progress' ? new Date() : null);
-        setCompletedDate(taskModalInitialStatus === 'done' ? new Date() : null);
+        setStartedDate(behavior === 'in_progress' ? new Date() : null);
+        setCompletedDate(behavior === 'done' || behavior === 'cancelled' ? new Date() : null);
         setTags([]);
         setContent('');
       }
@@ -99,17 +132,22 @@ export const TaskModal: React.FC = () => {
       setIsSaving(false);
       setIsLogging(false);
     }
-  }, [isTaskModalOpen, activeTask, taskModalInitialStatus]);
+  }, [isTaskModalOpen, activeTask, taskModalInitialStatus, availableColumns]);
 
   const handleStatusChange = (newStatus: TaskStatus) => {
     setStatus(newStatus);
     const today = new Date();
-    if (newStatus === 'in_progress' && !startedDate) {
+    const targetCol = availableColumns.find((c) => c.id === newStatus);
+    const behavior = targetCol?.behavior || (newStatus === 'done' ? 'done' : newStatus === 'cancelled' ? 'cancelled' : 'todo');
+    const isDoneOrCancelled = behavior === 'done' || behavior === 'cancelled';
+
+    if (behavior === 'in_progress' && !startedDate) {
       setStartedDate(today);
     }
-    if (newStatus === 'done' && !completedDate) {
+    if (isDoneOrCancelled && !completedDate) {
       setCompletedDate(today);
-    } else if (newStatus !== 'done' && completedDate) {
+    } else if (!isDoneOrCancelled && completedDate) {
+      // If moving away from completed/cancelled, clear completedDate
       setCompletedDate(null);
     }
   };
@@ -214,13 +252,7 @@ export const TaskModal: React.FC = () => {
     { value: 'urgent', label: t('tasks.priorityUrgent'), color: 'red' },
   ];
 
-  const statusOptions = [
-    { value: 'backlog', label: t('tasks.statusBacklog') },
-    { value: 'todo', label: t('tasks.statusTodo') },
-    { value: 'in_progress', label: t('tasks.statusInProgress') },
-    { value: 'waiting', label: t('tasks.statusWaiting') },
-    { value: 'done', label: t('tasks.statusDone') },
-  ];
+  const currentStatusObj = statusOptions.find((o) => o.value === status);
 
   return (
     <Modal
@@ -268,20 +300,24 @@ export const TaskModal: React.FC = () => {
             label="Status"
             value={status}
             onChange={(val) => val && handleStatusChange(val as TaskStatus)}
-            data={statusOptions}
+            data={statusOptions.map((o) => ({ value: o.value, label: o.label }))}
             radius="md"
             allowDeselect={false}
+            leftSection={
+              currentStatusObj ? (
+                <span style={{ color: `var(--mantine-color-${currentStatusObj.color}-filled)` }}>
+                  {getColumnIcon(currentStatusObj.iconName, 16)}
+                </span>
+              ) : undefined
+            }
             renderOption={({ option }) => {
-              const colors: Record<string, string> = {
-                backlog: 'gray',
-                todo: 'blue',
-                in_progress: 'indigo',
-                waiting: 'yellow',
-                done: 'teal',
-              };
+              const opt = statusOptions.find((o) => o.value === option.value);
               return (
                 <Group gap="xs">
-                  <Badge size="xs" color={colors[option.value] || 'blue'} variant="dot">
+                  <span style={{ color: `var(--mantine-color-${opt?.color || 'blue'}-filled)` }}>
+                    {getColumnIcon(opt?.iconName, 15)}
+                  </span>
+                  <Badge size="xs" color={opt?.color || 'blue'} variant="dot">
                     {option.label}
                   </Badge>
                 </Group>

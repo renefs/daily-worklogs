@@ -77,6 +77,55 @@ const DEFAULT_TEMPLATES = [
   },
 ];
 
+// Default Kanban Columns
+const DEFAULT_KANBAN_COLUMNS = [
+  {
+    id: 'backlog',
+    title: 'Backlog',
+    titleKey: 'tasks.columnBacklog',
+    color: 'gray',
+    iconName: 'inbox',
+    visible: true,
+    behavior: 'backlog',
+  },
+  {
+    id: 'todo',
+    title: 'To do',
+    titleKey: 'tasks.columnTodo',
+    color: 'blue',
+    iconName: 'circle-dot',
+    visible: true,
+    behavior: 'todo',
+  },
+  {
+    id: 'in_progress',
+    title: 'In progress',
+    titleKey: 'tasks.columnInProgress',
+    color: 'indigo',
+    iconName: 'player-play',
+    visible: true,
+    behavior: 'in_progress',
+  },
+  {
+    id: 'waiting',
+    title: 'Waiting',
+    titleKey: 'tasks.columnWaiting',
+    color: 'yellow',
+    iconName: 'hourglass',
+    visible: true,
+    behavior: 'waiting',
+  },
+  {
+    id: 'done',
+    title: 'Done',
+    titleKey: 'tasks.columnDone',
+    color: 'teal',
+    iconName: 'circle-check',
+    visible: true,
+    behavior: 'done',
+  },
+];
+
 // Default Settings
 const defaultVaultPath = path.join(os.homedir(), 'Documents', 'DailyWorklog');
 const DEFAULT_SETTINGS = {
@@ -87,11 +136,25 @@ const DEFAULT_SETTINGS = {
   weekStartDay: 1 as const, // 1 = Monday
   defaultTemplateId: 'standard-worklog',
   templates: DEFAULT_TEMPLATES,
+  kanbanColumns: DEFAULT_KANBAN_COLUMNS,
   autoSave: true,
   autoSaveDelay: 1000,
   dateFormat: 'YYYY-MM-DD',
   editorFontSize: 15,
 };
+
+function getColumnBehavior(status: string): string {
+  const settings = getSettings();
+  const cols = settings.kanbanColumns || DEFAULT_KANBAN_COLUMNS;
+  const match = cols.find((c: any) => c.id === status);
+  if (match) return match.behavior;
+  if (status === 'done' || status === 'completed') return 'done';
+  if (status === 'cancelled') return 'cancelled';
+  if (status === 'in_progress') return 'in_progress';
+  if (status === 'waiting') return 'waiting';
+  if (status === 'backlog') return 'backlog';
+  return 'todo';
+}
 
 function getSettings() {
   try {
@@ -429,11 +492,13 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
         const modifiedDate = task.lastModified ? task.lastModified.split('T')[0] : '';
 
         // Accurate period inclusion check
+        const taskBehavior = getColumnBehavior(task.status);
+        const isDoneOrCancelled = taskBehavior === 'done' || taskBehavior === 'cancelled';
         const wasCompletedInPeriod = completedDate >= startDate && completedDate <= endDate;
         const wasStartedInPeriod = startedDate >= startDate && startedDate <= endDate;
         const wasDueInPeriod = dueDate >= startDate && dueDate <= endDate;
         const wasCreatedInPeriod = createdDate >= startDate && createdDate <= endDate;
-        const wasActiveInPeriod = startedDate && startedDate <= endDate && (task.status !== 'done' || (completedDate && completedDate >= startDate));
+        const wasActiveInPeriod = startedDate && startedDate <= endDate && (!isDoneOrCancelled || (completedDate && completedDate >= startDate));
         const wasModifiedInPeriod = modifiedDate >= startDate && modifiedDate <= endDate;
 
         const inRange =
@@ -447,17 +512,16 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
         if (inRange) {
           periodTasks.push(task);
           totalTasks += 1;
-          const isDone = task.status === 'done';
-          if (isDone) {
+          if (isDoneOrCancelled) {
             completedTasks += 1;
           }
 
-          // Categorized lists
-          if (task.status === 'done') {
+          // Categorized lists based on lifecycle behavior
+          if (taskBehavior === 'done' || taskBehavior === 'cancelled') {
             completedTasksList.push(task);
-          } else if (task.status === 'in_progress') {
+          } else if (taskBehavior === 'in_progress') {
             inProgressTasksList.push(task);
-          } else if (task.status === 'waiting') {
+          } else if (taskBehavior === 'waiting') {
             waitingTasksList.push(task);
           } else {
             backlogTasksList.push(task);
@@ -470,7 +534,7 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
                 tagBreakdown[tag] = { total: 0, completed: 0 };
               }
               tagBreakdown[tag].total += 1;
-              if (isDone) {
+              if (isDoneOrCancelled) {
                 tagBreakdown[tag].completed += 1;
               }
             }
@@ -482,7 +546,7 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
             priorityBreakdown[p] = { total: 0, completed: 0 };
           }
           priorityBreakdown[p].total += 1;
-          if (isDone) {
+          if (isDoneOrCancelled) {
             priorityBreakdown[p].completed += 1;
           }
         }
@@ -579,8 +643,7 @@ function parseTaskFile(filepath: string, filename: string) {
     title = headingMatch ? headingMatch[1].trim() : filename.replace(/\.md$/i, '').replace(/[-_]/g, ' ');
   }
 
-  const validStatuses = ['backlog', 'todo', 'in_progress', 'waiting', 'done'];
-  const status = validStatuses.includes(data.status) ? data.status : 'todo';
+  const status = data.status ? String(data.status).trim() : 'todo';
 
   const { tasksCompleted, tasksTotal } = parseTaskCounts(parsed.content);
 
@@ -679,19 +742,23 @@ ipcMain.handle('write-task', async (_event, taskData: any) => {
 
   const todayStr = new Date().toISOString().split('T')[0];
   const nextStatus = taskData.status || existingData.status || 'todo';
+  const behavior = getColumnBehavior(nextStatus);
+  const isDoneOrCancelled = behavior === 'done' || behavior === 'cancelled';
+  const prevBehavior = existingData.status ? getColumnBehavior(existingData.status) : undefined;
+  const wasDoneOrCancelled = prevBehavior === 'done' || prevBehavior === 'cancelled';
 
   let startedDate = taskData.startedDate !== undefined ? taskData.startedDate : existingData.startedDate;
   let completedDate = taskData.completedDate !== undefined ? taskData.completedDate : existingData.completedDate;
 
   // Auto-stamp startedDate when moving to in_progress if not already set
-  if (nextStatus === 'in_progress' && !startedDate) {
+  if (behavior === 'in_progress' && !startedDate) {
     startedDate = todayStr;
   }
-  // Auto-stamp completedDate when moving to done
-  if (nextStatus === 'done' && !completedDate) {
+  // Auto-stamp completedDate when moving to done or cancelled
+  if (isDoneOrCancelled && !completedDate) {
     completedDate = todayStr;
-  } else if (nextStatus !== 'done' && taskData.completedDate === undefined && existingData.status === 'done') {
-    // If moving away from done, remove completedDate unless explicitly supplied
+  } else if (!isDoneOrCancelled && taskData.completedDate === undefined && wasDoneOrCancelled) {
+    // If moving away from done/cancelled, remove completedDate unless explicitly supplied
     completedDate = undefined;
   }
 
@@ -745,19 +812,25 @@ ipcMain.handle('update-task-status', async (_event, filename: string, status: st
   const parsed = matter(rawContent);
   const todayStr = new Date().toISOString().split('T')[0];
 
+  const prevStatus = parsed.data.status || 'todo';
+  const prevBehavior = getColumnBehavior(prevStatus);
+  const nextBehavior = getColumnBehavior(status);
+  const isDoneOrCancelled = nextBehavior === 'done' || nextBehavior === 'cancelled';
+  const wasDoneOrCancelled = prevBehavior === 'done' || prevBehavior === 'cancelled';
+
   const updatedData: Record<string, any> = {
     ...parsed.data,
     status,
     updatedAt: new Date().toISOString(),
   };
 
-  if (status === 'done' && !updatedData.completedDate) {
+  if (isDoneOrCancelled && !updatedData.completedDate) {
     updatedData.completedDate = todayStr;
-  } else if (status !== 'done' && parsed.data.status === 'done') {
+  } else if (!isDoneOrCancelled && wasDoneOrCancelled) {
     delete updatedData.completedDate;
   }
 
-  if (status === 'in_progress' && !updatedData.startedDate) {
+  if (nextBehavior === 'in_progress' && !updatedData.startedDate) {
     updatedData.startedDate = todayStr;
   }
 
@@ -799,11 +872,13 @@ ipcMain.handle('log-task-to-daily-note', async (_event, { date, taskTitle, statu
     content = template.content.replace(/\{\{date\}\}/g, targetDate);
   }
 
-  const isDone = status === 'done';
+  const behavior = getColumnBehavior(status);
+  const isDone = behavior === 'done' || behavior === 'cancelled';
   const checkbox = isDone ? '- [x]' : '- [ ]';
+  const statusBadge = behavior === 'cancelled' ? ' [Cancelled]' : '';
   const priorityStr = priority ? ` [${priority}]` : '';
   const fileStr = filename ? ` (\`${filename}\`)` : '';
-  const logLine = `${checkbox} Worked on **${taskTitle}**${priorityStr}${fileStr}`;
+  const logLine = `${checkbox} Worked on **${taskTitle}**${statusBadge}${priorityStr}${fileStr}`;
 
   // If not already in content, insert appropriately
   if (!content.includes(taskTitle)) {

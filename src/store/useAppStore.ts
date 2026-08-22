@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
-import { AppSettings, AppViewMode, DailyNote, TaskItem, TaskPriority, TaskStatus } from '../types';
+import { AppSettings, AppViewMode, DailyNote, DEFAULT_KANBAN_COLUMNS, TaskItem, TaskPriority, TaskStatus } from '../types';
 import i18n from '../i18n';
 
 dayjs.extend(isoWeek);
@@ -15,6 +15,7 @@ interface AppState {
   isDirty: boolean;
   notesList: Array<{ date: string; filename: string; lastModified: string; size: number }>;
   isSettingsOpen: boolean;
+  settingsActiveTab: string;
   isLoading: boolean;
 
   // Tasks state
@@ -37,6 +38,8 @@ interface AppState {
   refreshNotesList: () => Promise<void>;
   applyTemplate: (templateId: string) => void;
   setIsSettingsOpen: (open: boolean) => void;
+  openSettings: (tab?: string) => void;
+  setSettingsActiveTab: (tab: string) => void;
   toggleTaskInNote: (taskText: string, checked: boolean) => void;
 
   // Task actions
@@ -69,6 +72,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isDirty: false,
   notesList: [],
   isSettingsOpen: false,
+  settingsActiveTab: 'general',
   isLoading: true,
 
   tasks: [],
@@ -101,6 +105,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             weekStartDay: 1,
             defaultTemplateId: 'standard-worklog',
             templates: [],
+            kanbanColumns: DEFAULT_KANBAN_COLUMNS,
             autoSave: true,
             autoSaveDelay: 1000,
             dateFormat: 'YYYY-MM-DD',
@@ -235,6 +240,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setIsSettingsOpen: (open: boolean) => {
     set({ isSettingsOpen: open });
+  },
+
+  openSettings: (tab = 'general') => {
+    set({ isSettingsOpen: true, settingsActiveTab: tab });
+  },
+
+  setSettingsActiveTab: (tab: string) => {
+    set({ settingsActiveTab: tab });
   },
 
   toggleTaskInNote: (taskText: string, checked: boolean) => {

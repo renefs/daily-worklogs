@@ -435,7 +435,8 @@ const TaskReportCard: React.FC<TaskReportCardProps> = ({
   onOpenTask,
 }) => {
   const pMeta = task.priority ? priorityMeta[task.priority] : priorityMeta.medium;
-  const isDone = task.status === 'done';
+  const isCancelled = task.status === 'cancelled';
+  const isDone = task.status === 'done' || isCancelled || !!task.completedDate;
 
   return (
     <Card
@@ -466,6 +467,11 @@ const TaskReportCard: React.FC<TaskReportCardProps> = ({
                 {pMeta.label}
               </Badge>
             )}
+            {isCancelled && (
+              <Badge color="red" size="xs" variant="outline">
+                Cancelled
+              </Badge>
+            )}
           </Group>
 
           {/* Subtitle / Dates / Tags info */}
@@ -473,11 +479,11 @@ const TaskReportCard: React.FC<TaskReportCardProps> = ({
             {task.completedDate && (
               <Badge
                 leftSection={<IconClockCheck size={12} />}
-                color="teal"
+                color={isCancelled ? 'red' : 'teal'}
                 variant="light"
                 size="xs"
               >
-                Done: {task.completedDate}
+                {isCancelled ? 'Cancelled' : 'Done'}: {task.completedDate}
               </Badge>
             )}
             {task.startedDate && !task.completedDate && (
