@@ -54,9 +54,17 @@ export const SettingsModal: React.FC = () => {
   if (!settings) return null;
 
   const handleChangeVault = async () => {
-    if (!window.electronAPI) return;
+    if (!window.electronAPI) {
+      notifications.show({
+        title: t('settings.vaultLocation'),
+        message: 'Changing folder requires running in the Electron desktop window.',
+        color: 'blue',
+      });
+      return;
+    }
     const selected = await window.electronAPI.selectVaultDirectory();
     if (selected) {
+      await updateSettings({ vaultPath: selected });
       notifications.show({
         title: t('settings.vaultLocation'),
         message: selected,
@@ -66,9 +74,15 @@ export const SettingsModal: React.FC = () => {
     }
   };
 
-  const handleOpenInFinder = () => {
-    if (window.electronAPI) {
-      window.electronAPI.openInFileManager(settings.vaultPath);
+  const handleOpenInFinder = async () => {
+    if (window.electronAPI && settings) {
+      await window.electronAPI.openInFileManager(settings.vaultPath);
+    } else {
+      notifications.show({
+        title: t('settings.openInFinder'),
+        message: 'Native File Manager is available in the Electron desktop application window.',
+        color: 'blue',
+      });
     }
   };
 

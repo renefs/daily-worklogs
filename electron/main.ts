@@ -126,6 +126,8 @@ function createWindow() {
   const settings = getSettings();
   ensureVaultDir(settings.vaultPath);
 
+  const preloadPath = path.join(__dirname, 'preload.cjs');
+
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 840,
@@ -135,7 +137,7 @@ function createWindow() {
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     trafficLightPosition: { x: 16, y: 16 },
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: preloadPath,
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: false,
@@ -394,9 +396,31 @@ ipcMain.handle('export-document', async (_event, { title, defaultPath, content, 
 });
 
 ipcMain.handle('open-in-file-manager', async (_event, targetPath?: string) => {
-  const { vaultPath } = getSettings();
-  const folderToOpen = targetPath || vaultPath;
-  if (fs.existsSync(folderToOpen)) {
-    shell.showItemInFolder(folderToOpen);
+  try {
+    const settings = getSettings();
+    const resolvedPath = targetPath || settings.vaultPath || defaultVaultPath;
+
+    // Ensure the folder exists if it's a directory or does not exist yet
+    if (!fs.existsSync(resolvedPath)) {
+      ensureVaultDir(resolvedPath);
+    }
+
+    if (fs.existsSync(resolvedPath)) {
+      const stat = fs.statSync(resolvedPath);
+      if (stat.isDirectory()) {
+        const errorMsg = await shell.openPath(resolvedPath);
+        if (errorMsg) {
+          console.warn('shell.openPath failed, falling back to showItemInFolder:', errorMsg);
+          shell.showItemInFolder(resolvedPath);
+        }
+      } else {
+        shell.showItemInFolder(resolvedPath);
+      }
+      return { success: true };
+    }
+    return { success: false, error: 'Path not found' };
+  } catch (err: any) {
+    console.error('Error opening in file manager:', err);
+    return { success: false, error: err?.message };
   }
 });
