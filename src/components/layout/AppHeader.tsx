@@ -12,6 +12,7 @@ import {
   IconCalendarWeek,
   IconCalendarMonth,
   IconCalendar,
+  IconLayoutKanban,
   IconSettings,
   IconSun,
   IconMoon,
@@ -125,9 +126,19 @@ export const AppHeader: React.FC = () => {
                 </Group>
               ),
             },
+            {
+              value: 'tasks',
+              label: (
+                <Group gap={6} justify="center" wrap="nowrap" style={{ padding: '2px 4px', whiteSpace: 'nowrap' }}>
+                  <IconLayoutKanban size={15} stroke={1.8} />
+                  <span style={{ fontWeight: 500, fontSize: 13 }}>{t('nav.tasks')}</span>
+                </Group>
+              ),
+            },
           ]}
         />
       </div>
+
 
       {/* Right Controls: Theme, Settings */}
       <Group gap={8} wrap="nowrap" className="app-no-drag" style={{ flexShrink: 0 }}>
