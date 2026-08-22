@@ -9,6 +9,7 @@ import {
   RingProgress,
   Card,
   SimpleGrid,
+  SegmentedControl,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -25,18 +26,20 @@ import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
-import { PeriodSummary } from '../../types';
+import { PeriodSummary, TaskItem } from '../../types';
 import { MarkdownViewer } from '../viewer/MarkdownViewer';
 import { ExportModal } from '../modals/ExportModal';
+import { PeriodTasksBreakdown } from './PeriodTasksBreakdown';
 
 dayjs.extend(isoWeek);
 
 export const WeeklyView: React.FC = () => {
   const { t, i18n } = useTranslation();
-  const { settings, selectedDate, notesList } = useAppStore();
+  const { settings, selectedDate, notesList, tasks, openTaskModal } = useAppStore();
   const [currentWeekDate, setCurrentWeekDate] = useState<string>(selectedDate);
   const [periodSummary, setPeriodSummary] = useState<PeriodSummary | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'document' | 'tasks'>('document');
 
   // Calculate week start and end based on user's weekStartDay setting (1=Monday, 0=Sunday, 6=Saturday)
   const weekRange = useMemo(() => {
@@ -78,7 +81,7 @@ export const WeeklyView: React.FC = () => {
 
   useEffect(() => {
     fetchWeekData();
-  }, [weekRange.start, weekRange.end, notesList]);
+  }, [weekRange.start, weekRange.end, notesList, tasks]);
 
   const handlePrevWeek = () => {
     setCurrentWeekDate(dayjs(currentWeekDate).subtract(7, 'day').format('YYYY-MM-DD'));
@@ -92,6 +95,10 @@ export const WeeklyView: React.FC = () => {
     setCurrentWeekDate(dayjs().format('YYYY-MM-DD'));
   };
 
+  const handleOpenTask = (task: TaskItem) => {
+    openTaskModal(task);
+  };
+
   // Compile continuous executive report markdown text
   const compiledMarkdownReport = useMemo(() => {
     if (!periodSummary) return '';
@@ -102,22 +109,107 @@ export const WeeklyView: React.FC = () => {
     doc += `> **Tasks Completed**: ${periodSummary.completedTasks} / ${periodSummary.totalTasks}  \n\n`;
     doc += `---\n\n`;
 
+    const completed = periodSummary.completedTasksList || [];
+    const inProgress = periodSummary.inProgressTasksList || [];
+    const waiting = periodSummary.waitingTasksList || [];
+    const backlog = periodSummary.backlogTasksList || [];
+    const hasAnyTasks = completed.length > 0 || inProgress.length > 0 || waiting.length > 0 || backlog.length > 0;
+
+    // Structured Action Items & Deliverables Section
+    if (hasAnyTasks) {
+      doc += `## 📋 Action Items & Deliverables\n\n`;
+
+      if (completed.length > 0) {
+        doc += `### ✅ ${t('reports.completedSection')} (${completed.length})\n\n`;
+        completed.forEach((task) => {
+          const priority = task.priority ? ` \`[${task.priority.toUpperCase()}]\`` : '';
+          const completedAt = task.completedDate ? ` _(Completed: ${task.completedDate})_` : '';
+          const tags = task.tags && task.tags.length > 0 ? ` ${task.tags.map((tg) => `#${tg}`).join(' ')}` : '';
+          doc += `- [x] **${task.title}**${priority}${completedAt}${tags}\n`;
+        });
+        doc += `\n`;
+      }
+
+      if (inProgress.length > 0) {
+        doc += `### ⏳ ${t('reports.inProgressSection')} (${inProgress.length})\n\n`;
+        inProgress.forEach((task) => {
+          const priority = task.priority ? ` \`[${task.priority.toUpperCase()}]\`` : '';
+          const startedAt = task.startedDate ? ` _(Started: ${task.startedDate})_` : '';
+          const due = task.due ? ` _(Due: ${task.due})_` : '';
+          const tags = task.tags && task.tags.length > 0 ? ` ${task.tags.map((tg) => `#${tg}`).join(' ')}` : '';
+          doc += `- [ ] **${task.title}**${priority}${startedAt}${due}${tags}\n`;
+        });
+        doc += `\n`;
+      }
+
+      if (waiting.length > 0) {
+        doc += `### 🚧 ${t('reports.waitingSection')} (${waiting.length})\n\n`;
+        waiting.forEach((task) => {
+          const priority = task.priority ? ` \`[${task.priority.toUpperCase()}]\`` : '';
+          const tags = task.tags && task.tags.length > 0 ? ` ${task.tags.map((tg) => `#${tg}`).join(' ')}` : '';
+          doc += `- [ ] **${task.title}**${priority}${tags}\n`;
+        });
+        doc += `\n`;
+      }
+
+      if (backlog.length > 0) {
+        doc += `### 📋 ${t('reports.backlogSection')} (${backlog.length})\n\n`;
+        backlog.forEach((task) => {
+          const priority = task.priority ? ` \`[${task.priority.toUpperCase()}]\`` : '';
+          const tags = task.tags && task.tags.length > 0 ? ` ${task.tags.map((tg) => `#${tg}`).join(' ')}` : '';
+          doc += `- [ ] **${task.title}**${priority}${tags}\n`;
+        });
+        doc += `\n`;
+      }
+
+      doc += `---\n\n`;
+    }
+
+    // Daily checklist summary if any checklist items exist in daily notes
+    const dailyItems = periodSummary.dailyChecklistItems || [];
+    if (dailyItems.length > 0) {
+      const completedDaily = dailyItems.filter((i) => i.completed).length;
+      doc += `## 📝 ${t('reports.dailyChecklistsSection')} (${completedDaily}/${dailyItems.length} Done)\n\n`;
+      
+      // Group by day
+      const dayMap = new Map<string, Array<{ text: string; completed: boolean }>>();
+      periodSummary.days.forEach((day) => {
+        if (day.checklistItems && day.checklistItems.length > 0) {
+          dayMap.set(day.date, day.checklistItems);
+        }
+      });
+
+      dayMap.forEach((items, dateStr) => {
+        const dayFormatted = dayjs(dateStr).locale(i18n.language === 'es' ? 'es' : 'en').format('dddd, MMM D');
+        doc += `**${dayFormatted} (\`${dateStr}\`)**:\n`;
+        items.forEach((item) => {
+          doc += `- [${item.completed ? 'x' : ' '}] ${item.text}\n`;
+        });
+        doc += `\n`;
+      });
+
+      doc += `---\n\n`;
+    }
+
     const activeDayNotes = periodSummary.days.filter((d) => d.exists && d.content.trim().length > 0);
 
-    if (activeDayNotes.length === 0) {
+    if (activeDayNotes.length === 0 && !hasAnyTasks && dailyItems.length === 0) {
       doc += `_${t('weekly.noNotes')}_\n`;
       return doc;
     }
 
-    activeDayNotes.forEach((day) => {
-      const dayName = dayjs(day.date)
-        .locale(i18n.language === 'es' ? 'es' : 'en')
-        .format('dddd, MMMM D, YYYY');
+    if (activeDayNotes.length > 0) {
+      doc += `## 🗓️ ${t('reports.dailyNotesSummary')}\n\n`;
+      activeDayNotes.forEach((day) => {
+        const dayName = dayjs(day.date)
+          .locale(i18n.language === 'es' ? 'es' : 'en')
+          .format('dddd, MMMM D, YYYY');
 
-      doc += `## 🗓️ ${dayName} (\`${day.date}\`)\n\n`;
-      doc += `${day.content.trim()}\n\n`;
-      doc += `---\n\n`;
-    });
+        doc += `### 🗓️ ${dayName} (\`${day.date}\`)\n\n`;
+        doc += `${day.content.trim()}\n\n`;
+        doc += `---\n\n`;
+      });
+    }
 
     return doc;
   }, [periodSummary, weekRange, i18n.language, t]);
@@ -169,6 +261,17 @@ export const WeeklyView: React.FC = () => {
         </Group>
 
         <Group gap="xs">
+          <SegmentedControl
+            value={activeTab}
+            onChange={(val) => setActiveTab(val as 'document' | 'tasks')}
+            data={[
+              { label: t('reports.documentTab'), value: 'document' },
+              { label: t('reports.tasksTab'), value: 'tasks' },
+            ]}
+            radius="md"
+            size="sm"
+          />
+
           <Button
             variant="light"
             color="primary"
@@ -243,9 +346,13 @@ export const WeeklyView: React.FC = () => {
         </Card>
       </SimpleGrid>
 
-      {/* Continuous Document Report Viewer */}
-      <div style={{ flex: 1, minHeight: 0 }}>
-        <MarkdownViewer content={compiledMarkdownReport} allowToggleTasks={false} />
+      {/* Main Content Area: Document View vs Interactive Tasks View */}
+      <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+        {activeTab === 'document' ? (
+          <MarkdownViewer content={compiledMarkdownReport} allowToggleTasks={false} />
+        ) : (
+          <PeriodTasksBreakdown periodSummary={periodSummary} onOpenTask={handleOpenTask} />
+        )}
       </div>
 
       {/* Export Modal */}
@@ -283,3 +390,4 @@ const ThemeIconWrapper: React.FC<{ color: string; children: React.ReactNode }> =
     </div>
   );
 };
+

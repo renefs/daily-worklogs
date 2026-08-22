@@ -30,6 +30,8 @@ export const CalendarView: React.FC = () => {
     notesList,
     activeNote,
     settings,
+    tasks,
+    openTaskModal,
   } = useAppStore();
 
   const [calendarDate, setCalendarDate] = useState<Date>(dayjs(selectedDate).toDate());
@@ -39,12 +41,18 @@ export const CalendarView: React.FC = () => {
     return new Set(notesList.map((n) => n.date));
   }, [notesList]);
 
+  // Tasks for the selected date (either created on or due on this date)
+  const dayTasks = useMemo(() => {
+    return tasks.filter((task) => task.created === selectedDate || task.due === selectedDate);
+  }, [tasks, selectedDate]);
+
   const handleDateChange = (date: Date | null) => {
     if (!date) return;
     setCalendarDate(date);
     const dateStr = dayjs(date).format('YYYY-MM-DD');
     setSelectedDate(dateStr);
   };
+
 
   const handleOpenInEditor = () => {
     setCurrentView('daily');
@@ -213,6 +221,28 @@ export const CalendarView: React.FC = () => {
               </Button>
             </Group>
 
+            {dayTasks.length > 0 && (
+              <Paper withBorder p="xs" radius="md" style={{ backgroundColor: 'var(--mantine-color-default-hover)' }}>
+                <Text size="xs" fw={700} c="dimmed" mb={4}>
+                  {t('common.tasks')} ({dayTasks.length})
+                </Text>
+                <Group gap={6} wrap="wrap">
+                  {dayTasks.map((tItem) => (
+                    <Badge
+                      key={tItem.id}
+                      size="sm"
+                      variant={tItem.status === 'done' ? 'light' : 'filled'}
+                      color={tItem.status === 'done' ? 'teal' : 'primary'}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => openTaskModal(tItem)}
+                    >
+                      {tItem.status === 'done' ? '✓ ' : ''}{tItem.title}
+                    </Badge>
+                  ))}
+                </Group>
+              </Paper>
+            )}
+
             <div style={{ flex: 1, minHeight: 0 }}>
               <MarkdownViewer
                 content={
@@ -225,6 +255,7 @@ export const CalendarView: React.FC = () => {
           </Paper>
         </Grid.Col>
       </Grid>
+
     </div>
   );
 };
