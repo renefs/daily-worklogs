@@ -130,6 +130,7 @@
   },
   "reports": {
     "documentTab": "📄 Documento Ejecutivo",
+    "daysTab": "🗓️ Notas Diarias",
     "tasksTab": "📊 Resumen Interactivo de Tareas",
     "completedSection": "Completadas en este período",
     "inProgressSection": "En progreso y postergadas",
@@ -143,7 +144,23 @@
     "dailyNotesSummary": "Resumen de Notas Diarias",
     "checklistItemsSummary": "Listas de notas diarias ({{completed}}/{{total}} completadas)",
     "clickToEdit": "Clic para abrir tarea",
-    "tasksDone": "tareas completadas"
+    "tasksDone": "tareas completadas",
+    "copyDay": "Copiar Markdown",
+    "copyDayTooltip": "Copiar el contenido markdown de este día",
+    "dayCopied": "¡Markdown del Día Copiado!",
+    "dayCopiedDesc": "El contenido markdown de {{date}} ha sido copiado al portapapeles.",
+    "searchDays": "Buscar en registros diarios...",
+    "filterWithNotes": "Solo días con notas",
+    "expandAll": "Expandir Todo",
+    "collapseAll": "Contraer Todo",
+    "daySingular": "día",
+    "daysPlural": "días",
+    "noDaysFound": "No hay notas diarias que coincidan con tu búsqueda",
+    "tryDisablingFilter": "Prueba a borrar el término de búsqueda o desactivar el filtro 'Solo días con notas'.",
+    "noContentForDay": "Nota Vacía",
+    "noNoteForDay": "No hay contenido registrado para esta fecha.",
+    "createNoteForDay": "Crear Nota para este Día",
+    "openInEditor": "Abrir en Editor Diario"
   },
   "calendar": {
     "title": "Calendario e Historial de Notas",

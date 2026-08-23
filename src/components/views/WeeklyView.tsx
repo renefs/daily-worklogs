@@ -30,6 +30,7 @@ import { PeriodSummary, TaskItem } from '../../types';
 import { MarkdownViewer } from '../viewer/MarkdownViewer';
 import { ExportModal } from '../modals/ExportModal';
 import { PeriodTasksBreakdown } from './PeriodTasksBreakdown';
+import { PeriodDaysList } from './PeriodDaysList';
 
 dayjs.extend(isoWeek);
 
@@ -39,7 +40,7 @@ export const WeeklyView: React.FC = () => {
   const [currentWeekDate, setCurrentWeekDate] = useState<string>(selectedDate);
   const [periodSummary, setPeriodSummary] = useState<PeriodSummary | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'document' | 'tasks'>('document');
+  const [activeTab, setActiveTab] = useState<'document' | 'days' | 'tasks'>('document');
 
   // Calculate week start and end based on user's weekStartDay setting (0=Sunday ... 6=Saturday)
   const weekRange = useMemo(() => {
@@ -253,9 +254,10 @@ export const WeeklyView: React.FC = () => {
         <Group gap="xs">
           <SegmentedControl
             value={activeTab}
-            onChange={(val) => setActiveTab(val as 'document' | 'tasks')}
+            onChange={(val) => setActiveTab(val as 'document' | 'days' | 'tasks')}
             data={[
               { label: t('reports.documentTab'), value: 'document' },
+              { label: t('reports.daysTab'), value: 'days' },
               { label: t('reports.tasksTab'), value: 'tasks' },
             ]}
             radius="md"
@@ -336,10 +338,12 @@ export const WeeklyView: React.FC = () => {
         </Card>
       </SimpleGrid>
 
-      {/* Main Content Area: Document View vs Interactive Tasks View */}
+      {/* Main Content Area: Document View vs Day-by-Day List vs Interactive Tasks View */}
       <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
         {activeTab === 'document' ? (
           <MarkdownViewer content={compiledMarkdownReport} allowToggleTasks={false} />
+        ) : activeTab === 'days' ? (
+          <PeriodDaysList periodSummary={periodSummary} />
         ) : (
           <PeriodTasksBreakdown periodSummary={periodSummary} onOpenTask={handleOpenTask} />
         )}

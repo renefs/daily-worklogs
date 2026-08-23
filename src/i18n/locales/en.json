@@ -130,6 +130,7 @@
   },
   "reports": {
     "documentTab": "📄 Executive Document",
+    "daysTab": "🗓️ Daily Notes",
     "tasksTab": "📊 Interactive Task Breakdown",
     "completedSection": "Completed This Period",
     "inProgressSection": "In Progress & Carried Over",
@@ -143,7 +144,23 @@
     "dailyNotesSummary": "Daily Notes Overview",
     "checklistItemsSummary": "Daily Checklists ({{completed}}/{{total}} completed)",
     "clickToEdit": "Click to open task",
-    "tasksDone": "tasks completed"
+    "tasksDone": "tasks completed",
+    "copyDay": "Copy Markdown",
+    "copyDayTooltip": "Copy this day's markdown content",
+    "dayCopied": "Day Markdown Copied!",
+    "dayCopiedDesc": "Markdown content for {{date}} copied to clipboard.",
+    "searchDays": "Search in daily logs...",
+    "filterWithNotes": "Days with notes only",
+    "expandAll": "Expand All",
+    "collapseAll": "Collapse All",
+    "daySingular": "day",
+    "daysPlural": "days",
+    "noDaysFound": "No daily notes match your criteria",
+    "tryDisablingFilter": "Try clearing the search query or disabling the 'Days with notes only' filter.",
+    "noContentForDay": "Empty Note",
+    "noNoteForDay": "No content recorded for this date.",
+    "createNoteForDay": "Create Note for this Day",
+    "openInEditor": "Open in Daily Editor"
   },
   "calendar": {
     "title": "Calendar & Worklog History",
