@@ -185,6 +185,37 @@ assert.deepStrictEqual(row1, ['Task 1', 'Details', 'Done'], 'Row 1 matches');
 assert.deepStrictEqual(row2, ['Task 2', 'Details', 'Pending'], 'Row 2 matches');
 console.log('✓ Markdown Table parsing and alignments verified');
 
+// 8. Test Bullet Point, Task List, and Ordered List Parsing
+const taskRegex = /^([ \t]*)([-*+]\s+)\[([ xX])\](\s*.*)$/;
+const bulletRegex = /^([ \t]*)([-*+])([ \t]+)(.*)$/;
+const orderedRegex = /^([ \t]*)(\d+)(\.)([ \t]+)(.*)$/;
+
+// Test bullet detection
+const bulletLine1 = '- Regular bullet item';
+const bulletLine2 = '  * Nested bullet item';
+const bulletLine3 = '    + Deep nested bullet item';
+const taskLine1 = '- [ ] Unchecked task';
+const taskLine2 = '  * [x] Checked task';
+const orderedLine = '1. Numbered item';
+
+assert.ok(!taskRegex.test(bulletLine1), 'Bullet 1 is not a task');
+assert.ok(bulletRegex.test(bulletLine1), 'Bullet 1 is a bullet');
+const bMatch1 = bulletLine1.match(bulletRegex);
+assert.strictEqual(Math.floor(bMatch1[1].length / 2), 0, 'Bullet 1 level is 0');
+
+assert.ok(bulletRegex.test(bulletLine2), 'Bullet 2 is a bullet');
+const bMatch2 = bulletLine2.match(bulletRegex);
+assert.strictEqual(Math.floor(bMatch2[1].length / 2), 1, 'Bullet 2 level is 1');
+
+assert.ok(bulletRegex.test(bulletLine3), 'Bullet 3 is a bullet');
+const bMatch3 = bulletLine3.match(bulletRegex);
+assert.strictEqual(Math.floor(bMatch3[1].length / 2), 2, 'Bullet 3 level is 2');
+
+assert.ok(taskRegex.test(taskLine1), 'Task 1 is a task');
+assert.ok(taskRegex.test(taskLine2), 'Task 2 is a task');
+assert.ok(orderedRegex.test(orderedLine), 'Ordered item matched');
+console.log('✓ Bullet points, nested levels, and ordered list regex verification passed');
+
 // Cleanup
 fs.rmSync(testVault, { recursive: true });
 console.log('✓ All verification tests passed successfully!');

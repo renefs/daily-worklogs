@@ -73,6 +73,36 @@ class HorizontalRuleWidget extends WidgetType {
 }
 
 /**
+ * Bullet point widget for unordered markdown lists (•, ◦, ▪)
+ */
+class BulletWidget extends WidgetType {
+  constructor(readonly level: number = 0) {
+    super();
+  }
+
+  toDOM(): HTMLElement {
+    const bullet = document.createElement('span');
+    const typeClass =
+      this.level === 0
+        ? 'bullet-disc'
+        : this.level === 1
+        ? 'bullet-circle'
+        : 'bullet-square';
+    bullet.className = `cm-live-bullet-widget ${typeClass}`;
+    bullet.setAttribute('aria-hidden', 'true');
+    return bullet;
+  }
+
+  eq(other: BulletWidget): boolean {
+    return this.level === other.level;
+  }
+
+  ignoreEvent(): boolean {
+    return false;
+  }
+}
+
+/**
  * Split a markdown table row into cells, taking escaped pipes into account.
  */
 function splitTableRow(rowStr: string): string[] {
@@ -519,40 +549,129 @@ function buildLiveDecorations(state: EditorState): DecorationSet {
       }
     }
 
-    // 4. Task List Checkboxes (- [ ] or - [x])
-    const taskMatch = text.match(/^([ \t]*[-*+]\s+)\[([ xX])\](\s+.*)?$/);
-    if (taskMatch) {
-      const prefixLen = taskMatch[1].length;
-      const boxFrom = line.from + prefixLen;
-      const boxTo = boxFrom + 3; // `[ ]` or `[x]`
-      const isChecked = taskMatch[2].toLowerCase() === 'x';
-      const cursorTouchingBox = isCursorTouching(boxFrom, boxTo, 0);
+    // Initialize occupied ranges for inline decorations on this line
+    const occupiedRanges: Array<{ from: number; to: number }> = [];
 
-      if (!cursorTouchingBox) {
+    // 4. Task List Checkboxes (- [ ] or - [x], * [ ], + [ ])
+    const taskMatch = text.match(/^([ \t]*)([-*+]\s+)\[([ xX])\](\s*.*)$/);
+    if (taskMatch) {
+      const indentLen = taskMatch[1].length;
+      const bulletLen = taskMatch[2].length;
+      const boxFrom = line.from + indentLen + bulletLen;
+      const boxTo = boxFrom + 3; // `[ ]` or `[x]`
+      const replaceFrom = line.from + indentLen; // replaces from the `- `
+      const replaceTo = boxTo;
+      const isChecked = taskMatch[3].toLowerCase() === 'x';
+      const cursorTouching = isCursorTouching(replaceFrom, replaceTo, 0);
+
+      // Line style for task list item
+      queued.push({
+        from: line.from,
+        to: line.from,
+        deco: Decoration.line({
+          class: 'cm-live-list-line cm-live-task-line',
+        }),
+        isLine: true,
+      });
+
+      if (!cursorTouching) {
         queued.push({
-          from: boxFrom,
-          to: boxTo,
+          from: replaceFrom,
+          to: replaceTo,
           deco: Decoration.replace({
             widget: new CheckboxWidget(isChecked, boxFrom),
           }),
         });
+        occupiedRanges.push({ from: replaceFrom, to: replaceTo });
 
         // If completed task and cursor not on line, style completed text
-        if (isChecked && !cursorOnCurrentLine && taskMatch[3]) {
+        if (isChecked && !cursorOnCurrentLine && taskMatch[4] && taskMatch[4].trim()) {
           queued.push({
-            from: boxTo,
+            from: replaceTo,
             to: line.to,
             deco: Decoration.mark({
               class: 'cm-live-task-completed-text',
             }),
           });
         }
+      } else {
+        queued.push({
+          from: replaceFrom,
+          to: replaceTo,
+          deco: Decoration.mark({ class: 'cm-live-mark-visible' }),
+        });
       }
     }
 
-    // 5. Inline formatting (bold, italic, strike, code, links)
+    // 5. Normal Bullet List Items (- Item, * Item, + Item)
+    const bulletMatch = !taskMatch && text.match(/^([ \t]*)([-*+])([ \t]+)(.*)$/);
+    if (bulletMatch) {
+      const indentLen = bulletMatch[1].length;
+      const bulletChar = bulletMatch[2];
+      const spaceLen = bulletMatch[3].length;
+      const level = Math.min(2, Math.floor(indentLen / 2));
+      const markerFrom = line.from + indentLen;
+      const markerTo = markerFrom + bulletChar.length + spaceLen;
+      const cursorTouchingMarker = isCursorTouching(markerFrom, markerTo, 0);
+
+      // Line style for bullet list item
+      queued.push({
+        from: line.from,
+        to: line.from,
+        deco: Decoration.line({
+          class: `cm-live-list-line cm-live-bullet-line cm-live-bullet-level-${level}`,
+        }),
+        isLine: true,
+      });
+
+      if (!cursorTouchingMarker) {
+        queued.push({
+          from: markerFrom,
+          to: markerTo,
+          deco: Decoration.replace({
+            widget: new BulletWidget(level),
+          }),
+        });
+        occupiedRanges.push({ from: markerFrom, to: markerTo });
+      } else {
+        queued.push({
+          from: markerFrom,
+          to: markerTo,
+          deco: Decoration.mark({ class: 'cm-live-mark-visible' }),
+        });
+      }
+    }
+
+    // 6. Ordered List Items (1. Item, 2. Item)
+    const orderedMatch = !taskMatch && !bulletMatch && text.match(/^([ \t]*)(\d+)(\.)([ \t]+)(.*)$/);
+    if (orderedMatch) {
+      const indentLen = orderedMatch[1].length;
+      const numStr = orderedMatch[2];
+      const dotStr = orderedMatch[3];
+      const spaceLen = orderedMatch[4].length;
+      const markerFrom = line.from + indentLen;
+      const markerTo = markerFrom + numStr.length + dotStr.length + spaceLen;
+
+      // Line style for ordered list item
+      queued.push({
+        from: line.from,
+        to: line.from,
+        deco: Decoration.line({
+          class: 'cm-live-list-line cm-live-ordered-line',
+        }),
+        isLine: true,
+      });
+
+      queued.push({
+        from: markerFrom,
+        to: markerTo,
+        deco: Decoration.mark({ class: 'cm-live-ordered-marker' }),
+      });
+      occupiedRanges.push({ from: markerFrom, to: markerTo });
+    }
+
+    // 7. Inline formatting (bold, italic, strike, code, links)
     // We scan inline tokens within this line that don't collide
-    const occupiedRanges: Array<{ from: number; to: number }> = [];
     const isOccupied = (from: number, to: number) => {
       return occupiedRanges.some((r) => Math.max(r.from, from) < Math.min(r.to, to));
     };
