@@ -28,6 +28,7 @@ import {
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
+import { DailyNoteMeta } from '../../types';
 import { capitalizeFirstLetter, formatTemplateDate } from '../../utils/dateTemplate';
 
 export const AppSidebar: React.FC = () => {
@@ -37,7 +38,7 @@ export const AppSidebar: React.FC = () => {
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
-    note: { date: string; filename: string };
+    note: DailyNoteMeta;
   } | null>(null);
 
   const {
@@ -286,7 +287,8 @@ export const AppSidebar: React.FC = () => {
                   onClick={() => {
                     if (window.electronAPI && settings?.vaultPath) {
                       window.electronAPI.openInFileManager(
-                        `${settings.vaultPath}/${contextMenu.note.filename}`
+                        contextMenu.note.filepath ||
+                          `${settings.vaultPath}/${contextMenu.note.relativePath || contextMenu.note.filename}`
                       );
                     }
                     setContextMenu(null);

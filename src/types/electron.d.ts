@@ -1,4 +1,4 @@
-import { AppSettings, DailyNote, PeriodSummary, TaskItem, TaskPriority, TaskStatus } from './index';
+import { AppSettings, DailyNote, DailyNoteMeta, PeriodSummary, TaskItem, TaskPriority, TaskStatus } from './index';
 
 export interface AppInfo {
   name: string;
@@ -24,7 +24,7 @@ export interface ElectronAPI {
   readNote: (date: string) => Promise<DailyNote>;
   writeNote: (date: string, content: string) => Promise<{ success: boolean; filepath: string; lastModified: string }>;
   deleteNote: (date: string) => Promise<{ success: boolean }>;
-  listNotes: () => Promise<Array<{ date: string; filename: string; lastModified: string; size: number }>>;
+  listNotes: () => Promise<DailyNoteMeta[]>;
   getNotesRange: (startDate: string, endDate: string) => Promise<PeriodSummary>;
   listTasks: () => Promise<TaskItem[]>;
   readTask: (filename: string) => Promise<TaskItem | null>;

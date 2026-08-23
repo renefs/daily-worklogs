@@ -11,7 +11,70 @@ fs.mkdirSync(testVault, { recursive: true });
 
 console.log('--- Testing Daily Worklog Logic ---');
 
-// 1. Create a sample daily note
+// Year helper functions under test
+function getYearFromDate(date) {
+  const match = date.match(/^(\d{4})/);
+  if (match) return match[1];
+  return new Date().getFullYear().toString();
+}
+
+function ensureYearDir(vaultPath, year) {
+  const yearDir = path.join(vaultPath, year);
+  if (!fs.existsSync(yearDir)) {
+    fs.mkdirSync(yearDir, { recursive: true });
+  }
+  return yearDir;
+}
+
+function getNoteFilePath(vaultPath, date) {
+  const year = getYearFromDate(date);
+  const filename = `${date}.md`;
+  const filepath = path.join(vaultPath, year, filename);
+
+  return {
+    filepath,
+    exists: fs.existsSync(filepath),
+    year,
+    filename,
+    relativePath: `${year}/${filename}`,
+  };
+}
+
+function listNotes(vaultPath) {
+  const dateRegex = /^\d{4}-\d{2}-\d{2}\.md$/;
+  const noteFiles = [];
+  const rootEntries = fs.readdirSync(vaultPath, { withFileTypes: true });
+
+  for (const entry of rootEntries) {
+    if (entry.isDirectory() && /^\d{4}$/.test(entry.name)) {
+      const yearDir = path.join(vaultPath, entry.name);
+      try {
+        const yearFiles = fs.readdirSync(yearDir, { withFileTypes: true });
+        for (const yearFile of yearFiles) {
+          if (yearFile.isFile() && dateRegex.test(yearFile.name)) {
+            const filepath = path.join(yearDir, yearFile.name);
+            const stat = fs.statSync(filepath);
+            const date = yearFile.name.replace('.md', '');
+            noteFiles.push({
+              date,
+              filename: yearFile.name,
+              filepath,
+              relativePath: `${entry.name}/${yearFile.name}`,
+              lastModified: stat.mtime.toISOString(),
+              size: stat.size,
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('Error reading year dir:', err);
+      }
+    }
+  }
+
+  return noteFiles.sort((a, b) => b.date.localeCompare(a.date));
+}
+
+// 1. Create a sample daily note in 2026 subfolder
 const noteDate = '2026-08-18';
 const noteContent = `# 2026-08-18 - Daily Worklog
 
@@ -28,7 +91,8 @@ const noteContent = `# 2026-08-18 - Daily Worklog
 - None
 `;
 
-fs.writeFileSync(path.join(testVault, `${noteDate}.md`), noteContent, 'utf-8');
+const year2026Dir = ensureYearDir(testVault, '2026');
+fs.writeFileSync(path.join(year2026Dir, `${noteDate}.md`), noteContent, 'utf-8');
 
 // 2. Parse tasks
 const checked = (noteContent.match(/^[\s]*[-*]\s*\[[xX]\]/gm) || []).length;
@@ -37,7 +101,7 @@ assert.strictEqual(checked, 2, 'Should have 2 completed tasks');
 assert.strictEqual(unchecked, 1, 'Should have 1 unchecked task');
 console.log('✓ Task parsing verified: 2 completed, 1 unchecked (Total: 3)');
 
-// 3. Create another note for weekly aggregation
+// 3. Create another note in 2026 subfolder
 const noteDate2 = '2026-08-19';
 const noteContent2 = `# 2026-08-19 - Daily Worklog
 
@@ -45,14 +109,24 @@ const noteContent2 = `# 2026-08-19 - Daily Worklog
 - [x] Release v1.0.0
 - [x] Test weekly continuous report export
 `;
-fs.writeFileSync(path.join(testVault, `${noteDate2}.md`), noteContent2, 'utf-8');
+fs.writeFileSync(path.join(year2026Dir, `${noteDate2}.md`), noteContent2, 'utf-8');
 
-// 4. Test note listing
-const files = fs.readdirSync(testVault).filter(f => /^\d{4}-\d{2}-\d{2}\.md$/.test(f));
-assert.strictEqual(files.length, 2, 'Should find 2 note files');
-console.log('✓ Note listing verified: found 2 files');
+// 3b. Create a note in 2025 and 2024 subfolders
+const year2025Dir = ensureYearDir(testVault, '2025');
+const year2024Dir = ensureYearDir(testVault, '2024');
+fs.writeFileSync(path.join(year2025Dir, '2025-12-31.md'), '# 2025-12-31 - New Year Eve\n- [x] End of year review', 'utf-8');
+fs.writeFileSync(path.join(year2024Dir, '2024-06-15.md'), '# 2024-06-15 - Mid Year Note\n- [x] Past task', 'utf-8');
 
-// 5. Test range aggregation (Weekly)
+// 4. Test note listing strictly across year directories
+const listedNotes = listNotes(testVault);
+assert.strictEqual(listedNotes.length, 4, 'Should find 4 note files in year subfolders');
+assert.strictEqual(listedNotes[0].date, '2026-08-19', 'Latest note should be 2026-08-19');
+assert.strictEqual(listedNotes[0].relativePath, '2026/2026-08-19.md', 'Relative path should include year');
+assert.strictEqual(listedNotes[3].date, '2024-06-15', 'Oldest note should be 2024-06-15');
+assert.strictEqual(listedNotes[3].relativePath, '2024/2024-06-15.md', 'Relative path should be in 2024');
+console.log('✓ Multi-year note listing verified: found 4 files across 2026, 2025, and 2024 subfolders');
+
+// 5. Test range aggregation (Weekly across 2026)
 const start = new Date('2026-08-17');
 const end = new Date('2026-08-23');
 let totalTasks = 0;
@@ -61,8 +135,8 @@ let activeDays = 0;
 
 for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
   const dateStr = d.toISOString().split('T')[0];
-  const filepath = path.join(testVault, `${dateStr}.md`);
-  if (fs.existsSync(filepath)) {
+  const { filepath, exists } = getNoteFilePath(testVault, dateStr);
+  if (exists) {
     activeDays++;
     const content = fs.readFileSync(filepath, 'utf-8');
     const c = (content.match(/^[\s]*[-*]\s*\[[xX]\]/gm) || []).length;
@@ -76,6 +150,28 @@ assert.strictEqual(activeDays, 2, 'Active days should be 2');
 assert.strictEqual(totalTasks, 5, 'Total tasks should be 5');
 assert.strictEqual(completedTasks, 4, 'Completed tasks should be 4');
 console.log('✓ Weekly range aggregation verified: 2 active days, 4/5 tasks completed (80%)');
+
+// 5b. Test Range Aggregation across Year Boundary (2025-12-29 to 2026-01-04)
+fs.writeFileSync(path.join(year2026Dir, '2026-01-01.md'), '# 2026-01-01\n- [x] New Year Day task', 'utf-8');
+const yearCrossStart = new Date('2025-12-29');
+const yearCrossEnd = new Date('2026-01-04');
+let yearCrossDays = 0;
+let yearCrossTasks = 0;
+
+for (let d = new Date(yearCrossStart); d <= yearCrossEnd; d.setDate(d.getDate() + 1)) {
+  const dateStr = d.toISOString().split('T')[0];
+  const { filepath, exists } = getNoteFilePath(testVault, dateStr);
+  if (exists) {
+    yearCrossDays++;
+    const content = fs.readFileSync(filepath, 'utf-8');
+    const c = (content.match(/^[\s]*[-*]\s*\[[xX]\]/gm) || []).length;
+    yearCrossTasks += c;
+  }
+}
+
+assert.strictEqual(yearCrossDays, 2, 'Should find 2025-12-31 and 2026-01-01');
+assert.strictEqual(yearCrossTasks, 2, 'Should aggregate tasks across 2025 and 2026');
+console.log('✓ Year boundary cross aggregation verified (2025 -> 2026)');
 
 // 6. Test Week Range Calculation with customizable first day of the week (0..6)
 function calculateWeekRange(currentDateStr, weekStartDay) {

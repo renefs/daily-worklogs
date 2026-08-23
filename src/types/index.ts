@@ -2,12 +2,22 @@ export interface DailyNote {
   date: string; // 'YYYY-MM-DD'
   filename: string;
   filepath: string;
+  relativePath?: string;
   content: string;
   exists: boolean;
   lastModified?: string;
   frontmatter?: Record<string, any>;
   tasksTotal?: number;
   tasksCompleted?: number;
+}
+
+export interface DailyNoteMeta {
+  date: string;
+  filename: string;
+  filepath?: string;
+  relativePath?: string;
+  lastModified: string;
+  size: number;
 }
 
 export type ColumnBehavior = 'backlog' | 'todo' | 'in_progress' | 'waiting' | 'done' | 'cancelled';

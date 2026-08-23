@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Yearly Subfolder Organization**: Daily worklog markdown files are now stored directly in dedicated subfolders organized by year (e.g. `2026/2026-08-20.md`, `2025/2025-12-31.md`) instead of the root of the vault.
+- **Multi-Year Range Aggregation**: Cross-year continuous report and date range calculation in weekly, monthly, and calendar views.
+
 ## [1.0.0] - 2026-08-20
 
 ### Added

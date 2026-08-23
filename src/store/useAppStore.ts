@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
-import { AppSettings, AppViewMode, DailyNote, DailyRoutine, DEFAULT_KANBAN_COLUMNS, TaskItem, TaskPriority, TaskStatus } from '../types';
+import { AppSettings, AppViewMode, DailyNote, DailyNoteMeta, DailyRoutine, DEFAULT_KANBAN_COLUMNS, TaskItem, TaskPriority, TaskStatus } from '../types';
 import i18n, { getSystemLanguage } from '../i18n';
 import { formatTemplateContent } from '../utils/dateTemplate';
 
@@ -14,7 +14,7 @@ interface AppState {
   activeNote: DailyNote | null;
   isSaving: boolean;
   isDirty: boolean;
-  notesList: Array<{ date: string; filename: string; lastModified: string; size: number }>;
+  notesList: DailyNoteMeta[];
   isSettingsOpen: boolean;
   settingsActiveTab: string;
   isLoading: boolean;

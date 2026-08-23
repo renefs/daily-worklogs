@@ -291,6 +291,41 @@ function ensureVaultDir(vaultPath: string) {
   }
 }
 
+function getYearFromDate(date: string): string {
+  const match = date.match(/^(\d{4})/);
+  if (match) return match[1];
+  return new Date().getFullYear().toString();
+}
+
+function ensureYearDir(vaultPath: string, year: string): string {
+  ensureVaultDir(vaultPath);
+  const yearDir = path.join(vaultPath, year);
+  if (!fs.existsSync(yearDir)) {
+    fs.mkdirSync(yearDir, { recursive: true });
+  }
+  return yearDir;
+}
+
+function getNoteFilePath(vaultPath: string, date: string): {
+  filepath: string;
+  exists: boolean;
+  year: string;
+  filename: string;
+  relativePath: string;
+} {
+  const year = getYearFromDate(date);
+  const filename = `${date}.md`;
+  const filepath = path.join(vaultPath, year, filename);
+
+  return {
+    filepath,
+    exists: fs.existsSync(filepath),
+    year,
+    filename,
+    relativePath: `${year}/${filename}`,
+  };
+}
+
 function ensureTasksDir(vaultPath: string) {
   ensureVaultDir(vaultPath);
   const tasksDir = path.join(vaultPath, 'tasks');
@@ -651,10 +686,9 @@ ipcMain.handle('select-vault-directory', async () => {
 ipcMain.handle('read-note', async (_event, date: string) => {
   const { vaultPath } = getSettings();
   ensureVaultDir(vaultPath);
-  const filename = `${date}.md`;
-  const filepath = path.join(vaultPath, filename);
+  const { filepath, exists, filename, relativePath } = getNoteFilePath(vaultPath, date);
 
-  if (fs.existsSync(filepath)) {
+  if (exists) {
     const content = fs.readFileSync(filepath, 'utf-8');
     const stat = fs.statSync(filepath);
     const { tasksCompleted, tasksTotal } = parseTaskCounts(content);
@@ -662,6 +696,7 @@ ipcMain.handle('read-note', async (_event, date: string) => {
       date,
       filename,
       filepath,
+      relativePath,
       content,
       exists: true,
       lastModified: stat.mtime.toISOString(),
@@ -679,6 +714,7 @@ ipcMain.handle('read-note', async (_event, date: string) => {
     date,
     filename,
     filepath,
+    relativePath,
     content: initialContent,
     exists: false,
     tasksCompleted: 0,
@@ -688,9 +724,10 @@ ipcMain.handle('read-note', async (_event, date: string) => {
 
 ipcMain.handle('write-note', async (_event, date: string, content: string) => {
   const { vaultPath } = getSettings();
-  ensureVaultDir(vaultPath);
+  const year = getYearFromDate(date);
+  const yearDir = ensureYearDir(vaultPath, year);
   const filename = `${date}.md`;
-  const filepath = path.join(vaultPath, filename);
+  const filepath = path.join(yearDir, filename);
 
   fs.writeFileSync(filepath, content, 'utf-8');
   const stat = fs.statSync(filepath);
@@ -698,17 +735,21 @@ ipcMain.handle('write-note', async (_event, date: string, content: string) => {
   return {
     success: true,
     filepath,
+    relativePath: `${year}/${filename}`,
     lastModified: stat.mtime.toISOString(),
   };
 });
 
 ipcMain.handle('delete-note', async (_event, date: string) => {
   const { vaultPath } = getSettings();
-  const filepath = path.join(vaultPath, `${date}.md`);
-  if (fs.existsSync(filepath)) {
-    fs.unlinkSync(filepath);
+  const year = getYearFromDate(date);
+  const yearFilePath = path.join(vaultPath, year, `${date}.md`);
+
+  if (fs.existsSync(yearFilePath)) {
+    fs.unlinkSync(yearFilePath);
     return { success: true };
   }
+
   return { success: false };
 });
 
@@ -717,24 +758,39 @@ ipcMain.handle('list-notes', async () => {
   ensureVaultDir(vaultPath);
 
   try {
-    const files = fs.readdirSync(vaultPath);
     const dateRegex = /^\d{4}-\d{2}-\d{2}\.md$/;
-    const noteFiles = files
-      .filter((file) => dateRegex.test(file))
-      .map((file) => {
-        const filepath = path.join(vaultPath, file);
-        const stat = fs.statSync(filepath);
-        const date = file.replace('.md', '');
-        return {
-          date,
-          filename: file,
-          lastModified: stat.mtime.toISOString(),
-          size: stat.size,
-        };
-      })
-      .sort((a, b) => b.date.localeCompare(a.date));
+    const noteFiles: Array<{ date: string; filename: string; filepath: string; relativePath: string; lastModified: string; size: number }> = [];
 
-    return noteFiles;
+    const rootEntries = fs.readdirSync(vaultPath, { withFileTypes: true });
+
+    // Scan year subdirectories (e.g. 2024, 2025, 2026)
+    for (const entry of rootEntries) {
+      if (entry.isDirectory() && /^\d{4}$/.test(entry.name)) {
+        const yearDir = path.join(vaultPath, entry.name);
+        try {
+          const yearFiles = fs.readdirSync(yearDir, { withFileTypes: true });
+          for (const yearFile of yearFiles) {
+            if (yearFile.isFile() && dateRegex.test(yearFile.name)) {
+              const filepath = path.join(yearDir, yearFile.name);
+              const stat = fs.statSync(filepath);
+              const date = yearFile.name.replace('.md', '');
+              noteFiles.push({
+                date,
+                filename: yearFile.name,
+                filepath,
+                relativePath: `${entry.name}/${yearFile.name}`,
+                lastModified: stat.mtime.toISOString(),
+                size: stat.size,
+              });
+            }
+          }
+        } catch (subErr) {
+          console.warn(`Error reading year folder ${entry.name}:`, subErr);
+        }
+      }
+    }
+
+    return noteFiles.sort((a, b) => b.date.localeCompare(a.date));
   } catch (err) {
     console.error('Error listing notes:', err);
     return [];
@@ -756,9 +812,9 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
 
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     const dateStr = d.toISOString().split('T')[0];
-    const filepath = path.join(vaultPath, `${dateStr}.md`);
+    const { filepath, exists } = getNoteFilePath(vaultPath, dateStr);
     
-    if (fs.existsSync(filepath)) {
+    if (exists) {
       const content = fs.readFileSync(filepath, 'utf-8');
       const { tasksCompleted, tasksTotal } = parseTaskCounts(content);
       totalTasks += tasksTotal;
@@ -1222,9 +1278,10 @@ ipcMain.handle('delete-task', async (_event, filename: string) => {
 
 ipcMain.handle('log-task-to-daily-note', async (_event, { date, taskTitle, status, priority, filename }) => {
   const { vaultPath } = getSettings();
-  ensureVaultDir(vaultPath);
   const targetDate = date || new Date().toISOString().split('T')[0];
-  const filepath = path.join(vaultPath, `${targetDate}.md`);
+  const year = getYearFromDate(targetDate);
+  const yearDir = ensureYearDir(vaultPath, year);
+  const filepath = path.join(yearDir, `${targetDate}.md`);
 
   let content = '';
   if (fs.existsSync(filepath)) {
