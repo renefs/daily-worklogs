@@ -33,7 +33,9 @@ import {
   IconDeviceFloppy,
   IconTrash,
   IconFileExport,
+  IconPhoto,
 } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
 import { formatTemplateContent } from '../../utils/dateTemplate';
@@ -77,6 +79,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const { t, i18n } = useTranslation();
   const { colorScheme } = useMantineColorScheme();
   const editorRef = useRef<ReactCodeMirrorRef>(null);
+  const [isDraggingOver, setIsDraggingOver] = React.useState(false);
 
   const {
     activeNote,
@@ -154,6 +157,115 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const insertTable = () => {
     const tableTemplate = `\n| Item | Description | Status |\n| --- | --- | --- |\n| Task 1 | Details | Done |\n| Task 2 | Details | Pending |\n\n`;
     insertText('', '', tableTemplate);
+  };
+
+  const handleInsertImage = async () => {
+    try {
+      const res = await window.electronAPI.selectImageDialog();
+      if (res.success && res.relativePath) {
+        insertText(`\n![${res.filename || 'Image'}](${res.relativePath})\n`);
+        notifications.show({
+          title: t('editor.imageSaved') || 'Image Added',
+          message: res.filename,
+          color: 'teal',
+          icon: <IconCheck size={16} />,
+        });
+      }
+    } catch (err: any) {
+      console.error('Error selecting image:', err);
+      notifications.show({
+        title: t('common.error') || 'Error',
+        message: err?.message || 'Failed to insert image',
+        color: 'red',
+      });
+    }
+  };
+
+  const processImageFiles = async (files: FileList | File[]) => {
+    let inserted = 0;
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (!file.type.startsWith('image/') && !/\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(file.name)) {
+        continue;
+      }
+
+      try {
+        const buffer = await file.arrayBuffer();
+        const sourcePath = (file as any).path;
+        const res = await window.electronAPI.saveImage({
+          sourcePath,
+          buffer,
+          originalName: file.name,
+          mimeType: file.type,
+        });
+
+        if (res.success && res.relativePath) {
+          insertText(`\n![${res.filename || file.name}](${res.relativePath})\n`);
+          inserted++;
+        }
+      } catch (err) {
+        console.error('Error saving dropped/pasted image:', err);
+      }
+    }
+
+    if (inserted > 0) {
+      notifications.show({
+        title: t('editor.imageSaved') || 'Image Added',
+        message: `${inserted} ${t('editor.imagesSavedMessage') || 'image(s) saved to vault'}`,
+        color: 'teal',
+        icon: <IconCheck size={16} />,
+      });
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes('Files')) {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingOver(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDraggingOver(false);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const hasImage = Array.from(e.dataTransfer.files).some(
+        (f) => f.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(f.name)
+      );
+      if (hasImage) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDraggingOver(false);
+        await processImageFiles(e.dataTransfer.files);
+      }
+    }
+    setIsDraggingOver(false);
+  };
+
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    const imageFiles: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          imageFiles.push(file);
+        }
+      }
+    }
+
+    if (imageFiles.length > 0) {
+      e.preventDefault();
+      await processImageFiles(imageFiles);
+    }
   };
 
   const wordCount = (activeNote?.content || '')
@@ -242,6 +354,11 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                 <IconTable size={16} />
               </ActionIcon>
             </Tooltip>
+            <Tooltip label={t('editor.insertImage') || 'Insert Image'} withArrow>
+              <ActionIcon variant="subtle" size="sm" onClick={handleInsertImage}>
+                <IconPhoto size={16} />
+              </ActionIcon>
+            </Tooltip>
 
             {/* Template Selector */}
             <Menu shadow="md" width={220}>
@@ -321,6 +438,12 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
       {/* CodeMirror Editor Area */}
       <div
+        onDragOver={handleDragOver}
+        onDragEnter={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onPaste={handlePaste}
+        className={isDraggingOver ? 'editor-dropzone-active' : ''}
         style={{
           flex: 1,
           overflow: 'hidden',

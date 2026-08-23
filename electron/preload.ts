@@ -22,6 +22,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openExternalUrl: (url: string) => ipcRenderer.invoke('open-external-url', url),
   logTaskToDailyNote: (payload: { date?: string; taskTitle: string; status: string; priority?: string; filename?: string }) =>
     ipcRenderer.invoke('log-task-to-daily-note', payload),
+  saveImage: (payload: { sourcePath?: string; buffer?: ArrayBuffer | Uint8Array; base64Data?: string; originalName?: string; mimeType?: string }) =>
+    ipcRenderer.invoke('save-image', payload),
+  selectImageDialog: () => ipcRenderer.invoke('select-image-dialog'),
+  resolveMediaUrl: (path: string) => ipcRenderer.invoke('resolve-media-url', path),
   onNoteFileChanged: (callback: (data: { date: string; content: string }) => void) => {
     const handler = (_event: any, data: any) => callback(data);
     ipcRenderer.on('note-file-changed', handler);

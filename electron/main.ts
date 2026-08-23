@@ -1,12 +1,27 @@
-import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell, protocol, net } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import matter from 'gray-matter';
 import dayjs from 'dayjs';
 import 'dayjs/locale/es';
 import 'dayjs/locale/en';
+
+// Register custom protocol scheme before app ready
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'worklog-media',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      bypassCSP: true,
+      stream: true,
+      corsEnabled: true,
+    },
+  },
+]);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -284,10 +299,57 @@ function ensureTasksDir(vaultPath: string) {
   return tasksDir;
 }
 
+function ensureImagesDir(vaultPath: string) {
+  ensureVaultDir(vaultPath);
+  const imagesDir = path.join(vaultPath, 'images');
+  if (!fs.existsSync(imagesDir)) {
+    fs.mkdirSync(imagesDir, { recursive: true });
+  }
+  return imagesDir;
+}
+
+function slugify(text: string) {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function generateUniqueImageFilename(imagesDir: string, originalName?: string, mimeType?: string): string {
+  let ext = '.png';
+  if (originalName) {
+    const candidateExt = path.extname(originalName).toLowerCase();
+    if (candidateExt && candidateExt.length <= 6) {
+      ext = candidateExt;
+    }
+  } else if (mimeType) {
+    if (mimeType.includes('jpeg') || mimeType.includes('jpg')) ext = '.jpg';
+    else if (mimeType.includes('gif')) ext = '.gif';
+    else if (mimeType.includes('webp')) ext = '.webp';
+    else if (mimeType.includes('svg')) ext = '.svg';
+    else if (mimeType.includes('bmp')) ext = '.bmp';
+    else if (mimeType.includes('ico')) ext = '.ico';
+  }
+
+  const baseRaw = originalName ? path.basename(originalName, path.extname(originalName)) : 'image';
+  const cleanBase = slugify(baseRaw) || 'image';
+  const timestamp = dayjs().format('YYYYMMDD-HHmmss');
+
+  let filename = `${cleanBase}-${timestamp}${ext}`;
+  let counter = 1;
+  while (fs.existsSync(path.join(imagesDir, filename))) {
+    filename = `${cleanBase}-${timestamp}-${counter}${ext}`;
+    counter++;
+  }
+  return filename;
+}
 
 function createWindow() {
   const settings = getSettings();
   ensureVaultDir(settings.vaultPath);
+  ensureImagesDir(settings.vaultPath);
 
   const preloadPath = path.join(__dirname, 'preload.cjs');
 
@@ -321,6 +383,35 @@ function createWindow() {
 
 // App lifecycle
 app.whenReady().then(() => {
+  // Handle worklog-media protocol for local vault images
+  protocol.handle('worklog-media', async (request) => {
+    try {
+      const urlObj = new URL(request.url);
+      const { vaultPath } = getSettings();
+      let targetFilePath = '';
+
+      if (urlObj.hostname === 'vault') {
+        const subPath = decodeURIComponent(urlObj.pathname.replace(/^\/+/, ''));
+        targetFilePath = path.join(vaultPath, subPath);
+      } else {
+        let decodedPath = decodeURIComponent(urlObj.pathname);
+        if (process.platform === 'win32' && decodedPath.startsWith('/')) {
+          decodedPath = decodedPath.slice(1);
+        }
+        targetFilePath = decodedPath;
+      }
+
+      if (!fs.existsSync(targetFilePath)) {
+        return new Response('Media file not found', { status: 404 });
+      }
+
+      return net.fetch(pathToFileURL(targetFilePath).toString());
+    } catch (err: any) {
+      console.error('worklog-media protocol error:', err);
+      return new Response('Error loading media: ' + err?.message, { status: 500 });
+    }
+  });
+
   createWindow();
 
   app.on('activate', () => {
@@ -775,15 +866,6 @@ function parseTaskFile(filepath: string, filename: string) {
   };
 }
 
-function slugify(text: string) {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, '')
-    .replace(/[\s_-]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
 // Task IPC Handlers
 ipcMain.handle('list-tasks', async () => {
   const { vaultPath } = getSettings();
@@ -1004,5 +1086,90 @@ ipcMain.handle('log-task-to-daily-note', async (_event, { date, taskTitle, statu
 
   return { success: true };
 });
+
+// Image IPC Handlers
+ipcMain.handle('save-image', async (_event, payload: {
+  sourcePath?: string;
+  buffer?: ArrayBuffer | Uint8Array;
+  base64Data?: string;
+  originalName?: string;
+  mimeType?: string;
+}) => {
+  try {
+    const { vaultPath } = getSettings();
+    const imagesDir = ensureImagesDir(vaultPath);
+    const filename = generateUniqueImageFilename(imagesDir, payload.originalName, payload.mimeType);
+    const destPath = path.join(imagesDir, filename);
+
+    if (payload.sourcePath && fs.existsSync(payload.sourcePath)) {
+      fs.copyFileSync(payload.sourcePath, destPath);
+    } else if (payload.buffer) {
+      const buf = Buffer.from(payload.buffer as any);
+      fs.writeFileSync(destPath, buf);
+    } else if (payload.base64Data) {
+      const cleanBase64 = payload.base64Data.replace(/^data:image\/[a-z0-9+.-]+;base64,/i, '');
+      const buf = Buffer.from(cleanBase64, 'base64');
+      fs.writeFileSync(destPath, buf);
+    } else {
+      return { success: false, error: 'No image data provided' };
+    }
+
+    return {
+      success: true,
+      filename,
+      relativePath: `images/${filename}`,
+      fullPath: destPath,
+      url: `worklog-media://vault/images/${filename}`,
+    };
+  } catch (err: any) {
+    console.error('Error saving image:', err);
+    return { success: false, error: err?.message || 'Failed to save image' };
+  }
+});
+
+ipcMain.handle('select-image-dialog', async () => {
+  if (!mainWindow) return { success: false, error: 'No window available' };
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Select Image',
+    filters: [
+      { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico'] },
+      { name: 'All Files', extensions: ['*'] },
+    ],
+    properties: ['openFile'],
+  });
+
+  if (!result.canceled && result.filePaths.length > 0) {
+    const sourcePath = result.filePaths[0];
+    const originalName = path.basename(sourcePath);
+    const { vaultPath } = getSettings();
+    const imagesDir = ensureImagesDir(vaultPath);
+    const filename = generateUniqueImageFilename(imagesDir, originalName);
+    const destPath = path.join(imagesDir, filename);
+    fs.copyFileSync(sourcePath, destPath);
+
+    return {
+      success: true,
+      filename,
+      relativePath: `images/${filename}`,
+      fullPath: destPath,
+      url: `worklog-media://vault/images/${filename}`,
+    };
+  }
+  return { success: false, canceled: true };
+});
+
+ipcMain.handle('resolve-media-url', (_event, relativeOrAbsPath: string) => {
+  if (!relativeOrAbsPath) return '';
+  if (
+    /^https?:\/\//i.test(relativeOrAbsPath) ||
+    relativeOrAbsPath.startsWith('data:') ||
+    relativeOrAbsPath.startsWith('worklog-media://')
+  ) {
+    return relativeOrAbsPath;
+  }
+  const clean = relativeOrAbsPath.replace(/^\.?\/+/, '');
+  return `worklog-media://vault/${clean}`;
+});
+
 
 

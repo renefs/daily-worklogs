@@ -311,6 +311,81 @@ assert.strictEqual(
 );
 console.log('✓ Localized template date formatting and custom {{date}} format tests passed');
 
+// 11. Test Image Markdown Parsing and Unique Filename Generation
+function slugify(text) {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function generateUniqueImageFilename(imagesDir, originalName, mimeType) {
+  let ext = '.png';
+  if (originalName) {
+    const candidateExt = path.extname(originalName).toLowerCase();
+    if (candidateExt && candidateExt.length <= 6) {
+      ext = candidateExt;
+    }
+  } else if (mimeType) {
+    if (mimeType.includes('jpeg') || mimeType.includes('jpg')) ext = '.jpg';
+    else if (mimeType.includes('gif')) ext = '.gif';
+    else if (mimeType.includes('webp')) ext = '.webp';
+    else if (mimeType.includes('svg')) ext = '.svg';
+  }
+
+  const baseRaw = originalName ? path.basename(originalName, path.extname(originalName)) : 'image';
+  const cleanBase = slugify(baseRaw) || 'image';
+  const timestamp = '20260820-140000';
+
+  let filename = `${cleanBase}-${timestamp}${ext}`;
+  let counter = 1;
+  while (fs.existsSync(path.join(imagesDir, filename))) {
+    filename = `${cleanBase}-${timestamp}-${counter}${ext}`;
+    counter++;
+  }
+  return filename;
+}
+
+const testImagesDir = path.join(testVault, 'images');
+fs.mkdirSync(testImagesDir, { recursive: true });
+
+// Test 11.1: Image filename generation
+const img1 = generateUniqueImageFilename(testImagesDir, 'My Screenshot (1).png');
+assert.strictEqual(img1, 'my-screenshot-1-20260820-140000.png', 'Slugified filename matched');
+fs.writeFileSync(path.join(testImagesDir, img1), 'fake-png-bytes');
+
+// Test 11.2: Image filename collision deduplication
+const img2 = generateUniqueImageFilename(testImagesDir, 'My Screenshot (1).png');
+assert.strictEqual(img2, 'my-screenshot-1-20260820-140000-1.png', 'Collision appended counter');
+
+// Test 11.3: Markdown Image token regex matching
+const sampleMarkdownWithImages = `# Notes
+Here is an image: ![App Screenshot](images/${img1})
+And a link: [Google](https://google.com)
+`;
+const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+const imageMatches = [...sampleMarkdownWithImages.matchAll(imageRegex)];
+assert.strictEqual(imageMatches.length, 1, 'Should match exactly 1 image');
+assert.strictEqual(imageMatches[0][1], 'App Screenshot', 'Image alt text matched');
+assert.strictEqual(imageMatches[0][2], `images/${img1}`, 'Image path matched');
+
+// Test 11.4: Resolve relative image path to custom protocol
+function resolveMediaUrl(relativeOrAbsPath) {
+  if (!relativeOrAbsPath) return '';
+  if (/^https?:\/\//i.test(relativeOrAbsPath) || relativeOrAbsPath.startsWith('data:') || relativeOrAbsPath.startsWith('worklog-media://')) {
+    return relativeOrAbsPath;
+  }
+  const clean = relativeOrAbsPath.replace(/^\.?\/+/, '');
+  return `worklog-media://vault/${clean}`;
+}
+
+assert.strictEqual(resolveMediaUrl(`images/${img1}`), `worklog-media://vault/images/${img1}`);
+assert.strictEqual(resolveMediaUrl(`./images/${img1}`), `worklog-media://vault/images/${img1}`);
+assert.strictEqual(resolveMediaUrl(`https://example.com/img.png`), `https://example.com/img.png`);
+console.log('✓ Image markdown parsing and storage logic tests passed');
+
 // Cleanup
 fs.rmSync(testVault, { recursive: true });
 console.log('✓ All verification tests passed successfully!');

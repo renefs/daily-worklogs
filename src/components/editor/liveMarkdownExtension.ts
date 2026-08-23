@@ -199,6 +199,100 @@ class BulletWidget extends WidgetType {
 }
 
 /**
+ * Interactive Image Widget in Live Preview
+ */
+class ImageWidget extends WidgetType {
+  constructor(
+    readonly alt: string,
+    readonly src: string,
+    readonly pos: number
+  ) {
+    super();
+  }
+
+  toDOM(view: EditorView): HTMLElement {
+    const wrap = document.createElement('span');
+    wrap.className = 'cm-live-image-widget';
+
+    const card = document.createElement('span');
+    card.className = 'cm-live-image-card';
+
+    // Resolve URL for local / vault media
+    let resolvedSrc = this.src;
+    if (
+      !/^https?:\/\//i.test(this.src) &&
+      !this.src.startsWith('data:') &&
+      !this.src.startsWith('worklog-media://')
+    ) {
+      const cleanPath = this.src.replace(/^\.?\/+/, '');
+      resolvedSrc = `worklog-media://vault/${cleanPath}`;
+    }
+
+    const wrapper = document.createElement('span');
+    wrapper.className = 'cm-live-image-wrapper';
+
+    const img = document.createElement('img');
+    img.className = 'cm-live-image-img';
+    img.src = resolvedSrc;
+    img.alt = this.alt || 'Image';
+    img.loading = 'lazy';
+
+    img.onerror = () => {
+      wrapper.innerHTML = `
+        <span class="cm-live-image-error">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="1" y1="1" x2="23" y2="23"></line>
+            <path d="M21 21H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3m3-3h6l2 3h4a2 2 0 0 1 2 2v9.34m-7.72-2.06a4 4 0 1 1-5.56-5.56"></path>
+          </svg>
+          <span>Image not found: <strong>${this.src}</strong></span>
+        </span>
+      `;
+    };
+
+    wrapper.appendChild(img);
+    card.appendChild(wrapper);
+
+    // Caption / Footer bar
+    const caption = document.createElement('span');
+    caption.className = 'cm-live-image-caption';
+
+    const captionText = document.createElement('span');
+    captionText.className = 'cm-live-image-caption-text';
+    captionText.textContent = this.alt || this.src.split('/').pop() || 'Image';
+    caption.appendChild(captionText);
+
+    const badge = document.createElement('span');
+    badge.className = 'cm-live-image-caption-badge';
+    badge.textContent = this.src.split('/').pop() || 'image';
+    caption.appendChild(badge);
+
+    card.appendChild(caption);
+    wrap.appendChild(card);
+
+    // Clicking focuses the editor on the image position
+    wrap.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      view.dispatch({
+        selection: { anchor: this.pos },
+        scrollIntoView: true,
+      });
+      view.focus();
+    });
+
+    return wrap;
+  }
+
+  eq(other: ImageWidget): boolean {
+    return this.alt === other.alt && this.src === other.src && this.pos === other.pos;
+  }
+
+  ignoreEvent(): boolean {
+    return false;
+  }
+}
+
+/**
  * Split a markdown table row into cells, taking escaped pipes into account.
  */
 function splitTableRow(rowStr: string): string[] {
@@ -910,6 +1004,38 @@ function buildLiveDecorations(state: EditorState): DecorationSet {
             from: innerTo,
             to: mTo,
             deco: Decoration.mark({ class: 'cm-live-mark-hidden' }),
+          });
+        }
+      }
+    }
+
+    // A2. Images: ![alt](url)
+    const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+    while ((match = imageRegex.exec(text)) !== null) {
+      const mFrom = line.from + match.index;
+      const mTo = mFrom + match[0].length;
+      const altText = match[1];
+      const srcUrl = match[2];
+
+      if (!isOccupied(mFrom, mTo)) {
+        occupiedRanges.push({ from: mFrom, to: mTo });
+        const touching = isCursorTouching(mFrom, mTo, 1);
+
+        if (touching) {
+          // When cursor is touching/on the image markdown, show raw markdown for editing
+          queued.push({
+            from: mFrom,
+            to: mTo,
+            deco: Decoration.mark({ class: 'cm-live-mark-visible' }),
+          });
+        } else {
+          // When cursor is away, replace with live ImageWidget
+          queued.push({
+            from: mFrom,
+            to: mTo,
+            deco: Decoration.replace({
+              widget: new ImageWidget(altText, srcUrl, mFrom),
+            }),
           });
         }
       }

@@ -152,6 +152,51 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                   </code>
                 );
               },
+
+              // Custom image renderer with local vault support
+              img({ src, alt, ...props }) {
+                if (!src) return null;
+                let resolvedSrc = src;
+                if (
+                  !/^https?:\/\//i.test(src) &&
+                  !src.startsWith('data:') &&
+                  !src.startsWith('worklog-media://')
+                ) {
+                  const cleanPath = src.replace(/^\.?\/+/, '');
+                  resolvedSrc = `worklog-media://vault/${cleanPath}`;
+                }
+
+                return (
+                  <span className="cm-live-image-card" style={{ margin: '8px 0', display: 'inline-flex' }}>
+                    <span className="cm-live-image-wrapper">
+                      <img
+                        src={resolvedSrc}
+                        alt={alt || 'Image'}
+                        loading="lazy"
+                        className="cm-live-image-img"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent && !parent.querySelector('.cm-live-image-error')) {
+                            const err = document.createElement('span');
+                            err.className = 'cm-live-image-error';
+                            err.innerHTML = `<span>Image not found: <strong>${src}</strong></span>`;
+                            parent.appendChild(err);
+                          }
+                        }}
+                        {...props}
+                      />
+                    </span>
+                    {alt && (
+                      <span className="cm-live-image-caption">
+                        <span className="cm-live-image-caption-text">{alt}</span>
+                        <span className="cm-live-image-caption-badge">{src.split('/').pop() || 'image'}</span>
+                      </span>
+                    )}
+                  </span>
+                );
+              },
             }}
           >
             {markdownText || '_No content_'}

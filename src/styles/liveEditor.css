@@ -540,6 +540,116 @@
   opacity: 0.6;
 }
 
+/* Image Widget Styling in Live Preview */
+.cm-live-image-widget {
+  display: block;
+  margin: 10px 0;
+  max-width: 100%;
+  user-select: none;
+}
+
+.cm-live-image-card {
+  display: inline-flex;
+  flex-direction: column;
+  max-width: 100%;
+  border: 1px solid var(--mantine-color-default-border, rgba(0, 0, 0, 0.12));
+  border-radius: 8px;
+  background-color: var(--mantine-color-body, #fff);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.cm-live-image-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: var(--mantine-primary-color-filled, #4f46e5);
+}
+
+.cm-live-image-wrapper {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: repeating-conic-gradient(rgba(128, 128, 128, 0.04) 0% 25%, transparent 0% 50%) 50% / 16px 16px;
+  padding: 4px;
+  min-height: 60px;
+}
+
+.cm-live-image-img {
+  max-width: 100%;
+  max-height: 420px;
+  border-radius: 6px;
+  object-fit: contain;
+  display: block;
+  cursor: zoom-in;
+}
+
+.cm-live-image-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 10px;
+  background-color: var(--mantine-color-default-hover, rgba(0, 0, 0, 0.03));
+  border-top: 1px solid var(--mantine-color-default-border, rgba(0, 0, 0, 0.08));
+  font-size: 12px;
+  color: var(--mantine-color-dimmed, #666);
+}
+
+.cm-live-image-caption-text {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+}
+
+.cm-live-image-caption-badge {
+  font-size: 10px;
+  font-family: var(--font-mono, monospace);
+  opacity: 0.8;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(125, 125, 125, 0.12);
+}
+
+.cm-live-image-error {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--mantine-color-red-6, #e03131);
+  font-size: 13px;
+  background: rgba(224, 49, 49, 0.05);
+}
+
+/* Drag and Drop Zone Highlights */
+.editor-dropzone-active {
+  position: relative;
+}
+
+.editor-dropzone-active::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 2px dashed var(--mantine-primary-color-filled, #4f46e5);
+  background-color: rgba(99, 102, 241, 0.08);
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 100;
+  animation: dropzone-pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes dropzone-pulse {
+  0%, 100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+
 
 
 

@@ -31,6 +31,30 @@ export interface ElectronAPI {
   openInFileManager: (filePath?: string) => Promise<void>;
   openExternalUrl: (url: string) => Promise<{ success: boolean }>;
   logTaskToDailyNote: (payload: { date?: string; taskTitle: string; status: string; priority?: string; filename?: string }) => Promise<{ success: boolean }>;
+  saveImage: (payload: {
+    sourcePath?: string;
+    buffer?: ArrayBuffer | Uint8Array;
+    base64Data?: string;
+    originalName?: string;
+    mimeType?: string;
+  }) => Promise<{
+    success: boolean;
+    relativePath?: string;
+    fullPath?: string;
+    filename?: string;
+    url?: string;
+    error?: string;
+  }>;
+  selectImageDialog: () => Promise<{
+    success: boolean;
+    relativePath?: string;
+    fullPath?: string;
+    filename?: string;
+    url?: string;
+    canceled?: boolean;
+    error?: string;
+  }>;
+  resolveMediaUrl: (path: string) => Promise<string>;
   onNoteFileChanged: (callback: (data: { date: string; content: string }) => void) => () => void;
 }
 
