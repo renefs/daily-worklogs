@@ -315,11 +315,32 @@ function getNoteFilePath(vaultPath: string, date: string): {
 } {
   const year = getYearFromDate(date);
   const filename = `${date}.md`;
-  const filepath = path.join(vaultPath, year, filename);
+  const yearFilePath = path.join(vaultPath, year, filename);
+  const rootFilePath = path.join(vaultPath, filename);
+
+  if (fs.existsSync(yearFilePath)) {
+    return {
+      filepath: yearFilePath,
+      exists: true,
+      year,
+      filename,
+      relativePath: `${year}/${filename}`,
+    };
+  }
+
+  if (fs.existsSync(rootFilePath)) {
+    return {
+      filepath: rootFilePath,
+      exists: true,
+      year,
+      filename,
+      relativePath: filename,
+    };
+  }
 
   return {
-    filepath,
-    exists: fs.existsSync(filepath),
+    filepath: yearFilePath,
+    exists: false,
     year,
     filename,
     relativePath: `${year}/${filename}`,
@@ -744,13 +765,19 @@ ipcMain.handle('delete-note', async (_event, date: string) => {
   const { vaultPath } = getSettings();
   const year = getYearFromDate(date);
   const yearFilePath = path.join(vaultPath, year, `${date}.md`);
+  const rootFilePath = path.join(vaultPath, `${date}.md`);
 
+  let deleted = false;
   if (fs.existsSync(yearFilePath)) {
     fs.unlinkSync(yearFilePath);
-    return { success: true };
+    deleted = true;
+  }
+  if (fs.existsSync(rootFilePath)) {
+    fs.unlinkSync(rootFilePath);
+    deleted = true;
   }
 
-  return { success: false };
+  return { success: deleted };
 });
 
 ipcMain.handle('list-notes', async () => {
@@ -760,10 +787,11 @@ ipcMain.handle('list-notes', async () => {
   try {
     const dateRegex = /^\d{4}-\d{2}-\d{2}\.md$/;
     const noteFiles: Array<{ date: string; filename: string; filepath: string; relativePath: string; lastModified: string; size: number }> = [];
+    const seenDates = new Set<string>();
 
     const rootEntries = fs.readdirSync(vaultPath, { withFileTypes: true });
 
-    // Scan year subdirectories (e.g. 2024, 2025, 2026)
+    // 1. Scan year subdirectories (e.g. 2024, 2025, 2026)
     for (const entry of rootEntries) {
       if (entry.isDirectory() && /^\d{4}$/.test(entry.name)) {
         const yearDir = path.join(vaultPath, entry.name);
@@ -774,6 +802,7 @@ ipcMain.handle('list-notes', async () => {
               const filepath = path.join(yearDir, yearFile.name);
               const stat = fs.statSync(filepath);
               const date = yearFile.name.replace('.md', '');
+              seenDates.add(date);
               noteFiles.push({
                 date,
                 filename: yearFile.name,
@@ -786,6 +815,26 @@ ipcMain.handle('list-notes', async () => {
           }
         } catch (subErr) {
           console.warn(`Error reading year folder ${entry.name}:`, subErr);
+        }
+      }
+    }
+
+    // 2. Scan vault root for direct date notes
+    for (const entry of rootEntries) {
+      if (entry.isFile() && dateRegex.test(entry.name)) {
+        const date = entry.name.replace('.md', '');
+        if (!seenDates.has(date)) {
+          const filepath = path.join(vaultPath, entry.name);
+          const stat = fs.statSync(filepath);
+          seenDates.add(date);
+          noteFiles.push({
+            date,
+            filename: entry.name,
+            filepath,
+            relativePath: entry.name,
+            lastModified: stat.mtime.toISOString(),
+            size: stat.size,
+          });
         }
       }
     }

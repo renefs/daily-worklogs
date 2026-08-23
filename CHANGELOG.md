@@ -11,6 +11,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Added
 - **Yearly Subfolder Organization**: Daily worklog markdown files are now stored directly in dedicated subfolders organized by year (e.g. `2026/2026-08-20.md`, `2025/2025-12-31.md`) instead of the root of the vault.
 - **Multi-Year Range Aggregation**: Cross-year continuous report and date range calculation in weekly, monthly, and calendar views.
+- **Window Focus Auto-Refresh**: Automatically re-scans and synchronizes notes and tasks whenever the application window regains focus.
+- **Resilient Note Resolution**: Backward-compatible scanner supporting notes stored in both year subfolders and vault root.
 
 ## [1.0.0] - 2026-08-20
 

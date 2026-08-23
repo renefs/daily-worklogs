@@ -12,6 +12,17 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     initApp();
+
+    const handleFocus = () => {
+      const { refreshNotesList, refreshTasksList } = useAppStore.getState();
+      refreshNotesList();
+      refreshTasksList();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [initApp]);
 
   const currentLocale = i18n.language === 'es' ? 'es' : 'en';
