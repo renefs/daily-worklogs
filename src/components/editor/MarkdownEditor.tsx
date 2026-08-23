@@ -59,7 +59,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     isSaving,
     isDirty,
     settings,
-    applyTemplate,
+    selectedDate,
   } = useAppStore();
 
   const isDark = colorScheme === 'dark';
@@ -93,6 +93,32 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     });
     view.focus();
   }, []);
+
+  const insertTemplate = useCallback(
+    (templateId: string) => {
+      if (!settings) return;
+      const template = settings.templates.find((t) => t.id === templateId);
+      if (!template) return;
+
+      const processedContent = template.content.replace(/\{\{date\}\}/g, selectedDate);
+      const view = editorRef.current?.view;
+      if (view) {
+        const selection = view.state.selection.main;
+        view.dispatch({
+          changes: { from: selection.from, to: selection.to, insert: processedContent },
+          selection: {
+            anchor: selection.from + processedContent.length,
+            head: selection.from + processedContent.length,
+          },
+        });
+        view.focus();
+      } else {
+        const current = activeNote?.content || '';
+        setNoteContent(current ? `${current}\n\n${processedContent}` : processedContent);
+      }
+    },
+    [settings, selectedDate, activeNote?.content, setNoteContent]
+  );
 
   const insertTable = () => {
     const tableTemplate = `\n| Item | Description | Status |\n| --- | --- | --- |\n| Task 1 | Details | Done |\n| Task 2 | Details | Pending |\n\n`;
@@ -196,7 +222,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               <Menu.Dropdown>
                 <Menu.Label>{t('settings.templates')}</Menu.Label>
                 {settings?.templates.map((tpl) => (
-                  <Menu.Item key={tpl.id} onClick={() => applyTemplate(tpl.id)}>
+                  <Menu.Item key={tpl.id} onClick={() => insertTemplate(tpl.id)}>
                     {tpl.name}
                   </Menu.Item>
                 ))}

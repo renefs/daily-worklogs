@@ -32,6 +32,9 @@ import {
   IconLayoutKanban,
   IconRefresh,
   IconAdjustments,
+  IconEye,
+  IconEyeOff,
+  IconHistory,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
@@ -58,6 +61,7 @@ export const KanbanView: React.FC = () => {
   const [search, setSearch] = useState('');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [tagFilter, setTagFilter] = useState<string>('all');
+  const [showHiddenTasks, setShowHiddenTasks] = useState(false);
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
 
@@ -81,6 +85,36 @@ export const KanbanView: React.FC = () => {
     return map;
   }, [allColumns]);
 
+  // Helper to check if a task is closed/completed and older than 30 days
+  const isTaskOldClosed = useMemo(() => {
+    return (task: TaskItem) => {
+      const behavior = columnBehaviorMap.get(task.status) || task.status;
+      const isClosed =
+        behavior === 'done' ||
+        behavior === 'cancelled' ||
+        task.status === 'done' ||
+        task.status === 'cancelled' ||
+        task.status === 'completed';
+
+      if (!isClosed) return false;
+
+      const dateStr =
+        task.completedDate ||
+        (task.lastModified ? dayjs(task.lastModified).format('YYYY-MM-DD') : null) ||
+        task.created;
+
+      if (!dateStr) return false;
+
+      const diffDays = dayjs().diff(dayjs(dateStr), 'day');
+      return diffDays >= 30;
+    };
+  }, [columnBehaviorMap]);
+
+  // Count hidden closed tasks older than 30 days
+  const hiddenTasksCount = useMemo(() => {
+    return tasks.filter(isTaskOldClosed).length;
+  }, [tasks, isTaskOldClosed]);
+
   // Collect all unique tags from tasks
   const allTags = useMemo(() => {
     const tagSet = new Set<string>();
@@ -94,7 +128,14 @@ export const KanbanView: React.FC = () => {
 
   // Filter tasks
   const filteredTasks = useMemo(() => {
+    const hideOld = (settings?.hideCompletedOlderThan30Days ?? false) && !showHiddenTasks;
+
     return tasks.filter((task) => {
+      // Hide old completed/closed tasks if option is enabled and not manually revealed
+      if (hideOld && isTaskOldClosed(task)) {
+        return false;
+      }
+
       // Search match
       if (search.trim()) {
         const query = search.toLowerCase().trim();
@@ -118,7 +159,7 @@ export const KanbanView: React.FC = () => {
 
       return true;
     });
-  }, [tasks, search, priorityFilter, tagFilter]);
+  }, [tasks, search, priorityFilter, tagFilter, settings?.hideCompletedOlderThan30Days, showHiddenTasks, isTaskOldClosed]);
 
   // Group tasks by column status
   const tasksByColumn = useMemo(() => {
@@ -370,9 +411,67 @@ export const KanbanView: React.FC = () => {
                 allowDeselect={false}
               />
             )}
+
+            {settings?.hideCompletedOlderThan30Days && (
+              <Tooltip
+                label={
+                  showHiddenTasks
+                    ? t('tasks.hideHiddenTasks')
+                    : t('tasks.showHiddenTasks', { count: hiddenTasksCount })
+                }
+                withArrow
+              >
+                <Button
+                  variant={showHiddenTasks ? 'light' : 'subtle'}
+                  color={showHiddenTasks ? 'orange' : 'gray'}
+                  size="xs"
+                  radius="md"
+                  leftSection={showHiddenTasks ? <IconEyeOff size={14} /> : <IconEye size={14} />}
+                  onClick={() => setShowHiddenTasks((prev) => !prev)}
+                >
+                  {showHiddenTasks
+                    ? t('tasks.hideHiddenTasks')
+                    : t('tasks.showHiddenTasks', { count: hiddenTasksCount })}
+                </Button>
+              </Tooltip>
+            )}
           </Group>
         </Group>
       </Paper>
+
+      {/* Hidden Tasks Notification Banner */}
+      {settings?.hideCompletedOlderThan30Days && !showHiddenTasks && hiddenTasksCount > 0 && (
+        <Paper
+          withBorder
+          px="sm"
+          py={6}
+          radius="md"
+          style={{
+            backgroundColor: isDark ? 'rgba(245, 158, 11, 0.08)' : 'rgba(245, 158, 11, 0.06)',
+            borderColor: isDark ? 'rgba(245, 158, 11, 0.25)' : 'rgba(245, 158, 11, 0.2)',
+          }}
+        >
+          <Group justify="space-between" align="center" wrap="nowrap">
+            <Group gap="xs" wrap="nowrap">
+              <IconEyeOff size={15} color="var(--mantine-color-orange-filled)" />
+              <Text size="xs" c={isDark ? 'orange.2' : 'orange.9'} fw={500}>
+                {hiddenTasksCount === 1
+                  ? t('tasks.hiddenTasksBanner', { count: hiddenTasksCount })
+                  : t('tasks.hiddenTasksBanner_plural', { count: hiddenTasksCount })}
+              </Text>
+            </Group>
+            <Button
+              variant="subtle"
+              color="orange"
+              size="compact-xs"
+              onClick={() => setShowHiddenTasks(true)}
+              leftSection={<IconEye size={12} />}
+            >
+              {t('tasks.showAll')}
+            </Button>
+          </Group>
+        </Paper>
+      )}
 
       {/* Kanban Board Columns Container */}
       <div
@@ -501,6 +600,18 @@ export const KanbanView: React.FC = () => {
                                 <Badge size="xs" color="red" variant="outline">
                                   {t('tasks.statusCancelled')}
                                 </Badge>
+                              )}
+                              {isTaskOldClosed(task) && (
+                                <Tooltip label={t('tasks.hiddenBadgeTooltip')} withArrow>
+                                  <Badge
+                                    size="xs"
+                                    color="orange"
+                                    variant="light"
+                                    leftSection={<IconHistory size={10} />}
+                                  >
+                                    {t('tasks.hiddenBadge')}
+                                  </Badge>
+                                </Tooltip>
                               )}
                               {renderDueDateBadge(task.due)}
                             </Group>

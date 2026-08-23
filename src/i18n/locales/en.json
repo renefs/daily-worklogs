@@ -72,7 +72,14 @@
     "logToDailyNote": "Add to Today's Note",
     "taskLoggedToDaily": "Task reference added to daily note",
     "noStartedDate": "Not started yet",
-    "noCompletedDate": "Not completed yet"
+    "noCompletedDate": "Not completed yet",
+    "showHiddenTasks": "Show hidden ({{count}})",
+    "hideHiddenTasks": "Hide old tasks",
+    "hiddenTasksBanner": "{{count}} closed/completed task older than 30 days is hidden",
+    "hiddenTasksBanner_plural": "{{count}} closed/completed tasks older than 30 days are hidden",
+    "showAll": "Show all",
+    "hiddenBadge": "> 30d",
+    "hiddenBadgeTooltip": "Completed or closed more than 30 days ago"
   },
 
   "editor": {
@@ -202,6 +209,8 @@
     "fontSize": "Editor Font Size",
     "autoSave": "Auto Save",
     "autoSaveDescription": "Automatically save notes while typing.",
+    "hideCompletedOlderThan30Days": "Hide Closed/Completed Tasks Older than 30 Days",
+    "hideCompletedOlderThan30DaysDescription": "Automatically hide completed or cancelled tasks older than 30 days from the main task board.",
     "kanbanColumns": "Kanban Columns",
     "kanbanColumnsDescription": "Configure, reorder, show/hide columns, or add new columns with custom lifecycle behaviors.",
     "addColumn": "Add Column",

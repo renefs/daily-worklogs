@@ -141,6 +141,7 @@ const DEFAULT_SETTINGS = {
   autoSaveDelay: 1000,
   dateFormat: 'YYYY-MM-DD',
   editorFontSize: 15,
+  hideCompletedOlderThan30Days: false,
 };
 
 function getColumnBehavior(status: string): string {

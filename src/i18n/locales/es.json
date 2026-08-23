@@ -72,7 +72,14 @@
     "logToDailyNote": "Agregar a la nota de hoy",
     "taskLoggedToDaily": "Referencia de tarea agregada a la nota diaria",
     "noStartedDate": "Aún no iniciada",
-    "noCompletedDate": "Aún no completada"
+    "noCompletedDate": "Aún no completada",
+    "showHiddenTasks": "Mostrar ocultas ({{count}})",
+    "hideHiddenTasks": "Ocultar tareas antiguas",
+    "hiddenTasksBanner": "{{count}} tarea cerrada/completada hace más de 30 días está oculta",
+    "hiddenTasksBanner_plural": "{{count}} tareas cerradas/completadas hace más de 30 días están ocultas",
+    "showAll": "Mostrar todas",
+    "hiddenBadge": "> 30d",
+    "hiddenBadgeTooltip": "Completada o cerrada hace más de 30 días"
   },
 
   "editor": {
@@ -202,6 +209,8 @@
     "fontSize": "Tamaño de Fuente del Editor",
     "autoSave": "Guardado Automático",
     "autoSaveDescription": "Guardar notas automáticamente mientras escribes.",
+    "hideCompletedOlderThan30Days": "Ocultar tareas cerradas/completadas hace más de 30 días",
+    "hideCompletedOlderThan30DaysDescription": "Oculta automáticamente del tablero Kanban las tareas completadas o canceladas que tengan más de 30 días.",
     "kanbanColumns": "Columnas Kanban",
     "kanbanColumnsDescription": "Configura, reordena, muestra/oculta columnas o agrega nuevas con comportamientos personalizados.",
     "addColumn": "Agregar Columna",

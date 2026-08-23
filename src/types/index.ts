@@ -124,6 +124,7 @@ export interface AppSettings {
   autoSaveDelay: number; // in ms
   dateFormat: string;
   editorFontSize: number;
+  hideCompletedOlderThan30Days?: boolean;
 }
 
 export type AppViewMode = 'daily' | 'weekly' | 'monthly' | 'calendar' | 'tasks' | 'settings';

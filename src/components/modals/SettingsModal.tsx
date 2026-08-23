@@ -508,6 +508,26 @@ export const SettingsModal: React.FC = () => {
           {/* Kanban Columns Tab */}
           <Tabs.Panel value="kanban">
             <Stack gap="md">
+              {/* Hide old completed / closed tasks setting */}
+              <Paper withBorder p="md" radius="md">
+                <Group justify="space-between" align="center">
+                  <div style={{ flex: 1, paddingRight: 16 }}>
+                    <Text fw={600} size="sm">
+                      {t('settings.hideCompletedOlderThan30Days')}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      {t('settings.hideCompletedOlderThan30DaysDescription')}
+                    </Text>
+                  </div>
+                  <Switch
+                    checked={settings.hideCompletedOlderThan30Days ?? false}
+                    onChange={(e) =>
+                      updateSettings({ hideCompletedOlderThan30Days: e.currentTarget.checked })
+                    }
+                  />
+                </Group>
+              </Paper>
+
               <Paper withBorder p="md" radius="md">
                 <Group justify="space-between" align="center" wrap="wrap" gap="sm">
                   <div>
