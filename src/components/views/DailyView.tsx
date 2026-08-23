@@ -13,10 +13,10 @@ import {
   IconChevronLeft,
   IconChevronRight,
   IconColumns,
-  IconEdit,
   IconEye,
   IconCalendarEvent,
   IconWriting,
+  IconCode,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
@@ -95,50 +95,52 @@ export const DailyView: React.FC = () => {
           </Group>
         </Group>
 
-        {/* Layout Switcher: Live Editor, Split, Edit Only, Preview Only */}
+        {/* Layout Switcher: Live, Split, Write, Preview */}
         <SegmentedControl
           value={layoutMode}
           onChange={(val) => setLayoutMode(val as any)}
+          size="xs"
+          radius="md"
+          transitionDuration={180}
+          className="nav-segmented-control"
           data={[
             {
               value: 'live',
               label: (
-                <Group gap={6} justify="center">
-                  <IconWriting size={16} />
-                  <span>{t('editor.live')}</span>
+                <Group gap={6} justify="center" wrap="nowrap" style={{ padding: '2px 4px', whiteSpace: 'nowrap' }}>
+                  <IconWriting size={15} stroke={1.8} />
+                  <span style={{ fontWeight: 500, fontSize: 13 }}>{t('editor.live')}</span>
                 </Group>
               ),
             },
             {
               value: 'split',
               label: (
-                <Group gap={6} justify="center">
-                  <IconColumns size={16} />
-                  <span>{t('editor.split')}</span>
+                <Group gap={6} justify="center" wrap="nowrap" style={{ padding: '2px 4px', whiteSpace: 'nowrap' }}>
+                  <IconColumns size={15} stroke={1.8} />
+                  <span style={{ fontWeight: 500, fontSize: 13 }}>{t('editor.split')}</span>
                 </Group>
               ),
             },
             {
               value: 'edit',
               label: (
-                <Group gap={6} justify="center">
-                  <IconEdit size={16} />
-                  <span>{t('editor.write')}</span>
+                <Group gap={6} justify="center" wrap="nowrap" style={{ padding: '2px 4px', whiteSpace: 'nowrap' }}>
+                  <IconCode size={15} stroke={1.8} />
+                  <span style={{ fontWeight: 500, fontSize: 13 }}>{t('editor.write')}</span>
                 </Group>
               ),
             },
             {
               value: 'preview',
               label: (
-                <Group gap={6} justify="center">
-                  <IconEye size={16} />
-                  <span>{t('editor.preview')}</span>
+                <Group gap={6} justify="center" wrap="nowrap" style={{ padding: '2px 4px', whiteSpace: 'nowrap' }}>
+                  <IconEye size={15} stroke={1.8} />
+                  <span style={{ fontSize: 13, fontWeight: 500 }}>{t('editor.preview')}</span>
                 </Group>
               ),
             },
           ]}
-          radius="md"
-          size="sm"
         />
       </Group>
 

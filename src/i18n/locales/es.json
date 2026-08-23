@@ -84,9 +84,10 @@
 
   "editor": {
     "editing": "Editando",
+    "edit": "Editar",
     "preview": "Vista previa",
-    "split": "Dividir vista",
-    "write": "Escribir",
+    "split": "Dividir",
+    "write": "Código",
     "live": "En vivo",
     "saved": "Cambios guardados",
     "saving": "Guardando...",

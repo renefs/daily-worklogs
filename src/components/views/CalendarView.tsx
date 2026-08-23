@@ -217,7 +217,7 @@ export const CalendarView: React.FC = () => {
                 leftSection={<IconEdit size={14} />}
                 onClick={handleOpenInEditor}
               >
-                {t('editor.write')}
+                {t('editor.edit')}
               </Button>
             </Group>
 
