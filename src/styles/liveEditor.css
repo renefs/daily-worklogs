@@ -416,3 +416,132 @@
   color: var(--mantine-color-dimmed);
 }
 
+/* ==========================================================================
+   Fenced Code Block Styles in Live Editor (matching Preview)
+   ========================================================================== */
+
+/* Shared Code Block Line Styles */
+.cm-live-codeblock-line {
+  font-family: var(--font-mono, 'JetBrains Mono', 'Fira Code', monospace) !important;
+  background-color: var(--codeblock-bg, #f6f8fa) !important;
+  border-left: 1px solid var(--codeblock-border, #d0d7de) !important;
+  border-right: 1px solid var(--codeblock-border, #d0d7de) !important;
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+  margin: 0 !important;
+}
+
+/* Header line (top of card) */
+.cm-live-codeblock-start {
+  background-color: var(--codeblock-header-bg, #eaeef2) !important;
+  border-top: 1px solid var(--codeblock-border, #d0d7de) !important;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.cm-live-codeblock-start:not(.cm-live-codeblock-active) {
+  display: flex !important;
+  align-items: stretch !important;
+  height: 26px !important;
+  max-height: 26px !important;
+  min-height: 26px !important;
+  line-height: 26px !important;
+  padding: 0 !important;
+  border-bottom: 1px solid var(--codeblock-border, #d0d7de) !important;
+  overflow: hidden !important;
+}
+
+/* Header Widget inside the start line */
+.cm-live-codeblock-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  height: 100% !important;
+  padding: 0 10px !important;
+  margin: 0 !important;
+  background-color: transparent !important;
+  user-select: none;
+  cursor: pointer;
+  box-sizing: border-box !important;
+}
+
+.cm-live-codeblock-lang {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--mantine-primary-color-filled, #4f46e5);
+}
+
+.cm-live-codeblock-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 1px 4px;
+  height: 18px;
+  border-radius: 3px;
+  color: var(--mantine-color-dimmed, #868e96);
+  transition: all 0.15s ease;
+}
+
+.cm-live-codeblock-copy-btn:hover {
+  background-color: var(--mantine-color-default-hover, rgba(0, 0, 0, 0.06));
+  color: var(--mantine-color-text, #000);
+}
+
+/* Active Editing of opening fence */
+.cm-live-codeblock-start.cm-live-codeblock-active {
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+  font-weight: 600;
+  color: var(--mantine-primary-color-filled, #4f46e5);
+  border-bottom: 1px dashed var(--codeblock-border, #d0d7de) !important;
+}
+
+/* Content Lines */
+.cm-live-codeblock-content {
+  line-height: 1.55;
+}
+
+/* Footer line (bottom of card) */
+.cm-live-codeblock-end {
+  border-bottom: 1px solid var(--codeblock-border, #d0d7de) !important;
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+  padding: 0 !important;
+}
+
+.cm-live-codeblock-end:not(.cm-live-codeblock-active) {
+  height: 4px !important;
+  line-height: 4px !important;
+  min-height: 4px !important;
+  font-size: 0 !important;
+}
+
+.cm-live-codeblock-footer {
+  height: 4px;
+  line-height: 4px;
+  margin: 0 !important;
+  background-color: var(--codeblock-bg, #f6f8fa);
+  cursor: pointer;
+}
+
+/* Active Editing of closing fence */
+.cm-live-codeblock-end.cm-live-codeblock-active {
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+  border-top: 1px dashed var(--codeblock-border, #d0d7de) !important;
+  opacity: 0.6;
+}
+
+
+
+
+
+

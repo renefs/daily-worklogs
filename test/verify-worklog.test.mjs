@@ -216,8 +216,42 @@ assert.ok(taskRegex.test(taskLine2), 'Task 2 is a task');
 assert.ok(orderedRegex.test(orderedLine), 'Ordered item matched');
 console.log('✓ Bullet points, nested levels, and ordered list regex verification passed');
 
+// 9. Test Code Block (``` code ```) and Inline Code (`code`) Parsing
+const codeBlockRegex = /^([ \t]*)(```+|~~~+)(.*)$/;
+const inlineCodeRegex = /`([^`\n]+)`/g;
+
+// Test code block opening fences
+const fence1 = '```javascript';
+const fence2 = '```python';
+const fence3 = '~~~bash';
+const fence4 = '```';
+
+assert.ok(codeBlockRegex.test(fence1), 'JS fence matched');
+const match1 = fence1.match(codeBlockRegex);
+assert.strictEqual(match1[3].trim(), 'javascript', 'Language is javascript');
+
+assert.ok(codeBlockRegex.test(fence2), 'Python fence matched');
+const match2 = fence2.match(codeBlockRegex);
+assert.strictEqual(match2[3].trim(), 'python', 'Language is python');
+
+assert.ok(codeBlockRegex.test(fence3), 'Tilde fence matched');
+const match3 = fence3.match(codeBlockRegex);
+assert.strictEqual(match3[2], '~~~', 'Fence marker is ~~~');
+assert.strictEqual(match3[3].trim(), 'bash', 'Language is bash');
+
+// Test inline code extraction
+const sampleInline = 'Run `npm install` and then `npm run dev` to start.';
+const inlineMatches = [];
+let m;
+while ((m = inlineCodeRegex.exec(sampleInline)) !== null) {
+  inlineMatches.push(m[1]);
+}
+assert.deepStrictEqual(inlineMatches, ['npm install', 'npm run dev'], 'Extracted inline code correctly');
+console.log('✓ Code blocks (fenced) and inline code regex verification passed');
+
 // Cleanup
 fs.rmSync(testVault, { recursive: true });
 console.log('✓ All verification tests passed successfully!');
+
 
 

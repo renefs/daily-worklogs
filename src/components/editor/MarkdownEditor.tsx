@@ -1,7 +1,10 @@
 import React, { useRef, useCallback, useEffect } from 'react';
 import CodeMirror, { ReactCodeMirrorRef } from '@uiw/react-codemirror';
 import { markdown } from '@codemirror/lang-markdown';
+import { languages } from '@codemirror/language-data';
 import { oneDark } from '@codemirror/theme-one-dark';
+import { syntaxHighlighting, defaultHighlightStyle, HighlightStyle } from '@codemirror/language';
+import { tags } from '@lezer/highlight';
 import {
   Group,
   ActionIcon,
@@ -36,6 +39,28 @@ import { useAppStore } from '../../store/useAppStore';
 
 import { EditorView } from '@codemirror/view';
 import { liveMarkdownExtension } from './liveMarkdownExtension';
+
+/**
+ * Unified syntax highlighting style matching Mantine light and dark themes
+ */
+const editorHighlightStyle = HighlightStyle.define([
+  { tag: tags.keyword, color: 'var(--cm-hl-keyword, #cf222e)', fontWeight: '600' },
+  { tag: [tags.name, tags.deleted, tags.character, tags.propertyName, tags.macroName], color: 'var(--cm-hl-name, #0550ae)' },
+  { tag: [tags.function(tags.variableName), tags.labelName], color: 'var(--cm-hl-function, #8250df)' },
+  { tag: [tags.color, tags.constant(tags.name), tags.standard(tags.name)], color: 'var(--cm-hl-constant, #0550ae)' },
+  { tag: [tags.definition(tags.name), tags.separator], color: 'var(--cm-hl-definition, #24292f)' },
+  { tag: [tags.typeName, tags.className, tags.number, tags.changed, tags.annotation, tags.modifier, tags.self, tags.namespace], color: 'var(--cm-hl-type, #953800)' },
+  { tag: [tags.operator, tags.operatorKeyword, tags.url, tags.escape, tags.regexp, tags.link, tags.special(tags.string)], color: 'var(--cm-hl-operator, #0a3069)' },
+  { tag: [tags.meta, tags.comment], color: 'var(--cm-hl-comment, #6e7781)', fontStyle: 'italic' },
+  { tag: tags.strong, fontWeight: 'bold' },
+  { tag: tags.emphasis, fontStyle: 'italic' },
+  { tag: tags.strikethrough, textDecoration: 'line-through' },
+  { tag: tags.link, color: 'var(--cm-hl-link, #0969da)', textDecoration: 'underline' },
+  { tag: tags.heading, fontWeight: 'bold', color: 'var(--cm-hl-heading, #0550ae)' },
+  { tag: [tags.atom, tags.bool, tags.special(tags.variableName)], color: 'var(--cm-hl-atom, #cf222e)' },
+  { tag: [tags.processingInstruction, tags.string, tags.inserted], color: 'var(--cm-hl-string, #0a7b45)' },
+  { tag: tags.invalid, color: 'var(--cm-hl-invalid, #82071e)' },
+]);
 
 interface MarkdownEditorProps {
   onExportClick?: () => void;
@@ -132,7 +157,12 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const charCount = (activeNote?.content || '').length;
 
   const extensions = React.useMemo(() => {
-    const list = [markdown(), EditorView.lineWrapping];
+    const list = [
+      markdown({ codeLanguages: languages }),
+      syntaxHighlighting(editorHighlightStyle, { fallback: true }),
+      syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+      EditorView.lineWrapping,
+    ];
     if (isLivePreview) {
       list.push(...liveMarkdownExtension());
     }

@@ -73,6 +73,102 @@ class HorizontalRuleWidget extends WidgetType {
 }
 
 /**
+ * Interactive Code Block Header Widget matching Preview styling
+ */
+class CodeBlockHeaderWidget extends WidgetType {
+  constructor(
+    readonly lang: string,
+    readonly pos: number,
+    readonly rawCode: string
+  ) {
+    super();
+  }
+
+  toDOM(view: EditorView): HTMLElement {
+    const header = document.createElement('span');
+    header.className = 'cm-live-codeblock-header';
+
+    const langSpan = document.createElement('span');
+    langSpan.className = 'cm-live-codeblock-lang';
+    langSpan.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px; vertical-align: -2px;"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>${this.lang ? this.lang.toUpperCase() : 'CODE'}`;
+    header.appendChild(langSpan);
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'cm-live-codeblock-copy-btn';
+    copyBtn.type = 'button';
+    copyBtn.title = 'Copy code';
+    copyBtn.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+
+    copyBtn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      navigator.clipboard.writeText(this.rawCode).then(() => {
+        copyBtn.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#12b886" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+        setTimeout(() => {
+          copyBtn.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+        }, 2000);
+      });
+    });
+    header.appendChild(copyBtn);
+
+    header.addEventListener('mousedown', (e) => {
+      if ((e.target as HTMLElement).closest('.cm-live-codeblock-copy-btn')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      view.dispatch({
+        selection: { anchor: this.pos },
+        scrollIntoView: true,
+      });
+      view.focus();
+    });
+
+    return header;
+  }
+
+  eq(other: CodeBlockHeaderWidget): boolean {
+    return this.lang === other.lang && this.pos === other.pos && this.rawCode === other.rawCode;
+  }
+
+  ignoreEvent(): boolean {
+    return false;
+  }
+}
+
+/**
+ * Interactive Code Block Footer Widget matching Preview styling
+ */
+class CodeBlockFooterWidget extends WidgetType {
+  constructor(readonly pos: number) {
+    super();
+  }
+
+  toDOM(view: EditorView): HTMLElement {
+    const footer = document.createElement('span');
+    footer.className = 'cm-live-codeblock-footer';
+
+    footer.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      view.dispatch({
+        selection: { anchor: this.pos },
+        scrollIntoView: true,
+      });
+      view.focus();
+    });
+
+    return footer;
+  }
+
+  eq(other: CodeBlockFooterWidget): boolean {
+    return this.pos === other.pos;
+  }
+
+  ignoreEvent(): boolean {
+    return false;
+  }
+}
+
+/**
  * Bullet point widget for unordered markdown lists (•, ◦, ▪)
  */
 class BulletWidget extends WidgetType {
@@ -405,6 +501,99 @@ function buildLiveDecorations(state: EditorState): DecorationSet {
     const line = doc.line(l);
     const text = line.text;
     const cursorOnCurrentLine = isCursorOnLine(line.from, line.to);
+
+    // 0. Fenced Code Blocks (``` or ~~~)
+    const codeBlockMatch = text.match(/^([ \t]*)(```+|~~~+)(.*)$/);
+    if (codeBlockMatch) {
+      const fenceMarker = codeBlockMatch[2];
+      const fenceChar = fenceMarker[0];
+      const fenceLen = fenceMarker.length;
+      const lang = (codeBlockMatch[3] || '').trim();
+      const langClass = lang ? ` cm-live-codeblock-lang-${lang.toLowerCase()}` : '';
+
+      // Find closing fence line
+      let closeLineNum = -1;
+      for (let c = l + 1; c <= endLine; c++) {
+        const cText = doc.line(c).text;
+        const closeMatch = cText.match(new RegExp(`^[ \\t]*${fenceChar}{${fenceLen},}\\s*$`));
+        if (closeMatch) {
+          closeLineNum = c;
+          break;
+        }
+      }
+
+      const blockEndLine = closeLineNum !== -1 ? closeLineNum : endLine;
+      const cursorOnOpening = isCursorOnLine(line.from, line.to);
+
+      // Extract raw code text between fences for copy button
+      let rawCode = '';
+      if (l + 1 < blockEndLine) {
+        const fromPos = doc.line(l + 1).from;
+        const toPos = doc.line(blockEndLine - 1).to;
+        rawCode = doc.sliceString(fromPos, toPos);
+      }
+
+      // 0a. Opening fence line
+      queued.push({
+        from: line.from,
+        to: line.from,
+        deco: Decoration.line({
+          class: `cm-live-codeblock-line cm-live-codeblock-start${cursorOnOpening ? ' cm-live-codeblock-active' : ''}${langClass}`,
+        }),
+        isLine: true,
+      });
+
+      if (!cursorOnOpening) {
+        queued.push({
+          from: line.from,
+          to: line.to,
+          deco: Decoration.replace({
+            widget: new CodeBlockHeaderWidget(lang, line.from, rawCode),
+          }),
+        });
+      }
+
+      // 0b. Inner code lines
+      for (let innerL = l + 1; innerL < blockEndLine; innerL++) {
+        const innerLine = doc.line(innerL);
+        queued.push({
+          from: innerLine.from,
+          to: innerLine.from,
+          deco: Decoration.line({
+            class: 'cm-live-codeblock-line cm-live-codeblock-content',
+          }),
+          isLine: true,
+        });
+      }
+
+      // 0c. Closing fence line
+      if (closeLineNum !== -1) {
+        const closeLine = doc.line(closeLineNum);
+        const cursorOnClosing = isCursorOnLine(closeLine.from, closeLine.to);
+
+        queued.push({
+          from: closeLine.from,
+          to: closeLine.from,
+          deco: Decoration.line({
+            class: `cm-live-codeblock-line cm-live-codeblock-end${cursorOnClosing ? ' cm-live-codeblock-active' : ''}`,
+          }),
+          isLine: true,
+        });
+
+        if (!cursorOnClosing) {
+          queued.push({
+            from: closeLine.from,
+            to: closeLine.to,
+            deco: Decoration.replace({
+              widget: new CodeBlockFooterWidget(closeLine.from),
+            }),
+          });
+        }
+      }
+
+      l = blockEndLine + 1;
+      continue;
+    }
 
     // 0. Markdown Tables
     const tableData = findTableStartingAt(doc, l);
