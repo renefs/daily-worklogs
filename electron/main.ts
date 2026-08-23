@@ -354,12 +354,17 @@ function createWindow() {
 
   const preloadPath = path.join(__dirname, 'preload.cjs');
 
+  const iconPath = fs.existsSync(path.join(__dirname, '../resources/icon.png'))
+    ? path.join(__dirname, '../resources/icon.png')
+    : path.join(__dirname, '../public/icon.png');
+
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 840,
     minWidth: 900,
     minHeight: 600,
     title: 'Daily Worklog',
+    icon: iconPath,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     trafficLightPosition: { x: 16, y: 16 },
     webPreferences: {

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="Worklog application icon">
+  <rect width="1024" height="1024" rx="210" fill="#24206D"/>
+  <!-- Calendar / daily log -->
+  <g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="156" y="174" width="450" height="360" rx="42" stroke-width="28"/>
+    <path d="M156 278h450M236 152v58M526 152v58" stroke-width="28"/>
+  </g>
+  <g fill="#FFFFFF">
+    <rect x="214" y="330" width="62" height="62" rx="13"/>
+    <rect x="350" y="330" width="62" height="62" rx="13"/>
+    <rect x="486" y="330" width="62" height="62" rx="13"/>
+    <rect x="214" y="436" width="62" height="62" rx="13"/>
+    <rect x="350" y="436" width="62" height="62" rx="13"/>
+    <rect x="486" y="436" width="62" height="62" rx="13"/>
+  </g>
+  <!-- Daily notes -->
+  <g fill="#FFFFFF">
+    <rect x="156" y="586" width="292" height="30" rx="15"/>
+    <rect x="156" y="654" width="242" height="30" rx="15" opacity=".92"/>
+    <rect x="156" y="722" width="184" height="30" rx="15" opacity=".84"/>
+  </g>
+  <!-- Completion mark -->
+  <circle cx="770" cy="765" r="145" fill="#18C58B"/>
+  <circle cx="770" cy="765" r="109" fill="#24206D"/>
+  <path d="M698 766l48 48 103-118" fill="none" stroke="#18C58B" stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
