@@ -14,7 +14,7 @@ import {
   Tooltip,
   Paper,
   Divider,
-  useMantineColorScheme,
+  useComputedColorScheme,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
@@ -46,8 +46,8 @@ import { getColumnIcon, getColumnTitle } from '../kanban/columnUtils';
 
 export const TaskModal: React.FC = () => {
   const { t } = useTranslation();
-  const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === 'dark';
+  const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
+  const isDark = computedColorScheme === 'dark';
 
   const {
     isTaskModalOpen,

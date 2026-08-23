@@ -15,7 +15,7 @@ import {
   Button,
   Badge,
   Text,
-  useMantineColorScheme,
+  useComputedColorScheme,
 } from '@mantine/core';
 import {
   IconBold,
@@ -77,7 +77,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   isLivePreview = true,
 }) => {
   const { t, i18n } = useTranslation();
-  const { colorScheme } = useMantineColorScheme();
+  const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const [isDraggingOver, setIsDraggingOver] = React.useState(false);
 
@@ -91,7 +91,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     selectedDate,
   } = useAppStore();
 
-  const isDark = colorScheme === 'dark';
+  const isDark = computedColorScheme === 'dark';
 
   // Auto-save debounce timer
   useEffect(() => {

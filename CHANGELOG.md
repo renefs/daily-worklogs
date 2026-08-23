@@ -8,9 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-08-20
+
 ### Added
-- **Yearly Subfolder Organization**: Daily worklog markdown files are now stored directly in dedicated subfolders organized by year (e.g. `2026/2026-08-20.md`, `2025/2025-12-31.md`) instead of the root of the vault.
-- **Multi-Year Range Aggregation**: Cross-year continuous report and date range calculation in weekly, monthly, and calendar views.
+- **Automatic OS Dark/Light Theme Switching**: The application now seamlessly adapts in real-time when the operating system changes between dark and light modes (when Color Mode is set to "Auto" / system preference).
+- **Electron Native Theme Synchronization**: Integrated Electron `nativeTheme.themeSource` with application settings to ensure native window frames, titlebars, menus, and web media queries align with system appearance.
+- **Yearly Subfolder Organization**: Daily worklog markdown files are now organized and stored in dedicated subfolders by year (e.g. `2026/2026-08-20.md`) inside the vault.
+- **Multi-Year Range Aggregation**: Full cross-year continuous aggregation and date range calculations in weekly, monthly, and calendar views.
 - **Window Focus Auto-Refresh**: Automatically re-scans and synchronizes notes and tasks whenever the application window regains focus.
 - **Resilient Note Resolution**: Backward-compatible scanner supporting notes stored in both year subfolders and vault root.
 

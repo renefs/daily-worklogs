@@ -13,7 +13,7 @@ import {
   Tooltip,
   Checkbox,
   ThemeIcon,
-  useMantineColorScheme,
+  useComputedColorScheme,
 } from '@mantine/core';
 import {
   IconCircleCheck,
@@ -42,8 +42,8 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
   onOpenTask,
 }) => {
   const { t, i18n } = useTranslation();
-  const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === 'dark';
+  const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
+  const isDark = computedColorScheme === 'dark';
 
   const [selectedTag, setSelectedTag] = useState<string>('all');
   const [selectedPriority, setSelectedPriority] = useState<string>('all');

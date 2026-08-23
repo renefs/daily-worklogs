@@ -14,7 +14,7 @@ import {
   Collapse,
   ThemeIcon,
   CloseButton,
-  useMantineColorScheme,
+  useComputedColorScheme,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -41,8 +41,8 @@ interface PeriodDaysListProps {
 
 export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary }) => {
   const { t, i18n } = useTranslation();
-  const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === 'dark';
+  const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
+  const isDark = computedColorScheme === 'dark';
   const { setSelectedDate, setCurrentView } = useAppStore();
 
   const [searchQuery, setSearchQuery] = useState('');

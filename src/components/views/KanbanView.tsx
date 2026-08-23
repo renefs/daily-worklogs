@@ -14,7 +14,7 @@ import {
   Menu,
   Tooltip,
   Progress,
-  useMantineColorScheme,
+  useComputedColorScheme,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -44,8 +44,8 @@ import { getColumnIcon, getColumnTitle } from '../kanban/columnUtils';
 
 export const KanbanView: React.FC = () => {
   const { t } = useTranslation();
-  const { colorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === 'dark';
+  const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
+  const isDark = computedColorScheme === 'dark';
 
   const {
     settings,

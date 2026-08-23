@@ -1,10 +1,30 @@
 import React, { useEffect, useMemo } from 'react';
-import { MantineProvider, createTheme, DEFAULT_THEME, MantineColorsTuple } from '@mantine/core';
+import {
+  MantineProvider,
+  createTheme,
+  DEFAULT_THEME,
+  MantineColorsTuple,
+  useMantineColorScheme,
+  MantineColorScheme,
+} from '@mantine/core';
 import { DatesProvider } from '@mantine/dates';
 import { Notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from './store/useAppStore';
 import { AppLayout } from './components/layout/AppLayout';
+
+const ColorSchemeSync: React.FC<{ colorScheme?: 'light' | 'dark' | 'auto' }> = ({ colorScheme }) => {
+  const { colorScheme: activeScheme, setColorScheme } = useMantineColorScheme();
+
+  useEffect(() => {
+    const targetScheme = colorScheme || 'auto';
+    if (activeScheme !== targetScheme) {
+      setColorScheme(targetScheme);
+    }
+  }, [colorScheme, activeScheme, setColorScheme]);
+
+  return null;
+};
 
 export const App: React.FC = () => {
   const { initApp, settings } = useAppStore();
@@ -45,7 +65,11 @@ export const App: React.FC = () => {
   }, [settings?.themeColor]);
 
   return (
-    <MantineProvider theme={theme} defaultColorScheme={settings?.colorScheme === 'dark' ? 'dark' : 'light'}>
+    <MantineProvider
+      theme={theme}
+      defaultColorScheme={(settings?.colorScheme as MantineColorScheme) || 'auto'}
+    >
+      <ColorSchemeSync colorScheme={settings?.colorScheme} />
       <DatesProvider
         settings={{
           locale: currentLocale,

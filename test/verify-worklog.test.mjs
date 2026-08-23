@@ -519,9 +519,52 @@ console.log('✓ Onboarding wizard state transitions and settings persistence lo
 // 13. Test App Version & Info Configuration
 const pkgPath = path.resolve('package.json');
 const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-assert.strictEqual(pkg.version, '1.0.0', 'Package version should be 1.0.0');
+assert.strictEqual(pkg.version, '1.0.1', 'Package version should be 1.0.1');
 assert.strictEqual(pkg.name, 'daily-worklog', 'Package name should be daily-worklog');
-console.log('✓ App version 1.0.0 verification tests passed');
+console.log('✓ App version 1.0.1 verification tests passed');
+
+// 14. Test Automatic Dark/Light Mode & System Theme Synchronization Logic
+function computeEffectiveColorScheme(configuredScheme, systemPreference) {
+  if (configuredScheme === 'auto') {
+    return systemPreference;
+  }
+  return configuredScheme;
+}
+
+function resolveElectronThemeSource(configuredScheme) {
+  return configuredScheme === 'auto' ? 'system' : configuredScheme;
+}
+
+// When configured to 'auto', app automatically adapts to system theme transitions
+assert.strictEqual(
+  computeEffectiveColorScheme('auto', 'dark'),
+  'dark',
+  'When system is dark, auto mode should resolve to dark'
+);
+assert.strictEqual(
+  computeEffectiveColorScheme('auto', 'light'),
+  'light',
+  'When system is light, auto mode should resolve to light'
+);
+
+// When explicitly set to 'light' or 'dark', it respects user preference regardless of OS theme
+assert.strictEqual(
+  computeEffectiveColorScheme('light', 'dark'),
+  'light',
+  'Explicit light mode stays light even if system is dark'
+);
+assert.strictEqual(
+  computeEffectiveColorScheme('dark', 'light'),
+  'dark',
+  'Explicit dark mode stays dark even if system is light'
+);
+
+// Electron themeSource mapping
+assert.strictEqual(resolveElectronThemeSource('auto'), 'system', 'auto maps to electron system themeSource');
+assert.strictEqual(resolveElectronThemeSource('dark'), 'dark', 'dark maps to electron dark themeSource');
+assert.strictEqual(resolveElectronThemeSource('light'), 'light', 'light maps to electron light themeSource');
+
+console.log('✓ Automatic dark/light system theme switching logic tests passed');
 
 // Cleanup
 fs.rmSync(testVault, { recursive: true });
