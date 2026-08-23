@@ -126,7 +126,67 @@ assert.strictEqual(fridayWeek.end, '2026-08-20', 'Friday week end should be 2026
 
 console.log('✓ Week start day calculation verified for all days of the week (including Wednesday-Tuesday cycle)');
 
+// 7. Test Table Parsing and Alignments
+function splitTableRow(rowStr) {
+  let trimmed = rowStr.trim();
+  if (trimmed.startsWith('|')) trimmed = trimmed.slice(1);
+  if (trimmed.endsWith('|')) trimmed = trimmed.slice(0, -1);
+  const cells = [];
+  let current = '';
+  let escaped = false;
+  for (let i = 0; i < trimmed.length; i++) {
+    const char = trimmed[i];
+    if (char === '\\' && !escaped) {
+      escaped = true;
+      current += char;
+    } else if (char === '|' && !escaped) {
+      cells.push(current.trim());
+      current = '';
+    } else {
+      escaped = false;
+      current += char;
+    }
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
+function parseDelimiterRow(delimiterStr) {
+  const cells = splitTableRow(delimiterStr);
+  if (cells.length === 0) return null;
+  const alignments = [];
+  for (const cell of cells) {
+    const match = cell.trim().match(/^(:?)-+(:?)$/);
+    if (!match) return null;
+    const leftColon = match[1] === ':';
+    const rightColon = match[2] === ':';
+    if (leftColon && rightColon) alignments.push('center');
+    else if (rightColon) alignments.push('right');
+    else if (leftColon) alignments.push('left');
+    else alignments.push(undefined);
+  }
+  return alignments;
+}
+
+const tableSample = `| Item | Description | Status |
+| :--- | :---: | ---: |
+| Task 1 | Details | Done |
+| Task 2 | Details | Pending |`;
+
+const lines = tableSample.split('\n');
+const headers = splitTableRow(lines[0]);
+const alignments = parseDelimiterRow(lines[1]);
+const row1 = splitTableRow(lines[2]);
+const row2 = splitTableRow(lines[3]);
+
+assert.deepStrictEqual(headers, ['Item', 'Description', 'Status'], 'Headers match');
+assert.deepStrictEqual(alignments, ['left', 'center', 'right'], 'Alignments match');
+assert.deepStrictEqual(row1, ['Task 1', 'Details', 'Done'], 'Row 1 matches');
+assert.deepStrictEqual(row2, ['Task 2', 'Details', 'Pending'], 'Row 2 matches');
+console.log('✓ Markdown Table parsing and alignments verified');
+
 // Cleanup
 fs.rmSync(testVault, { recursive: true });
 console.log('✓ All verification tests passed successfully!');
+
 

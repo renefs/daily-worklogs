@@ -2,11 +2,9 @@ import {
   Decoration,
   DecorationSet,
   EditorView,
-  ViewPlugin,
-  ViewUpdate,
   WidgetType,
 } from '@codemirror/view';
-import { RangeSetBuilder } from '@codemirror/state';
+import { EditorState, RangeSetBuilder, StateField } from '@codemirror/state';
 
 /**
  * Checkbox widget that renders an interactive Mantine-styled checkbox.
@@ -74,6 +72,276 @@ class HorizontalRuleWidget extends WidgetType {
   }
 }
 
+/**
+ * Split a markdown table row into cells, taking escaped pipes into account.
+ */
+function splitTableRow(rowStr: string): string[] {
+  let trimmed = rowStr.trim();
+  if (trimmed.startsWith('|')) {
+    trimmed = trimmed.slice(1);
+  }
+  if (trimmed.endsWith('|')) {
+    trimmed = trimmed.slice(0, -1);
+  }
+
+  const cells: string[] = [];
+  let current = '';
+  let escaped = false;
+
+  for (let i = 0; i < trimmed.length; i++) {
+    const char = trimmed[i];
+    if (char === '\\' && !escaped) {
+      escaped = true;
+      current += char;
+    } else if (char === '|' && !escaped) {
+      cells.push(current.trim());
+      current = '';
+    } else {
+      escaped = false;
+      current += char;
+    }
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
+/**
+ * Parse column alignments from a markdown table delimiter row.
+ */
+function parseDelimiterRow(delimiterStr: string): Array<'left' | 'center' | 'right' | undefined> | null {
+  const cells = splitTableRow(delimiterStr);
+  if (cells.length === 0) return null;
+
+  const alignments: Array<'left' | 'center' | 'right' | undefined> = [];
+  for (const cell of cells) {
+    const trimmed = cell.trim();
+    const match = trimmed.match(/^(:?)-+(:?)$/);
+    if (!match) {
+      return null;
+    }
+    const leftColon = match[1] === ':';
+    const rightColon = match[2] === ':';
+
+    if (leftColon && rightColon) {
+      alignments.push('center');
+    } else if (rightColon) {
+      alignments.push('right');
+    } else if (leftColon) {
+      alignments.push('left');
+    } else {
+      alignments.push(undefined);
+    }
+  }
+
+  return alignments;
+}
+
+function isDelimiterRow(text: string): boolean {
+  return parseDelimiterRow(text) !== null;
+}
+
+/**
+ * Format inline markdown tokens (bold, italic, strike, code, link, checkboxes) safely into HTML for table cells.
+ */
+function renderInlineMarkdown(text: string): string {
+  let html = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // Escaped pipe \| -> |
+  html = html.replace(/\\\|/g, '|');
+
+  // Checkboxes
+  html = html.replace(/\[ \]/g, '<span class="cm-live-table-checkbox"></span>');
+  html = html.replace(
+    /\[[xX]\]/g,
+    '<span class="cm-live-table-checkbox checked"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>'
+  );
+
+  // Inline code: `code`
+  html = html.replace(/`([^`]+)`/g, '<code class="cm-live-code">$1</code>');
+
+  // Links: [text](url)
+  html = html.replace(
+    /\[([^\]]+)\]\(([^)]+)\)/g,
+    '<a href="$2" class="cm-live-link" target="_blank" rel="noopener noreferrer">$1</a>'
+  );
+
+  // Bold + Italic: ***text*** or ___text___
+  html = html.replace(/(\*{3}|_{3})(.*?)\1/g, '<strong><em>$2</em></strong>');
+
+  // Bold: **text** or __text__
+  html = html.replace(/(\*{2}|_{2})(.*?)\1/g, '<strong>$2</strong>');
+
+  // Italic: *text* or _text_
+  html = html.replace(/(\*|_)(.*?)\1/g, '<em>$2</em>');
+
+  // Strikethrough: ~~text~~
+  html = html.replace(/~~(.*?)~~/g, '<del>$1</del>');
+
+  return html;
+}
+
+interface TableData {
+  headerLine: number;
+  delimiterLine: number;
+  endLine: number;
+  headers: string[];
+  rows: string[][];
+  alignments: Array<'left' | 'center' | 'right' | undefined>;
+}
+
+/**
+ * Detect a markdown table starting at line lineNum
+ */
+function findTableStartingAt(doc: { lines: number; line: (n: number) => { text: string } }, lineNum: number): TableData | null {
+  if (lineNum >= doc.lines) return null;
+  const headerText = doc.line(lineNum).text;
+  if (!headerText.includes('|')) return null;
+
+  const delimiterText = doc.line(lineNum + 1).text;
+  if (!delimiterText.includes('|')) return null;
+
+  const alignments = parseDelimiterRow(delimiterText);
+  if (!alignments) return null;
+
+  const headers = splitTableRow(headerText);
+  if (headers.length === 0) return null;
+
+  const rows: string[][] = [];
+  let cur = lineNum + 2;
+  while (cur <= doc.lines) {
+    const rowText = doc.line(cur).text;
+    if (!rowText.includes('|') || rowText.trim() === '') {
+      break;
+    }
+    if (isDelimiterRow(rowText)) {
+      break;
+    }
+    rows.push(splitTableRow(rowText));
+    cur++;
+  }
+
+  return {
+    headerLine: lineNum,
+    delimiterLine: lineNum + 1,
+    endLine: cur - 1,
+    headers,
+    rows,
+    alignments,
+  };
+}
+
+/**
+ * Interactive Table Widget that renders formatted tables with Mantine design.
+ * Clicking focuses the editor on the clicked row/table.
+ */
+class TableWidget extends WidgetType {
+  constructor(
+    readonly headers: string[],
+    readonly rows: string[][],
+    readonly alignments: Array<'left' | 'center' | 'right' | undefined>,
+    readonly from: number,
+    readonly to: number,
+    readonly rawText: string,
+    readonly headerLineNum: number
+  ) {
+    super();
+  }
+
+  toDOM(view: EditorView): HTMLElement {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'cm-live-table-wrapper';
+
+    const hint = document.createElement('span');
+    hint.className = 'cm-live-table-hint';
+    hint.innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>Click to edit table`;
+    wrapper.appendChild(hint);
+
+    const table = document.createElement('table');
+    table.className = 'cm-live-table';
+
+    if (this.headers.length > 0) {
+      const thead = document.createElement('thead');
+      const tr = document.createElement('tr');
+      this.headers.forEach((h, colIdx) => {
+        const th = document.createElement('th');
+        const align = this.alignments[colIdx];
+        if (align) {
+          th.style.textAlign = align;
+        }
+        th.innerHTML = renderInlineMarkdown(h);
+        tr.appendChild(th);
+      });
+      thead.appendChild(tr);
+      table.appendChild(thead);
+    }
+
+    if (this.rows.length > 0) {
+      const tbody = document.createElement('tbody');
+      this.rows.forEach((row) => {
+        const tr = document.createElement('tr');
+        const colCount = Math.max(this.headers.length, this.alignments.length);
+        for (let colIdx = 0; colIdx < colCount; colIdx++) {
+          const td = document.createElement('td');
+          const align = this.alignments[colIdx];
+          if (align) {
+            td.style.textAlign = align;
+          }
+          const cellContent = row[colIdx] || '';
+          td.innerHTML = renderInlineMarkdown(cellContent);
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+    }
+
+    wrapper.appendChild(table);
+
+    wrapper.addEventListener('mousedown', (e) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'A') {
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+
+      let targetPos = this.from;
+      const tr = target.closest('tr');
+      if (tr) {
+        const tbody = tr.parentElement;
+        if (tbody && tbody.tagName === 'TBODY') {
+          const rowIndex = Array.from(tbody.children).indexOf(tr);
+          if (rowIndex >= 0) {
+            const targetLineNum = this.headerLineNum + 2 + rowIndex;
+            if (targetLineNum <= view.state.doc.lines) {
+              targetPos = view.state.doc.line(targetLineNum).from;
+            }
+          }
+        }
+      }
+
+      view.dispatch({
+        selection: { anchor: targetPos },
+        scrollIntoView: true,
+      });
+      view.focus();
+    });
+
+    return wrapper;
+  }
+
+  eq(other: TableWidget): boolean {
+    return this.rawText === other.rawText && this.from === other.from && this.to === other.to;
+  }
+
+  ignoreEvent(): boolean {
+    return false;
+  }
+}
+
 interface QueuedDeco {
   from: number;
   to: number;
@@ -82,11 +350,11 @@ interface QueuedDeco {
 }
 
 /**
- * Build decorations across the document / viewport.
+ * Build decorations across the document.
  */
-function buildLiveDecorations(view: EditorView): DecorationSet {
+function buildLiveDecorations(state: EditorState): DecorationSet {
   const queued: QueuedDeco[] = [];
-  const { doc, selection } = view.state;
+  const { doc, selection } = state;
   const cursorRanges = selection.ranges;
 
   // Helper: check if any selection cursor touches or is inside a range
@@ -99,15 +367,75 @@ function buildLiveDecorations(view: EditorView): DecorationSet {
     return cursorRanges.some((r) => r.from <= lineTo && r.to >= lineFrom);
   };
 
-  // Iterate over visible lines or full document
-  const { from: viewFrom, to: viewTo } = view.viewport;
-  const startLine = doc.lineAt(viewFrom).number;
-  const endLine = doc.lineAt(viewTo).number;
+  const startLine = 1;
+  const endLine = doc.lines;
 
-  for (let l = startLine; l <= endLine; l++) {
+  let l = startLine;
+  while (l <= endLine) {
     const line = doc.line(l);
     const text = line.text;
     const cursorOnCurrentLine = isCursorOnLine(line.from, line.to);
+
+    // 0. Markdown Tables
+    const tableData = findTableStartingAt(doc, l);
+    if (tableData) {
+      const tableFrom = doc.line(tableData.headerLine).from;
+      const tableTo = doc.line(tableData.endLine).to;
+      const cursorInTable = isCursorTouching(tableFrom, tableTo, 0);
+
+      if (!cursorInTable) {
+        const rawTableText = doc.sliceString(tableFrom, tableTo);
+        queued.push({
+          from: tableFrom,
+          to: tableTo,
+          deco: Decoration.replace({
+            widget: new TableWidget(
+              tableData.headers,
+              tableData.rows,
+              tableData.alignments,
+              tableFrom,
+              tableTo,
+              rawTableText,
+              tableData.headerLine
+            ),
+            block: true,
+          }),
+        });
+
+        l = tableData.endLine + 1;
+        continue;
+      } else {
+        // Cursor is in table -> style table header line
+        queued.push({
+          from: line.from,
+          to: line.from,
+          deco: Decoration.line({
+            class: 'cm-live-table-line cm-live-table-header-line',
+          }),
+          isLine: true,
+        });
+      }
+    } else if (text.includes('|') && isDelimiterRow(text)) {
+      // Standalone or active delimiter line
+      queued.push({
+        from: line.from,
+        to: line.from,
+        deco: Decoration.line({
+          class: 'cm-live-table-line cm-live-table-delimiter-line',
+        }),
+        isLine: true,
+      });
+    } else if (text.includes('|') && text.trim().startsWith('|')) {
+      // Table data line when active
+      queued.push({
+        from: line.from,
+        to: line.from,
+        deco: Decoration.line({
+          class: 'cm-live-table-line',
+        }),
+        isLine: true,
+      });
+    }
 
     // 1. Horizontal Rule (---, ***, ___)
     const hrMatch = text.match(/^(---|___|\*\*\*)\s*$/);
@@ -120,6 +448,7 @@ function buildLiveDecorations(view: EditorView): DecorationSet {
             widget: new HorizontalRuleWidget(),
           }),
         });
+        l++;
         continue; // Skip further line processing
       }
     }
@@ -523,6 +852,8 @@ function buildLiveDecorations(view: EditorView): DecorationSet {
         }
       }
     }
+
+    l++;
   }
 
   // Sort queued decorations in strictly valid CodeMirror order:
@@ -547,33 +878,28 @@ function buildLiveDecorations(view: EditorView): DecorationSet {
 }
 
 /**
- * CodeMirror 6 Live Markdown Extension plugin
+ * CodeMirror 6 Live Markdown StateField
+ * StateField is required in CodeMirror 6 to provide block widget decorations (e.g. Tables).
  */
-export const liveMarkdownPlugin = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet;
-
-    constructor(view: EditorView) {
-      this.decorations = buildLiveDecorations(view);
-    }
-
-    update(update: ViewUpdate) {
-      if (update.docChanged || update.selectionSet || update.viewportChanged) {
-        this.decorations = buildLiveDecorations(update.view);
-      }
-    }
+export const liveMarkdownField = StateField.define<DecorationSet>({
+  create(state: EditorState) {
+    return buildLiveDecorations(state);
   },
-  {
-    decorations: (v) => v.decorations,
-  }
-);
+  update(decorations: DecorationSet, tr) {
+    if (tr.docChanged || tr.selection) {
+      return buildLiveDecorations(tr.state);
+    }
+    return decorations.map(tr.changes);
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
 
 /**
  * Returns the extension suite for Obsidian-like Live Preview markdown editing
  */
 export function liveMarkdownExtension() {
   return [
-    liveMarkdownPlugin,
+    liveMarkdownField,
     EditorView.editorAttributes.of({ class: 'cm-live-editor' }),
   ];
 }
