@@ -1,11 +1,9 @@
-import React from 'react';
 import {
   Group,
   ActionIcon,
   Tooltip,
   SegmentedControl,
   Text,
-  useMantineColorScheme,
 } from '@mantine/core';
 import {
   IconCalendarEvent,
@@ -14,8 +12,6 @@ import {
   IconCalendar,
   IconLayoutKanban,
   IconSettings,
-  IconSun,
-  IconMoon,
   IconBook2,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
@@ -24,7 +20,6 @@ import { AppViewMode } from '../../types';
 
 export const AppHeader: React.FC = () => {
   const { t } = useTranslation();
-  const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const {
     currentView,
     setCurrentView,
@@ -140,21 +135,8 @@ export const AppHeader: React.FC = () => {
       </div>
 
 
-      {/* Right Controls: Theme, Settings */}
+      {/* Right Controls: Settings */}
       <Group gap={8} wrap="nowrap" className="app-no-drag" style={{ flexShrink: 0 }}>
-        {/* Dark/Light Mode */}
-        <Tooltip label={colorScheme === 'dark' ? 'Light Mode' : 'Dark Mode'} withArrow position="bottom">
-          <ActionIcon
-            variant="subtle"
-            size={30}
-            radius="md"
-            onClick={() => toggleColorScheme()}
-            aria-label="Toggle color scheme"
-          >
-            {colorScheme === 'dark' ? <IconSun size={17} stroke={1.8} /> : <IconMoon size={17} stroke={1.8} />}
-          </ActionIcon>
-        </Tooltip>
-
         {/* Settings Button */}
         <Tooltip label={t('settings.title')} withArrow position="bottom">
           <ActionIcon
