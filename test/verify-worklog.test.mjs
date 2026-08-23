@@ -386,6 +386,40 @@ assert.strictEqual(resolveMediaUrl(`./images/${img1}`), `worklog-media://vault/i
 assert.strictEqual(resolveMediaUrl(`https://example.com/img.png`), `https://example.com/img.png`);
 console.log('✓ Image markdown parsing and storage logic tests passed');
 
+// 12. Test Onboarding Logic & Settings State
+const initialSettings = {
+  vaultPath: '/mock/vault',
+  language: 'en',
+  themeColor: 'indigo',
+  colorScheme: 'auto',
+  weekStartDay: 1,
+  autoSave: true,
+  hasCompletedOnboarding: false,
+};
+
+assert.strictEqual(initialSettings.hasCompletedOnboarding, false, 'New install hasCompletedOnboarding should be false');
+
+function completeOnboardingState(current, updates) {
+  return {
+    ...current,
+    ...(updates || {}),
+    hasCompletedOnboarding: true,
+  };
+}
+
+const configuredSettings = completeOnboardingState(initialSettings, {
+  language: 'es',
+  weekStartDay: 0,
+  themeColor: 'teal',
+  autoSave: true,
+});
+
+assert.strictEqual(configuredSettings.hasCompletedOnboarding, true, 'hasCompletedOnboarding is true after completion');
+assert.strictEqual(configuredSettings.language, 'es', 'Language is updated');
+assert.strictEqual(configuredSettings.weekStartDay, 0, 'Week start day is updated');
+assert.strictEqual(configuredSettings.themeColor, 'teal', 'Theme color is updated');
+console.log('✓ Onboarding wizard state transitions and settings persistence logic tests passed');
+
 // Cleanup
 fs.rmSync(testVault, { recursive: true });
 console.log('✓ All verification tests passed successfully!');

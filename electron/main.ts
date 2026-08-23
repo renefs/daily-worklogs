@@ -225,6 +225,7 @@ const DEFAULT_SETTINGS = {
   routines: DEFAULT_ROUTINES,
   routineCompletions: {} as Record<string, string[]>,
   showDailyRoutinesPanel: true,
+  hasCompletedOnboarding: false,
 };
 
 function getColumnBehavior(status: string): string {

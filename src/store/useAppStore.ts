@@ -18,6 +18,7 @@ interface AppState {
   isSettingsOpen: boolean;
   settingsActiveTab: string;
   isLoading: boolean;
+  isOnboardingOpen: boolean;
 
   // Tasks state
   tasks: TaskItem[];
@@ -45,6 +46,9 @@ interface AppState {
   openSettings: (tab?: string) => void;
   setSettingsActiveTab: (tab: string) => void;
   toggleTaskInNote: (taskText: string, checked: boolean) => void;
+  openOnboarding: () => void;
+  closeOnboarding: () => void;
+  completeOnboarding: (partial?: Partial<AppSettings>) => Promise<void>;
 
   // Task actions
   refreshTasksList: () => Promise<void>;
@@ -88,6 +92,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isSettingsOpen: false,
   settingsActiveTab: 'general',
   isLoading: true,
+  isOnboardingOpen: false,
 
   tasks: [],
   activeTask: null,
@@ -104,7 +109,12 @@ export const useAppStore = create<AppState>((set, get) => ({
         if (settings.language && i18n.language !== settings.language) {
           i18n.changeLanguage(settings.language);
         }
-        set({ settings, isLoading: false });
+        const shouldShowOnboarding = !settings.hasCompletedOnboarding;
+        set({
+          settings,
+          isLoading: false,
+          isOnboardingOpen: shouldShowOnboarding,
+        });
         await get().refreshNotesList();
         await get().refreshTasksList();
         await get().loadNoteForDate(get().selectedDate);
@@ -112,7 +122,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         // Fallback for browser testing if opened outside electron
         set({
           settings: {
-
             vaultPath: '/mock/vault',
             language: getSystemLanguage(),
             themeColor: 'indigo',
@@ -125,14 +134,33 @@ export const useAppStore = create<AppState>((set, get) => ({
             autoSaveDelay: 1000,
             dateFormat: 'YYYY-MM-DD',
             editorFontSize: 15,
+            hasCompletedOnboarding: false,
           },
           isLoading: false,
+          isOnboardingOpen: true,
         });
       }
     } catch (err) {
       console.error('Failed to init app:', err);
       set({ isLoading: false });
     }
+  },
+
+  openOnboarding: () => {
+    set({ isOnboardingOpen: true });
+  },
+
+  closeOnboarding: () => {
+    set({ isOnboardingOpen: false });
+  },
+
+  completeOnboarding: async (partial) => {
+    const nextSettings: Partial<AppSettings> = {
+      ...(partial || {}),
+      hasCompletedOnboarding: true,
+    };
+    await get().updateSettings(nextSettings);
+    set({ isOnboardingOpen: false });
   },
 
   loadSettings: async () => {

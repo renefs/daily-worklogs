@@ -139,6 +139,7 @@ export interface AppSettings {
   routines?: DailyRoutine[];
   routineCompletions?: Record<string, string[]>; // 'YYYY-MM-DD' -> routine ids completed on that date
   showDailyRoutinesPanel?: boolean;
+  hasCompletedOnboarding?: boolean;
 }
 
 export type AppViewMode = 'daily' | 'weekly' | 'monthly' | 'calendar' | 'tasks' | 'settings';

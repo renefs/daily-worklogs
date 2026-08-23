@@ -39,6 +39,7 @@ import {
   IconEyeOff,
   IconChecklist,
   IconCalendar,
+  IconSparkles,
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
@@ -87,6 +88,7 @@ export const SettingsModal: React.FC = () => {
     setIsSettingsOpen,
     settingsActiveTab,
     setSettingsActiveTab,
+    openOnboarding,
   } = useAppStore();
 
   // Column creation / editing state
@@ -508,6 +510,32 @@ export const SettingsModal: React.FC = () => {
                     checked={settings.autoSave}
                     onChange={(e) => updateSettings({ autoSave: e.currentTarget.checked })}
                   />
+                </Group>
+              </Paper>
+
+              {/* Re-run Setup Wizard */}
+              <Paper withBorder p="md" radius="md">
+                <Group justify="space-between" align="center">
+                  <div style={{ flex: 1, paddingRight: 16 }}>
+                    <Text fw={600} size="sm">
+                      {t('settings.rerunWizard')}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      {t('settings.rerunWizardDesc')}
+                    </Text>
+                  </div>
+                  <Button
+                    variant="light"
+                    color="primary"
+                    size="xs"
+                    leftSection={<IconSparkles size={14} />}
+                    onClick={() => {
+                      setIsSettingsOpen(false);
+                      openOnboarding();
+                    }}
+                  >
+                    {t('settings.rerunWizard')}
+                  </Button>
                 </Group>
               </Paper>
             </Stack>
