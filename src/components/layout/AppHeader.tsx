@@ -13,7 +13,6 @@ import {
   IconLayoutKanban,
   IconSettings,
   IconBook2,
-  IconSparkles,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
@@ -25,7 +24,6 @@ export const AppHeader: React.FC = () => {
     currentView,
     setCurrentView,
     setIsSettingsOpen,
-    openOnboarding,
   } = useAppStore();
 
   const isMac =
@@ -137,21 +135,8 @@ export const AppHeader: React.FC = () => {
       </div>
 
 
-      {/* Right Controls: Wizard & Settings */}
+      {/* Right Controls: Settings */}
       <Group gap={8} wrap="nowrap" className="app-no-drag" style={{ flexShrink: 0 }}>
-        {/* Setup Wizard Button */}
-        <Tooltip label={t('onboarding.title')} withArrow position="bottom">
-          <ActionIcon
-            variant="subtle"
-            size={30}
-            radius="md"
-            onClick={openOnboarding}
-            aria-label="Open setup wizard"
-          >
-            <IconSparkles size={17} stroke={1.8} />
-          </ActionIcon>
-        </Tooltip>
-
         {/* Settings Button */}
         <Tooltip label={t('settings.title')} withArrow position="bottom">
           <ActionIcon

@@ -566,8 +566,154 @@ assert.strictEqual(resolveElectronThemeSource('light'), 'light', 'light maps to 
 
 console.log('✓ Automatic dark/light system theme switching logic tests passed');
 
+// 15. Test Cross-Computer Vault Configuration Synchronization (.daily-worklogs/config.json)
+const VAULT_CONFIG_DIR = '.daily-worklogs';
+const VAULT_CONFIG_FILE = 'config.json';
+
+function getVaultConfigPath(vaultPath) {
+  return path.join(vaultPath, VAULT_CONFIG_DIR, VAULT_CONFIG_FILE);
+}
+
+function readVaultConfig(vaultPath) {
+  try {
+    if (!vaultPath || !fs.existsSync(vaultPath)) return null;
+    const cfgPath = getVaultConfigPath(vaultPath);
+    if (fs.existsSync(cfgPath)) {
+      const data = fs.readFileSync(cfgPath, 'utf-8');
+      return JSON.parse(data);
+    }
+  } catch (err) {
+    console.error('Error reading vault config:', err);
+  }
+  return null;
+}
+
+function writeVaultConfig(vaultPath, config) {
+  try {
+    if (!vaultPath) return;
+    const configDir = path.join(vaultPath, VAULT_CONFIG_DIR);
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+    const cfgPath = path.join(configDir, VAULT_CONFIG_FILE);
+    const { vaultPath: _ignored, ...portableConfig } = config;
+    const payload = {
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      ...portableConfig,
+    };
+    fs.writeFileSync(cfgPath, JSON.stringify(payload, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error writing vault config:', err);
+  }
+}
+
+function simulateGetSettings(localSettingsFile, machineVaultPath) {
+  let localSettings = {
+    vaultPath: machineVaultPath,
+    language: 'en',
+    themeColor: 'indigo',
+    colorScheme: 'auto',
+    weekStartDay: 1,
+    defaultTemplateId: 'standard-worklog',
+    templates: [],
+    kanbanColumns: [],
+    routines: [],
+    dateFormat: 'YYYY-MM-DD',
+    hasCompletedOnboarding: false,
+  };
+
+  if (fs.existsSync(localSettingsFile)) {
+    localSettings = { ...localSettings, ...JSON.parse(fs.readFileSync(localSettingsFile, 'utf-8')) };
+  }
+
+  if (localSettings.vaultPath && fs.existsSync(localSettings.vaultPath)) {
+    const vaultConfig = readVaultConfig(localSettings.vaultPath);
+    if (vaultConfig) {
+      const { version: _v, updatedAt: _u, ...restVaultConfig } = vaultConfig;
+      localSettings = {
+        ...localSettings,
+        ...restVaultConfig,
+        vaultPath: localSettings.vaultPath, // Preserve local machine's path
+      };
+    }
+  }
+
+  return localSettings;
+}
+
+// Setup simulated shared cloud vault (e.g. in Dropbox/iCloud Drive)
+const sharedCloudVault = path.join(os.tmpdir(), 'shared-cloud-vault');
+if (fs.existsSync(sharedCloudVault)) {
+  fs.rmSync(sharedCloudVault, { recursive: true });
+}
+fs.mkdirSync(sharedCloudVault, { recursive: true });
+
+// Setup Computer A (e.g. macOS Laptop)
+const computerASettingsFile = path.join(os.tmpdir(), 'computer-a-settings.json');
+const computerAVaultPath = sharedCloudVault;
+const computerASettings = {
+  vaultPath: computerAVaultPath,
+  language: 'es',
+  themeColor: 'teal',
+  dateFormat: 'DD/MM/YYYY',
+  templates: [
+    { id: 'custom-template', name: 'Custom Template A', content: '# Custom {{date}}' },
+  ],
+  routines: [
+    { id: 'r1', title: 'Daily Standup Routine', schedule: 'weekdays', enabled: true },
+  ],
+  hasCompletedOnboarding: true,
+};
+
+// Computer A saves settings -> Writes to local and syncs to shared cloud vault
+fs.writeFileSync(computerASettingsFile, JSON.stringify(computerASettings, null, 2), 'utf-8');
+writeVaultConfig(computerAVaultPath, computerASettings);
+
+// Verify .daily-worklogs/config.json was created inside the vault
+assert.strictEqual(
+  fs.existsSync(getVaultConfigPath(sharedCloudVault)),
+  true,
+  '.daily-worklogs/config.json must exist in vault'
+);
+const savedVaultConfig = readVaultConfig(sharedCloudVault);
+assert.strictEqual(savedVaultConfig.language, 'es');
+assert.strictEqual(savedVaultConfig.dateFormat, 'DD/MM/YYYY');
+assert.strictEqual(savedVaultConfig.templates.length, 1);
+assert.strictEqual(savedVaultConfig.routines[0].title, 'Daily Standup Routine');
+assert.strictEqual(savedVaultConfig.vaultPath, undefined, 'Machine-specific vaultPath must NOT be in vault config');
+
+// Setup Computer B (e.g. Windows PC with different local path pointing to the synced folder)
+const computerBSettingsFile = path.join(os.tmpdir(), 'computer-b-settings.json');
+const computerBMachineVaultPath = sharedCloudVault; // In reality e.g. C:\Users\rene\Dropbox\...
+const computerBInitialSettings = {
+  vaultPath: computerBMachineVaultPath,
+  language: 'en', // Default on fresh install
+  themeColor: 'indigo',
+  dateFormat: 'YYYY-MM-DD',
+  templates: [],
+  routines: [],
+  hasCompletedOnboarding: false,
+};
+fs.writeFileSync(computerBSettingsFile, JSON.stringify(computerBInitialSettings, null, 2), 'utf-8');
+
+// Computer B opens the app -> getSettings() loads the configuration from the cloud vault!
+const computerBLoadedSettings = simulateGetSettings(computerBSettingsFile, computerBMachineVaultPath);
+assert.strictEqual(computerBLoadedSettings.language, 'es', 'Computer B should load synced language');
+assert.strictEqual(computerBLoadedSettings.dateFormat, 'DD/MM/YYYY', 'Computer B should load synced date format');
+assert.strictEqual(computerBLoadedSettings.templates.length, 1, 'Computer B should load synced custom templates');
+assert.strictEqual(computerBLoadedSettings.templates[0].id, 'custom-template');
+assert.strictEqual(computerBLoadedSettings.routines.length, 1, 'Computer B should load synced routines');
+assert.strictEqual(computerBLoadedSettings.routines[0].title, 'Daily Standup Routine');
+assert.strictEqual(computerBLoadedSettings.vaultPath, computerBMachineVaultPath, 'Computer B preserves its machine-specific path');
+
+console.log('✓ Cross-computer vault configuration synchronization (.daily-worklogs/config.json) tests passed');
+
 // Cleanup
 fs.rmSync(testVault, { recursive: true });
+if (fs.existsSync(sharedCloudVault)) fs.rmSync(sharedCloudVault, { recursive: true });
+if (fs.existsSync(computerASettingsFile)) fs.rmSync(computerASettingsFile);
+if (fs.existsSync(computerBSettingsFile)) fs.rmSync(computerBSettingsFile);
 console.log('✓ All verification tests passed successfully!');
 
 

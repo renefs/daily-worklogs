@@ -81,7 +81,6 @@
     "hiddenBadge": "> 30d",
     "hiddenBadgeTooltip": "Completada o cerrada hace más de 30 días"
   },
-
   "editor": {
     "editing": "Editando",
     "edit": "Editar",
@@ -189,6 +188,7 @@
     "templates": "Plantillas de Notas",
     "vaultLocation": "Ubicación del Baúl de Notas",
     "vaultDescription": "Selecciona la carpeta de tu computadora donde se guardarán los archivos markdown (.md).",
+    "vaultSyncHint": "La configuración, plantillas personalizadas, columnas kanban y rutinas se guardan automáticamente en .daily-worklogs/config.json en tu carpeta de notas, manteniendo tus ajustes sincronizados entre múltiples computadoras (p. ej. en iCloud Drive, Dropbox, Google Drive o OneDrive).",
     "changeVault": "Cambiar Carpeta",
     "openInFinder": "Abrir en Administrador de Archivos",
     "language": "Idioma / Language",

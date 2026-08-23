@@ -264,6 +264,48 @@ function getSystemLanguage(): 'en' | 'es' {
   return 'en';
 }
 
+const VAULT_CONFIG_DIR = '.daily-worklogs';
+const VAULT_CONFIG_FILE = 'config.json';
+
+function getVaultConfigPath(vaultPath: string): string {
+  return path.join(vaultPath, VAULT_CONFIG_DIR, VAULT_CONFIG_FILE);
+}
+
+function readVaultConfig(vaultPath: string): any | null {
+  try {
+    if (!vaultPath || !fs.existsSync(vaultPath)) return null;
+    const cfgPath = getVaultConfigPath(vaultPath);
+    if (fs.existsSync(cfgPath)) {
+      const data = fs.readFileSync(cfgPath, 'utf-8');
+      return JSON.parse(data);
+    }
+  } catch (err) {
+    console.error('Error reading vault config:', err);
+  }
+  return null;
+}
+
+function writeVaultConfig(vaultPath: string, config: any): void {
+  try {
+    if (!vaultPath) return;
+    const configDir = path.join(vaultPath, VAULT_CONFIG_DIR);
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+    const cfgPath = path.join(configDir, VAULT_CONFIG_FILE);
+    // Exclude machine-specific vaultPath from portable vault config
+    const { vaultPath: _ignored, ...portableConfig } = config;
+    const payload = {
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      ...portableConfig,
+    };
+    fs.writeFileSync(cfgPath, JSON.stringify(payload, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error writing vault config:', err);
+  }
+}
+
 function getDefaultSettings() {
   return {
     ...DEFAULT_SETTINGS,
@@ -272,15 +314,30 @@ function getDefaultSettings() {
 }
 
 function getSettings() {
+  let localSettings: any = getDefaultSettings();
   try {
     if (fs.existsSync(settingsPath)) {
       const data = fs.readFileSync(settingsPath, 'utf-8');
-      return { ...getDefaultSettings(), ...JSON.parse(data) };
+      localSettings = { ...getDefaultSettings(), ...JSON.parse(data) };
     }
   } catch (err) {
-    console.error('Error reading settings:', err);
+    console.error('Error reading local settings:', err);
   }
-  return getDefaultSettings();
+
+  // If vault exists and contains .daily-worklogs/config.json, merge portable workspace settings
+  if (localSettings.vaultPath && fs.existsSync(localSettings.vaultPath)) {
+    const vaultConfig = readVaultConfig(localSettings.vaultPath);
+    if (vaultConfig) {
+      const { version: _v, updatedAt: _u, ...restVaultConfig } = vaultConfig;
+      localSettings = {
+        ...localSettings,
+        ...restVaultConfig,
+        vaultPath: localSettings.vaultPath, // Preserve local machine vaultPath
+      };
+    }
+  }
+
+  return localSettings;
 }
 
 function saveSettings(newSettings: any) {
@@ -289,6 +346,12 @@ function saveSettings(newSettings: any) {
     const merged = { ...current, ...newSettings };
     fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
     fs.writeFileSync(settingsPath, JSON.stringify(merged, null, 2), 'utf-8');
+
+    // Sync portable settings to vault folder if vaultPath exists
+    if (merged.vaultPath && fs.existsSync(merged.vaultPath)) {
+      writeVaultConfig(merged.vaultPath, merged);
+    }
+
     if (merged.colorScheme) {
       nativeTheme.themeSource = merged.colorScheme === 'auto' ? 'system' : merged.colorScheme;
     }
@@ -421,6 +484,9 @@ function createWindow() {
   const settings = getSettings();
   ensureVaultDir(settings.vaultPath);
   ensureImagesDir(settings.vaultPath);
+  if (!fs.existsSync(getVaultConfigPath(settings.vaultPath))) {
+    writeVaultConfig(settings.vaultPath, settings);
+  }
 
   if (settings.colorScheme) {
     nativeTheme.themeSource = settings.colorScheme === 'auto' ? 'system' : settings.colorScheme;
@@ -481,34 +547,34 @@ function setupApplicationMenu() {
   const template: MenuItemConstructorOptions[] = [
     ...(isMac
       ? [
-          {
-            label: 'Daily Worklog',
-            submenu: [
-              {
-                label: 'About Daily Worklog',
-                click: () => showAbout(),
+        {
+          label: 'Daily Worklog',
+          submenu: [
+            {
+              label: 'About Daily Worklog',
+              click: () => showAbout(),
+            },
+            { type: 'separator' as const },
+            {
+              label: 'Preferences...',
+              accelerator: 'CmdOrCtrl+,',
+              click: () => {
+                if (mainWindow) {
+                  mainWindow.webContents.send('open-settings');
+                }
               },
-              { type: 'separator' as const },
-              {
-                label: 'Preferences...',
-                accelerator: 'CmdOrCtrl+,',
-                click: () => {
-                  if (mainWindow) {
-                    mainWindow.webContents.send('open-settings');
-                  }
-                },
-              },
-              { type: 'separator' as const },
-              { role: 'services' as const },
-              { type: 'separator' as const },
-              { role: 'hide' as const },
-              { role: 'hideOthers' as const },
-              { role: 'unhide' as const },
-              { type: 'separator' as const },
-              { role: 'quit' as const },
-            ],
-          },
-        ]
+            },
+            { type: 'separator' as const },
+            { role: 'services' as const },
+            { type: 'separator' as const },
+            { role: 'hide' as const },
+            { role: 'hideOthers' as const },
+            { role: 'unhide' as const },
+            { type: 'separator' as const },
+            { role: 'quit' as const },
+          ],
+        },
+      ]
       : []),
     {
       label: 'File',
@@ -568,11 +634,11 @@ function setupApplicationMenu() {
         { role: 'zoom' as const },
         ...(isMac
           ? [
-              { type: 'separator' as const },
-              { role: 'front' as const },
-              { type: 'separator' as const },
-              { role: 'window' as const },
-            ]
+            { type: 'separator' as const },
+            { role: 'front' as const },
+            { type: 'separator' as const },
+            { role: 'window' as const },
+          ]
           : [{ role: 'close' as const }]),
       ],
     },
@@ -587,12 +653,12 @@ function setupApplicationMenu() {
         },
         ...(!isMac
           ? [
-              { type: 'separator' as const },
-              {
-                label: 'About Daily Worklog',
-                click: () => showAbout(),
-              },
-            ]
+            { type: 'separator' as const },
+            {
+              label: 'About Daily Worklog',
+              click: () => showAbout(),
+            },
+          ]
           : []),
       ],
     },
@@ -717,15 +783,30 @@ ipcMain.handle('get-default-vault-path', () => {
 
 ipcMain.handle('select-vault-directory', async () => {
   if (!mainWindow) return null;
+  const currentSettings = getSettings();
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openDirectory', 'createDirectory'],
     title: 'Select Worklog Vault Folder',
-    defaultPath: getSettings().vaultPath,
+    defaultPath: currentSettings.vaultPath,
   });
 
   if (!result.canceled && result.filePaths.length > 0) {
     const selected = result.filePaths[0];
-    saveSettings({ vaultPath: selected });
+    ensureVaultDir(selected);
+
+    // If selected directory already contains .daily-worklogs/config.json, merge its configuration
+    const vaultConfig = readVaultConfig(selected);
+    if (vaultConfig) {
+      const { version: _v, updatedAt: _u, ...restVaultConfig } = vaultConfig;
+      saveSettings({
+        ...restVaultConfig,
+        vaultPath: selected,
+        hasCompletedOnboarding: true,
+      });
+    } else {
+      saveSettings({ vaultPath: selected });
+      writeVaultConfig(selected, currentSettings);
+    }
     return selected;
   }
   return null;
@@ -889,7 +970,7 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     const dateStr = d.toISOString().split('T')[0];
     const { filepath, exists } = getNoteFilePath(vaultPath, dateStr);
-    
+
     if (exists) {
       const content = fs.readFileSync(filepath, 'utf-8');
       const { tasksCompleted, tasksTotal } = parseTaskCounts(content);

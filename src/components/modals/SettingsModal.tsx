@@ -96,6 +96,11 @@ export const SettingsModal: React.FC = () => {
     settingsActiveTab,
     setSettingsActiveTab,
     openOnboarding,
+    loadSettings,
+    refreshNotesList,
+    refreshTasksList,
+    loadNoteForDate,
+    selectedDate,
   } = useAppStore();
 
   // Column creation / editing state
@@ -142,7 +147,10 @@ export const SettingsModal: React.FC = () => {
     }
     const selected = await window.electronAPI.selectVaultDirectory();
     if (selected) {
-      await updateSettings({ vaultPath: selected });
+      await loadSettings();
+      await refreshNotesList();
+      await refreshTasksList();
+      await loadNoteForDate(selectedDate);
       notifications.show({
         title: t('settings.vaultLocation'),
         message: selected,
@@ -448,6 +456,9 @@ export const SettingsModal: React.FC = () => {
                   >
                     {settings.vaultPath}
                   </Text>
+                  <Text size="xs" c="dimmed">
+                    {t('settings.vaultSyncHint')}
+                  </Text>
                   <Group gap="xs" mt="xs">
                     <Button
                       variant="light"
@@ -645,8 +656,8 @@ export const SettingsModal: React.FC = () => {
                             ? 'var(--mantine-color-dark-6)'
                             : 'var(--mantine-color-dark-8)'
                           : isVisible
-                          ? '#ffffff'
-                          : 'var(--mantine-color-gray-1)',
+                            ? '#ffffff'
+                            : 'var(--mantine-color-gray-1)',
                       }}
                     >
                       <Group justify="space-between" align="center" wrap="nowrap">
@@ -900,15 +911,15 @@ export const SettingsModal: React.FC = () => {
                   {/* Custom Format Input when custom is selected */}
                   {(!DATE_FORMAT_PRESETS.some((p) => p.value !== 'custom' && p.value === (settings.dateFormat || 'YYYY-MM-DD')) ||
                     settings.dateFormat === 'custom') && (
-                    <TextInput
-                      label={t('settings.customDateFormat')}
-                      placeholder={t('settings.customFormatPlaceholder')}
-                      value={settings.dateFormat === 'custom' ? '' : settings.dateFormat}
-                      onChange={(e) => updateSettings({ dateFormat: e.currentTarget.value })}
-                      size="sm"
-                      radius="md"
-                    />
-                  )}
+                      <TextInput
+                        label={t('settings.customDateFormat')}
+                        placeholder={t('settings.customFormatPlaceholder')}
+                        value={settings.dateFormat === 'custom' ? '' : settings.dateFormat}
+                        onChange={(e) => updateSettings({ dateFormat: e.currentTarget.value })}
+                        size="sm"
+                        radius="md"
+                      />
+                    )}
 
                   {/* Live Rendered Preview Card */}
                   <Paper

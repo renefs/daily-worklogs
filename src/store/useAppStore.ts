@@ -166,17 +166,24 @@ export const useAppStore = create<AppState>((set, get) => ({
   loadSettings: async () => {
     if (!window.electronAPI) return;
     const settings = await window.electronAPI.getSettings();
+    if (settings.language && i18n.language !== settings.language) {
+      i18n.changeLanguage(settings.language);
+    }
     set({ settings });
   },
 
   updateSettings: async (partial) => {
     if (!window.electronAPI) return;
     const updated = await window.electronAPI.saveSettings(partial);
-    if (partial.language && i18n.language !== partial.language) {
-      i18n.changeLanguage(partial.language);
+    if (updated.language && i18n.language !== updated.language) {
+      i18n.changeLanguage(updated.language);
     }
     set({ settings: updated });
     await get().refreshNotesList();
+    if (partial.vaultPath) {
+      await get().refreshTasksList();
+      await get().loadNoteForDate(get().selectedDate);
+    }
   },
 
   setSelectedDate: async (date: string) => {

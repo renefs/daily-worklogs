@@ -8,7 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
-## [1.0.1] - 2026-08-20
+### Added
+- **Cross-Computer Configuration Synchronization**: Workspace configuration (custom templates, Kanban columns, daily routines, routine completion history, date format, week start day, default template, editor font size, and theme preferences) is now automatically saved to and loaded from `.daily-worklogs/config.json` inside your vault folder.
+- **Seamless Cloud Storage Multi-Device Support**: When opening a vault stored in iCloud Drive, Dropbox, Google Drive, OneDrive, or Syncthing on a different computer, the application automatically detects and loads the synced configuration, while safely preserving each machine's local directory path.
 
 ### Added
 - **Automatic OS Dark/Light Theme Switching**: The application now seamlessly adapts in real-time when the operating system changes between dark and light modes (when Color Mode is set to "Auto" / system preference).

@@ -81,7 +81,6 @@
     "hiddenBadge": "> 30d",
     "hiddenBadgeTooltip": "Completed or closed more than 30 days ago"
   },
-
   "editor": {
     "editing": "Editing",
     "edit": "Edit",
@@ -189,6 +188,7 @@
     "templates": "Note Templates",
     "vaultLocation": "Worklog Vault Location",
     "vaultDescription": "Choose where your markdown (.md) notes are stored on your computer.",
+    "vaultSyncHint": "Configuration, custom templates, kanban columns, and routines are automatically saved to .daily-worklogs/config.json in your vault folder, keeping your setup synced across multiple computers (e.g. iCloud Drive, Dropbox, Google Drive, or OneDrive).",
     "changeVault": "Change Folder",
     "openInFinder": "Open in File Manager",
     "language": "Language / Idioma",

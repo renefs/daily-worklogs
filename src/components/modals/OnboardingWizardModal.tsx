@@ -68,6 +68,7 @@ export const OnboardingWizardModal: React.FC = () => {
     isOnboardingOpen,
     completeOnboarding,
     openSettings,
+    loadSettings,
   } = useAppStore();
 
   const [activeStep, setActiveStep] = useState(0);
@@ -103,6 +104,7 @@ export const OnboardingWizardModal: React.FC = () => {
       const selected = await window.electronAPI.selectVaultDirectory();
       if (selected) {
         setVaultPath(selected);
+        await loadSettings();
       }
     }
   };
