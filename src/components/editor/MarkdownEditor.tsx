@@ -34,14 +34,19 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
 
+import { EditorView } from '@codemirror/view';
+import { liveMarkdownExtension } from './liveMarkdownExtension';
+
 interface MarkdownEditorProps {
   onExportClick?: () => void;
   onDeleteClick?: () => void;
+  isLivePreview?: boolean;
 }
 
 export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   onExportClick,
   onDeleteClick,
+  isLivePreview = true,
 }) => {
   const { t } = useTranslation();
   const { colorScheme } = useMantineColorScheme();
@@ -99,6 +104,14 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     .split(/\s+/)
     .filter(Boolean).length;
   const charCount = (activeNote?.content || '').length;
+
+  const extensions = React.useMemo(() => {
+    const list = [markdown(), EditorView.lineWrapping];
+    if (isLivePreview) {
+      list.push(...liveMarkdownExtension());
+    }
+    return list;
+  }, [isLivePreview]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
@@ -193,6 +206,12 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
           {/* Right Action Icons & Save Status */}
           <Group gap="xs">
+            {isLivePreview && (
+              <Badge color="violet" variant="light" size="sm">
+                {t('editor.live')}
+              </Badge>
+            )}
+
             {isDirty ? (
               <Badge color="yellow" variant="light" size="sm">
                 {t('editor.unsaved')}
@@ -254,7 +273,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           value={activeNote?.content || ''}
           height="100%"
           theme={isDark ? oneDark : 'light'}
-          extensions={[markdown()]}
+          extensions={extensions}
           onChange={(val) => setNoteContent(val)}
           basicSetup={{
             lineNumbers: true,

@@ -1,0 +1,214 @@
+/* Obsidian-style Live Markdown Editor Styles */
+
+.cm-live-editor {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.6;
+}
+
+.cm-live-editor .cm-content {
+  padding: 16px 20px;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.cm-live-editor .cm-line {
+  padding: 1px 0;
+}
+
+/* Hidden markdown delimiter characters */
+.cm-live-mark-hidden {
+  display: inline-block;
+  width: 0 !important;
+  height: 0 !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  opacity: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none;
+  user-select: none;
+  vertical-align: middle;
+}
+
+/* Revealed markdown delimiter when cursor is adjacent/inside */
+.cm-live-mark-visible {
+  opacity: 0.55;
+  font-family: var(--font-mono, 'JetBrains Mono', 'Fira Code', monospace);
+  font-size: 0.88em;
+  font-weight: 500;
+  color: var(--mantine-primary-color-filled, #4f46e5);
+  background-color: rgba(99, 102, 241, 0.08);
+  border-radius: 3px;
+  padding: 0 2px;
+  margin: 0 1px;
+}
+
+/* Headings Line & Text Styling */
+.cm-live-heading {
+  font-family: var(--font-display, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  font-weight: 700;
+  color: var(--mantine-color-text);
+  line-height: 1.35;
+}
+
+.cm-live-h1 {
+  font-size: 1.75em !important;
+  font-weight: 800 !important;
+  padding-top: 14px !important;
+  padding-bottom: 6px !important;
+  border-bottom: 1px solid var(--mantine-color-default-border) !important;
+  margin-bottom: 6px !important;
+  color: var(--mantine-color-text);
+}
+
+.cm-live-h2 {
+  font-size: 1.45em !important;
+  font-weight: 750 !important;
+  padding-top: 12px !important;
+  padding-bottom: 4px !important;
+  border-bottom: 1px solid rgba(125, 125, 125, 0.15) !important;
+  margin-bottom: 4px !important;
+  color: var(--mantine-color-text);
+}
+
+.cm-live-h3 {
+  font-size: 1.25em !important;
+  font-weight: 700 !important;
+  padding-top: 10px !important;
+  padding-bottom: 2px !important;
+  color: var(--mantine-color-text);
+}
+
+.cm-live-h4 {
+  font-size: 1.1em !important;
+  font-weight: 650 !important;
+  padding-top: 6px !important;
+  color: var(--mantine-color-text);
+}
+
+.cm-live-h5 {
+  font-size: 1em !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--mantine-color-dimmed);
+}
+
+.cm-live-h6 {
+  font-size: 0.9em !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  color: var(--mantine-color-dimmed);
+}
+
+/* Bold, Italic, Strikethrough */
+.cm-live-bold {
+  font-weight: 700 !important;
+}
+
+.cm-live-italic {
+  font-style: italic !important;
+}
+
+.cm-live-bold-italic {
+  font-weight: 700 !important;
+  font-style: italic !important;
+}
+
+.cm-live-strike {
+  text-decoration: line-through !important;
+  opacity: 0.65;
+}
+
+/* Inline Code */
+.cm-live-code {
+  font-family: var(--font-mono, 'JetBrains Mono', 'Fira Code', monospace) !important;
+  font-size: 0.88em !important;
+  padding: 2px 5px !important;
+  border-radius: 4px !important;
+  background-color: var(--mantine-color-default-hover, rgba(125, 125, 125, 0.12)) !important;
+  border: 1px solid rgba(125, 125, 125, 0.15) !important;
+  color: var(--mantine-primary-color-filled, #4f46e5) !important;
+}
+
+/* Blockquotes */
+.cm-live-blockquote {
+  border-left: 3px solid var(--mantine-primary-color-filled, #4f46e5) !important;
+  padding-left: 12px !important;
+  margin-left: 2px !important;
+  font-style: italic;
+  color: var(--mantine-color-dimmed);
+  background-color: rgba(99, 102, 241, 0.03);
+  border-radius: 0 4px 4px 0;
+}
+
+/* Links */
+.cm-live-link {
+  color: var(--mantine-primary-color-filled, #228be6) !important;
+  text-decoration: underline !important;
+  text-decoration-thickness: 1px !important;
+  text-underline-offset: 2px !important;
+  cursor: pointer;
+}
+
+.cm-live-link-url {
+  opacity: 0.6;
+  font-size: 0.85em;
+}
+
+/* Interactive Checkbox Widget */
+.cm-live-checkbox-widget {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  margin-right: 7px;
+  margin-left: 2px;
+  border-radius: 4px;
+  border: 1.5px solid var(--mantine-color-default-border, #ced4da);
+  background-color: var(--mantine-color-body, #fff);
+  cursor: pointer;
+  vertical-align: -2.5px;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.cm-live-checkbox-widget:hover {
+  border-color: var(--mantine-primary-color-filled, #4f46e5);
+  transform: scale(1.05);
+}
+
+.cm-live-checkbox-widget.checked {
+  background-color: var(--mantine-primary-color-filled, #4f46e5);
+  border-color: var(--mantine-primary-color-filled, #4f46e5);
+  color: #fff;
+}
+
+.cm-live-checkbox-widget svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.5;
+}
+
+/* Completed Task Line Styling */
+.cm-live-task-completed-text {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+/* Horizontal Rule Widget */
+.cm-live-hr-widget {
+  display: block;
+  width: 100%;
+  height: 2px;
+  margin: 12px 0;
+  border-radius: 1px;
+  background: linear-gradient(
+    90deg,
+    var(--mantine-color-default-border) 0%,
+    rgba(125, 125, 125, 0.4) 50%,
+    var(--mantine-color-default-border) 100%
+  );
+  user-select: none;
+}

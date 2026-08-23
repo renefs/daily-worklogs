@@ -16,6 +16,7 @@ import {
   IconEdit,
   IconEye,
   IconCalendarEvent,
+  IconWriting,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
@@ -26,7 +27,7 @@ import { ExportModal } from '../modals/ExportModal';
 
 export const DailyView: React.FC = () => {
   const { t, i18n } = useTranslation();
-  const [layoutMode, setLayoutMode] = useState<'split' | 'edit' | 'preview'>('split');
+  const [layoutMode, setLayoutMode] = useState<'live' | 'split' | 'edit' | 'preview'>('live');
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
@@ -94,11 +95,20 @@ export const DailyView: React.FC = () => {
           </Group>
         </Group>
 
-        {/* Layout Switcher: Split, Edit Only, Preview Only */}
+        {/* Layout Switcher: Live Editor, Split, Edit Only, Preview Only */}
         <SegmentedControl
           value={layoutMode}
           onChange={(val) => setLayoutMode(val as any)}
           data={[
+            {
+              value: 'live',
+              label: (
+                <Group gap={6} justify="center">
+                  <IconWriting size={16} />
+                  <span>{t('editor.live')}</span>
+                </Group>
+              ),
+            },
             {
               value: 'split',
               label: (
@@ -134,10 +144,21 @@ export const DailyView: React.FC = () => {
 
       {/* Editor / Viewer Container */}
       <div style={{ flex: 1, minHeight: 0 }}>
+        {layoutMode === 'live' && (
+          <div style={{ height: '100%' }}>
+            <MarkdownEditor
+              isLivePreview={true}
+              onExportClick={() => setIsExportModalOpen(true)}
+              onDeleteClick={() => setIsDeleteModalOpen(true)}
+            />
+          </div>
+        )}
+
         {layoutMode === 'split' && (
           <Grid style={{ height: '100%' }} gutter="md">
             <Grid.Col span={{ base: 12, md: 6 }} style={{ height: '100%' }}>
               <MarkdownEditor
+                isLivePreview={false}
                 onExportClick={() => setIsExportModalOpen(true)}
                 onDeleteClick={() => setIsDeleteModalOpen(true)}
               />
@@ -151,6 +172,7 @@ export const DailyView: React.FC = () => {
         {layoutMode === 'edit' && (
           <div style={{ height: '100%' }}>
             <MarkdownEditor
+              isLivePreview={false}
               onExportClick={() => setIsExportModalOpen(true)}
               onDeleteClick={() => setIsDeleteModalOpen(true)}
             />
