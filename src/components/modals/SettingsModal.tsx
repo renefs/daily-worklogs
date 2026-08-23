@@ -449,7 +449,7 @@ export const SettingsModal: React.FC = () => {
                     value={settings.language}
                     onChange={handleLanguageChange}
                     data={[
-                      { value: 'en', label: 'English (Default)' },
+                      { value: 'en', label: 'English' },
                       { value: 'es', label: 'Español' },
                     ]}
                     allowDeselect={false}

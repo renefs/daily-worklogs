@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import { AppSettings, AppViewMode, DailyNote, DEFAULT_KANBAN_COLUMNS, TaskItem, TaskPriority, TaskStatus } from '../types';
-import i18n from '../i18n';
+import i18n, { getSystemLanguage } from '../i18n';
 
 dayjs.extend(isoWeek);
 
@@ -99,7 +99,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           settings: {
 
             vaultPath: '/mock/vault',
-            language: 'en',
+            language: getSystemLanguage(),
             themeColor: 'indigo',
             colorScheme: 'auto',
             weekStartDay: 1,

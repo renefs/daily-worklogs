@@ -157,16 +157,35 @@ function getColumnBehavior(status: string): string {
   return 'todo';
 }
 
+function getSystemLanguage(): 'en' | 'es' {
+  try {
+    const locale = (app.getLocale() || '').toLowerCase();
+    const primary = locale.split(/[-_]/)[0];
+    if (primary === 'es') return 'es';
+    if (primary === 'en') return 'en';
+  } catch (err) {
+    // fallback
+  }
+  return 'en';
+}
+
+function getDefaultSettings() {
+  return {
+    ...DEFAULT_SETTINGS,
+    language: getSystemLanguage(),
+  };
+}
+
 function getSettings() {
   try {
     if (fs.existsSync(settingsPath)) {
       const data = fs.readFileSync(settingsPath, 'utf-8');
-      return { ...DEFAULT_SETTINGS, ...JSON.parse(data) };
+      return { ...getDefaultSettings(), ...JSON.parse(data) };
     }
   } catch (err) {
     console.error('Error reading settings:', err);
   }
-  return DEFAULT_SETTINGS;
+  return getDefaultSettings();
 }
 
 function saveSettings(newSettings: any) {
