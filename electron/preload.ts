@@ -5,7 +5,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings: any) => ipcRenderer.invoke('save-settings', settings),
   selectVaultDirectory: () => ipcRenderer.invoke('select-vault-directory'),
-  getDefaultVaultPath: () => ipcRenderer.invoke('get-default-vault-path'),
+  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+  getAppInfo: () => ipcRenderer.invoke('get-app-info'),
+  showAboutDialog: () => ipcRenderer.invoke('show-about-dialog'),
   readNote: (date: string) => ipcRenderer.invoke('read-note', date),
   writeNote: (date: string, content: string) => ipcRenderer.invoke('write-note', date, content),
   deleteNote: (date: string) => ipcRenderer.invoke('delete-note', date),
@@ -31,6 +33,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('note-file-changed', handler);
     return () => {
       ipcRenderer.removeListener('note-file-changed', handler);
+    };
+  },
+  onOpenSettings: (callback: (tab?: string) => void) => {
+    const handler = (_event: any, tab?: string) => callback(tab);
+    ipcRenderer.on('open-settings', handler);
+    return () => {
+      ipcRenderer.removeListener('open-settings', handler);
     };
   },
 });

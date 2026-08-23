@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   AppShell,
   Center,
@@ -22,7 +22,16 @@ import { OnboardingWizardModal } from '../modals/OnboardingWizardModal';
 
 export const AppLayout: React.FC = () => {
   const { t } = useTranslation();
-  const { currentView, isLoading } = useAppStore();
+  const { currentView, isLoading, openSettings } = useAppStore();
+
+  useEffect(() => {
+    if (window.electronAPI?.onOpenSettings) {
+      const unsub = window.electronAPI.onOpenSettings((tab) => {
+        openSettings(tab || 'general');
+      });
+      return unsub;
+    }
+  }, [openSettings]);
 
   if (isLoading) {
     return (

@@ -420,6 +420,13 @@ assert.strictEqual(configuredSettings.weekStartDay, 0, 'Week start day is update
 assert.strictEqual(configuredSettings.themeColor, 'teal', 'Theme color is updated');
 console.log('✓ Onboarding wizard state transitions and settings persistence logic tests passed');
 
+// 13. Test App Version & Info Configuration
+const pkgPath = path.resolve('package.json');
+const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+assert.strictEqual(pkg.version, '1.0.0', 'Package version should be 1.0.0');
+assert.strictEqual(pkg.name, 'daily-worklog', 'Package name should be daily-worklog');
+console.log('✓ App version 1.0.0 verification tests passed');
+
 // Cleanup
 fs.rmSync(testVault, { recursive: true });
 console.log('✓ All verification tests passed successfully!');

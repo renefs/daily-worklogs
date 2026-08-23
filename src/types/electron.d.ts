@@ -1,11 +1,26 @@
 import { AppSettings, DailyNote, PeriodSummary, TaskItem, TaskPriority, TaskStatus } from './index';
 
+export interface AppInfo {
+  name: string;
+  version: string;
+  electron: string;
+  chrome: string;
+  node: string;
+  v8?: string;
+  platform: string;
+  arch: string;
+  osRelease?: string;
+}
+
 export interface ElectronAPI {
   platform?: string;
   getSettings: () => Promise<AppSettings>;
   saveSettings: (settings: Partial<AppSettings>) => Promise<AppSettings>;
   selectVaultDirectory: () => Promise<string | null>;
   getDefaultVaultPath: () => Promise<string>;
+  getAppVersion: () => Promise<string>;
+  getAppInfo: () => Promise<AppInfo>;
+  showAboutDialog: () => Promise<{ success: boolean }>;
   readNote: (date: string) => Promise<DailyNote>;
   writeNote: (date: string, content: string) => Promise<{ success: boolean; filepath: string; lastModified: string }>;
   deleteNote: (date: string) => Promise<{ success: boolean }>;
@@ -56,6 +71,7 @@ export interface ElectronAPI {
   }>;
   resolveMediaUrl: (path: string) => Promise<string>;
   onNoteFileChanged: (callback: (data: { date: string; content: string }) => void) => () => void;
+  onOpenSettings?: (callback: (tab?: string) => void) => () => void;
 }
 
 declare global {

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell, protocol, net } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell, protocol, net, Menu, MenuItemConstructorOptions } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -387,8 +387,157 @@ function createWindow() {
   });
 }
 
+function showAbout() {
+  if (process.platform === 'darwin') {
+    app.showAboutPanel();
+  } else {
+    dialog.showMessageBox(mainWindow || (undefined as any), {
+      type: 'info',
+      title: 'About Daily Worklog',
+      message: 'Daily Worklog',
+      detail: `Version: 1.0.0\nElectron: ${process.versions.electron}\nChromium: ${process.versions.chrome}\nNode.js: ${process.versions.node}\nOS: ${os.type()} ${os.release()} (${os.arch()})\n\nCross-platform Daily Worklog Desktop Application`,
+      buttons: ['OK'],
+    });
+  }
+}
+
+function setupApplicationMenu() {
+  const isMac = process.platform === 'darwin';
+
+  const template: MenuItemConstructorOptions[] = [
+    ...(isMac
+      ? [
+          {
+            label: 'Daily Worklog',
+            submenu: [
+              {
+                label: 'About Daily Worklog',
+                click: () => showAbout(),
+              },
+              { type: 'separator' as const },
+              {
+                label: 'Preferences...',
+                accelerator: 'CmdOrCtrl+,',
+                click: () => {
+                  mainWindow?.webContents.send('open-settings');
+                },
+              },
+              { type: 'separator' as const },
+              { role: 'services' as const },
+              { type: 'separator' as const },
+              { role: 'hide' as const },
+              { role: 'hideOthers' as const },
+              { role: 'unhide' as const },
+              { type: 'separator' as const },
+              { role: 'quit' as const },
+            ],
+          },
+        ]
+      : []),
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'Open Vault in File Manager',
+          click: () => {
+            const { vaultPath } = getSettings();
+            if (vaultPath && fs.existsSync(vaultPath)) {
+              shell.openPath(vaultPath);
+            }
+          },
+        },
+        { type: 'separator' as const },
+        isMac ? { role: 'close' as const } : { role: 'quit' as const },
+      ],
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' as const },
+        { role: 'redo' as const },
+        { type: 'separator' as const },
+        { role: 'cut' as const },
+        { role: 'copy' as const },
+        { role: 'paste' as const },
+        { role: 'selectAll' as const },
+      ],
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' as const },
+        { role: 'forceReload' as const },
+        { role: 'toggleDevTools' as const },
+        { type: 'separator' as const },
+        { role: 'resetZoom' as const },
+        { role: 'zoomIn' as const },
+        { role: 'zoomOut' as const },
+        { type: 'separator' as const },
+        { role: 'togglefullscreen' as const },
+      ],
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' as const },
+        { role: 'zoom' as const },
+        ...(isMac
+          ? [
+              { type: 'separator' as const },
+              { role: 'front' as const },
+              { type: 'separator' as const },
+              { role: 'window' as const },
+            ]
+          : [{ role: 'close' as const }]),
+      ],
+    },
+    {
+      role: 'help' as const,
+      submenu: [
+        {
+          label: 'About Daily Worklog',
+          click: () => showAbout(),
+        },
+        {
+          label: 'Open Settings (About Tab)',
+          click: () => {
+            mainWindow?.webContents.send('open-settings', 'about');
+          },
+        },
+        { type: 'separator' as const },
+        {
+          label: 'Documentation & GitHub',
+          click: async () => {
+            await shell.openExternal('https://github.com/renefs/daily-worklogs');
+          },
+        },
+      ],
+    },
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+}
+
 // App lifecycle
 app.whenReady().then(() => {
+  const iconPath = fs.existsSync(path.join(__dirname, '../resources/icon.png'))
+    ? path.join(__dirname, '../resources/icon.png')
+    : path.join(__dirname, '../public/icon.png');
+
+  app.setAboutPanelOptions({
+    applicationName: 'Daily Worklog',
+    applicationVersion: '1.0.0',
+    version: '1.0.0',
+    copyright: 'Copyright © 2026 Daily Worklog',
+    authors: ['Daily Worklog Team'],
+    website: 'https://github.com/renefs/daily-worklogs',
+    iconPath: iconPath,
+    credits: 'Cross-platform desktop application to store, edit, and visualize daily worklogs using Markdown.',
+  });
+
+  setupApplicationMenu();
+
   // Handle worklog-media protocol for local vault images
   protocol.handle('worklog-media', async (request) => {
     try {
@@ -444,6 +593,29 @@ function parseTaskCounts(content: string) {
 }
 
 // IPC Handlers
+ipcMain.handle('get-app-version', () => {
+  return '1.0.0';
+});
+
+ipcMain.handle('get-app-info', () => {
+  return {
+    name: 'Daily Worklog',
+    version: '1.0.0',
+    electron: process.versions.electron,
+    chrome: process.versions.chrome,
+    node: process.versions.node,
+    v8: process.versions.v8,
+    platform: process.platform,
+    arch: process.arch,
+    osRelease: `${os.type()} ${os.release()}`,
+  };
+});
+
+ipcMain.handle('show-about-dialog', () => {
+  showAbout();
+  return { success: true };
+});
+
 ipcMain.handle('get-settings', () => {
   return getSettings();
 });
