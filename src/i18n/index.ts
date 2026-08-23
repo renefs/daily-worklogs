@@ -1,5 +1,6 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
+import dayjs from 'dayjs';
 import 'dayjs/locale/es';
 import 'dayjs/locale/en';
 import en from './locales/en.json';
@@ -35,6 +36,9 @@ export function getSystemLanguage(): SupportedLanguage {
 
 const initialLanguage = getSystemLanguage();
 
+// Set initial Day.js locale
+dayjs.locale(initialLanguage === 'es' ? 'es' : 'en');
+
 i18n.use(initReactI18next).init({
   resources: {
     en: { translation: en },
@@ -47,5 +51,11 @@ i18n.use(initReactI18next).init({
   },
 });
 
+// Keep Day.js locale synchronized whenever i18n language changes
+i18n.on('languageChanged', (lng) => {
+  dayjs.locale(lng === 'es' ? 'es' : 'en');
+});
+
 export default i18n;
+
 

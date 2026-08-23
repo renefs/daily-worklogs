@@ -20,6 +20,7 @@ import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
 import { MarkdownViewer } from '../viewer/MarkdownViewer';
+import { formatLocalizedDateTitle } from '../../utils/dateTemplate';
 
 export const CalendarView: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -66,9 +67,7 @@ export const CalendarView: React.FC = () => {
     setCurrentView('monthly');
   };
 
-  const formattedDateTitle = dayjs(selectedDate)
-    .locale(i18n.language === 'es' ? 'es' : 'en')
-    .format('dddd, MMMM D, YYYY');
+  const formattedDateTitle = formatLocalizedDateTitle(selectedDate, i18n.language);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 14 }}>
@@ -120,6 +119,7 @@ export const CalendarView: React.FC = () => {
           >
             <Stack align="center" gap="md" style={{ width: '100%' }}>
               <DatePicker
+                locale={i18n.language === 'es' ? 'es' : 'en'}
                 value={calendarDate}
                 onChange={handleDateChange}
                 size="md"
@@ -197,7 +197,7 @@ export const CalendarView: React.FC = () => {
             <Group justify="space-between" align="center">
               <Group gap="xs">
                 <IconFileText size={20} color="var(--mantine-primary-color-filled)" />
-                <Text fw={700} size="md" style={{ textTransform: 'capitalize' }}>
+                <Text fw={700} size="md">
                   {formattedDateTitle}
                 </Text>
                 {activeNote?.exists ? (

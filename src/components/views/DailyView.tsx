@@ -27,6 +27,7 @@ import { MarkdownEditor } from '../editor/MarkdownEditor';
 import { MarkdownViewer } from '../viewer/MarkdownViewer';
 import { ExportModal } from '../modals/ExportModal';
 import { DailyRoutinesPanel } from '../routines/DailyRoutinesPanel';
+import { formatLocalizedDateTitle } from '../../utils/dateTemplate';
 
 export const DailyView: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -46,10 +47,8 @@ export const DailyView: React.FC = () => {
   const dayObj = dayjs(selectedDate);
   const isToday = selectedDate === dayjs().format('YYYY-MM-DD');
 
-  // Format date display based on current locale
-  const formattedDateTitle = dayObj
-    .locale(i18n.language === 'es' ? 'es' : 'en')
-    .format('dddd, MMMM D, YYYY');
+  // Format date display based on current locale (e.g. "Thursday, August 20, 2026" / "Jueves, 20 de agosto de 2026")
+  const formattedDateTitle = formatLocalizedDateTitle(selectedDate, i18n.language);
 
   const currentDayOfWeek = dayObj.day();
   const allRoutines = settings?.routines || [];
@@ -104,7 +103,7 @@ export const DailyView: React.FC = () => {
           </ActionIcon>
 
           <Group gap="xs" ml="xs">
-            <Text fw={700} size="lg" style={{ textTransform: 'capitalize' }}>
+            <Text fw={700} size="lg">
               {formattedDateTitle}
             </Text>
             {isToday && (

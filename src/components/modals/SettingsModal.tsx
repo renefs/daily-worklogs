@@ -38,9 +38,11 @@ import {
   IconEye,
   IconEyeOff,
   IconChecklist,
+  IconCalendar,
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
+import dayjs from 'dayjs';
 import { useAppStore } from '../../store/useAppStore';
 import { ColumnBehavior, DEFAULT_KANBAN_COLUMNS, KanbanColumnConfig, WeekStartDay } from '../../types';
 import {
@@ -50,6 +52,7 @@ import {
   getColumnTitle,
 } from '../kanban/columnUtils';
 import { RoutinesManagerView } from './ManageRoutinesModal';
+import { DATE_FORMAT_PRESETS, formatTemplateDate } from '../../utils/dateTemplate';
 
 const THEME_COLORS = [
   'indigo',
@@ -73,7 +76,7 @@ function slugify(text: string): string {
 }
 
 export const SettingsModal: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { colorScheme, setColorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -807,6 +810,84 @@ export const SettingsModal: React.FC = () => {
                     allowDeselect={false}
                     size="sm"
                   />
+                </Stack>
+              </Paper>
+
+              {/* Template Date Format Setting */}
+              <Paper withBorder p="md" radius="md">
+                <Stack gap="sm">
+                  <div>
+                    <Text fw={600} size="sm">
+                      {t('settings.templateDateFormat')}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      {t('settings.templateDateFormatDesc')}
+                    </Text>
+                  </div>
+
+                  <Select
+                    label={t('settings.dateFormatPreset')}
+                    value={
+                      DATE_FORMAT_PRESETS.some((p) => p.value !== 'custom' && p.value === (settings.dateFormat || 'YYYY-MM-DD'))
+                        ? (settings.dateFormat || 'YYYY-MM-DD')
+                        : 'custom'
+                    }
+                    onChange={(val) => {
+                      if (!val) return;
+                      if (val !== 'custom') {
+                        updateSettings({ dateFormat: val });
+                      }
+                    }}
+                    data={DATE_FORMAT_PRESETS.map((preset) => ({
+                      value: preset.value,
+                      label: `${t(preset.labelKey)}${preset.example ? ` (${preset.example})` : ''}`,
+                    }))}
+                    allowDeselect={false}
+                    size="sm"
+                  />
+
+                  {/* Custom Format Input when custom is selected */}
+                  {(!DATE_FORMAT_PRESETS.some((p) => p.value !== 'custom' && p.value === (settings.dateFormat || 'YYYY-MM-DD')) ||
+                    settings.dateFormat === 'custom') && (
+                    <TextInput
+                      label={t('settings.customDateFormat')}
+                      placeholder={t('settings.customFormatPlaceholder')}
+                      value={settings.dateFormat === 'custom' ? '' : settings.dateFormat}
+                      onChange={(e) => updateSettings({ dateFormat: e.currentTarget.value })}
+                      size="sm"
+                      radius="md"
+                    />
+                  )}
+
+                  {/* Live Rendered Preview Card */}
+                  <Paper
+                    p="xs"
+                    radius="md"
+                    style={{
+                      backgroundColor: 'var(--mantine-color-default-hover)',
+                      border: '1px dashed var(--mantine-color-default-border)',
+                    }}
+                  >
+                    <Group justify="space-between" align="center" wrap="wrap">
+                      <Group gap={6}>
+                        <IconCalendar size={15} color="var(--mantine-primary-color-filled)" />
+                        <Text size="xs" fw={600}>
+                          {t('settings.formatPreview')}:
+                        </Text>
+                      </Group>
+                      <Badge size="md" variant="filled" color="primary" radius="sm">
+                        {formatTemplateDate(
+                          dayjs().format('YYYY-MM-DD'),
+                          settings.dateFormat || 'YYYY-MM-DD',
+                          i18n.language
+                        )}
+                      </Badge>
+                    </Group>
+                  </Paper>
+
+                  <Text size="xs" c="dimmed" style={{ fontSize: 11 }}>
+                    {t('settings.formatTokensHelp')}
+                  </Text>
                 </Stack>
               </Paper>
 

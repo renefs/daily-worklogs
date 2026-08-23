@@ -33,6 +33,7 @@ import { useTranslation } from 'react-i18next';
 import { PeriodSummary, WorklogDaySummary } from '../../types';
 import { MarkdownViewer } from '../viewer/MarkdownViewer';
 import { useAppStore } from '../../store/useAppStore';
+import { formatLocalizedDateTitle } from '../../utils/dateTemplate';
 
 interface PeriodDaysListProps {
   periodSummary: PeriodSummary | null;
@@ -119,9 +120,7 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
       setCopiedDate((curr) => (curr === day.date ? null : curr));
     }, 2000);
 
-    const formattedDate = dayjs(day.date)
-      .locale(i18n.language === 'es' ? 'es' : 'en')
-      .format('dddd, MMMM D, YYYY');
+    const formattedDate = formatLocalizedDateTitle(day.date, i18n.language);
 
     notifications.show({
       title: t('reports.dayCopied'),
@@ -216,9 +215,7 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
               const isCollapsed = !!collapsedMap[day.date];
               const isCopied = copiedDate === day.date;
 
-              const dayName = dayjs(day.date)
-                .locale(i18n.language === 'es' ? 'es' : 'en')
-                .format('dddd, MMMM D, YYYY');
+              const dayName = formatLocalizedDateTitle(day.date, i18n.language);
 
               const checklistDone = (day.checklistItems || []).filter((i) => i.completed).length;
               const checklistTotal = (day.checklistItems || []).length;

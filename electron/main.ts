@@ -4,9 +4,46 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import matter from 'gray-matter';
+import dayjs from 'dayjs';
+import 'dayjs/locale/es';
+import 'dayjs/locale/en';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+function formatTemplateDate(dateStr: string, format?: string, lang?: string): string {
+  const targetLang = lang === 'es' ? 'es' : 'en';
+  const targetFormat = format && format.trim() ? format.trim() : 'YYYY-MM-DD';
+  try {
+    const d = dayjs(dateStr).locale(targetLang);
+    if (!d.isValid()) return dateStr;
+    return d.format(targetFormat);
+  } catch {
+    return dateStr;
+  }
+}
+
+function formatTemplateContent(
+  content: string,
+  dateStr: string,
+  dateFormat?: string,
+  lang?: string
+): string {
+  if (!content) return '';
+  const targetLang = lang === 'es' ? 'es' : 'en';
+  const defaultFormat = dateFormat && dateFormat.trim() ? dateFormat.trim() : 'YYYY-MM-DD';
+
+  let processed = content.replace(/\{\{date:([^}]+)\}\}/g, (_match, customFmt) => {
+    return formatTemplateDate(dateStr, customFmt.trim(), targetLang);
+  });
+
+  processed = processed.replace(/\{\{date\}\}/g, () => {
+    return formatTemplateDate(dateStr, defaultFormat, targetLang);
+  });
+
+  return processed;
+}
+
 
 
 // Path constants
@@ -343,7 +380,7 @@ ipcMain.handle('select-vault-directory', async () => {
 });
 
 ipcMain.handle('read-note', async (_event, date: string) => {
-  const { vaultPath, templates, defaultTemplateId } = getSettings();
+  const { vaultPath } = getSettings();
   ensureVaultDir(vaultPath);
   const filename = `${date}.md`;
   const filepath = path.join(vaultPath, filename);
@@ -365,8 +402,9 @@ ipcMain.handle('read-note', async (_event, date: string) => {
   }
 
   // If note doesn't exist yet, construct initial content from chosen default template
-  const template = templates.find((t: any) => t.id === defaultTemplateId) || templates[0] || DEFAULT_TEMPLATES[0];
-  const initialContent = template.content.replace(/\{\{date\}\}/g, date);
+  const settings = getSettings();
+  const template = settings.templates.find((t: any) => t.id === settings.defaultTemplateId) || settings.templates[0] || DEFAULT_TEMPLATES[0];
+  const initialContent = formatTemplateContent(template.content, date, settings.dateFormat, settings.language);
 
   return {
     date,
@@ -937,7 +975,7 @@ ipcMain.handle('log-task-to-daily-note', async (_event, { date, taskTitle, statu
       settings.templates.find((t: any) => t.id === settings.defaultTemplateId) ||
       settings.templates[0] ||
       DEFAULT_TEMPLATES[0];
-    content = template.content.replace(/\{\{date\}\}/g, targetDate);
+    content = formatTemplateContent(template.content, targetDate, settings.dateFormat, settings.language);
   }
 
   const behavior = getColumnBehavior(status);

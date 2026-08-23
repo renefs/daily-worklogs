@@ -36,6 +36,7 @@ import {
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
+import { formatTemplateContent } from '../../utils/dateTemplate';
 
 import { EditorView } from '@codemirror/view';
 import { liveMarkdownExtension } from './liveMarkdownExtension';
@@ -73,7 +74,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   onDeleteClick,
   isLivePreview = true,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { colorScheme } = useMantineColorScheme();
   const editorRef = useRef<ReactCodeMirrorRef>(null);
 
@@ -125,7 +126,12 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       const template = settings.templates.find((t) => t.id === templateId);
       if (!template) return;
 
-      const processedContent = template.content.replace(/\{\{date\}\}/g, selectedDate);
+      const processedContent = formatTemplateContent(
+        template.content,
+        selectedDate,
+        settings.dateFormat,
+        settings.language || (i18n.language === 'es' ? 'es' : 'en')
+      );
       const view = editorRef.current?.view;
       if (view) {
         const selection = view.state.selection.main;
@@ -142,7 +148,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         setNoteContent(current ? `${current}\n\n${processedContent}` : processedContent);
       }
     },
-    [settings, selectedDate, activeNote?.content, setNoteContent]
+    [settings, selectedDate, activeNote?.content, setNoteContent, i18n.language]
   );
 
   const insertTable = () => {

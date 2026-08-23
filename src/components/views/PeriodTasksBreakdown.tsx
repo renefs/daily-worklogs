@@ -28,9 +28,9 @@ import {
   IconEdit,
   IconNotes,
 } from '@tabler/icons-react';
-import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { PeriodSummary, TaskItem, TaskPriority } from '../../types';
+import { formatLocalizedDateTitle } from '../../utils/dateTemplate';
 
 interface PeriodTasksBreakdownProps {
   periodSummary: PeriodSummary | null;
@@ -379,9 +379,7 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
             <Accordion.Panel>
               <Stack gap="md">
                 {Array.from(checklistsByDate.entries()).map(([dateStr, items]) => {
-                  const dayTitle = dayjs(dateStr)
-                    .locale(i18n.language === 'es' ? 'es' : 'en')
-                    .format('dddd, MMMM D, YYYY');
+                  const dayTitle = formatLocalizedDateTitle(dateStr, i18n.language);
                   const completedInDay = items.filter((i) => i.completed).length;
 
                   return (

@@ -3,6 +3,7 @@ import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import { AppSettings, AppViewMode, DailyNote, DailyRoutine, DEFAULT_KANBAN_COLUMNS, TaskItem, TaskPriority, TaskStatus } from '../types';
 import i18n, { getSystemLanguage } from '../i18n';
+import { formatTemplateContent } from '../utils/dateTemplate';
 
 dayjs.extend(isoWeek);
 
@@ -247,7 +248,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!settings || !activeNote) return;
     const template = settings.templates.find((t) => t.id === templateId);
     if (template) {
-      const newContent = template.content.replace(/\{\{date\}\}/g, selectedDate);
+      const newContent = formatTemplateContent(
+        template.content,
+        selectedDate,
+        settings.dateFormat,
+        settings.language || (i18n.language === 'es' ? 'es' : 'en')
+      );
       get().setNoteContent(newContent);
     }
   },

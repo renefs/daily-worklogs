@@ -28,6 +28,7 @@ import {
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
+import { capitalizeFirstLetter, formatTemplateDate } from '../../utils/dateTemplate';
 
 export const AppSidebar: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -110,6 +111,7 @@ export const AppSidebar: React.FC = () => {
       {/* Mini Date Picker */}
       <Paper withBorder p="xs" radius="md">
         <DatePicker
+          locale={i18n.language === 'es' ? 'es' : 'en'}
           value={dayjs(selectedDate).toDate()}
           onChange={(val) => {
             if (val) handleSelectDate(dayjs(val).format('YYYY-MM-DD'));
@@ -174,9 +176,11 @@ export const AppSidebar: React.FC = () => {
           <Stack gap={3}>
             {filteredNotes.map((note) => {
               const isSelected = note.date === selectedDate;
-              const formattedDate = dayjs(note.date)
-                .locale(i18n.language === 'es' ? 'es' : 'en')
-                .format('ddd, MMM D, YYYY');
+              const formattedDate = capitalizeFirstLetter(
+                dayjs(note.date)
+                  .locale(i18n.language === 'es' ? 'es' : 'en')
+                  .format(i18n.language === 'es' ? 'ddd, D MMM, YYYY' : 'ddd, MMM D, YYYY')
+              );
 
               return (
                 <UnstyledButton
@@ -316,7 +320,11 @@ export const AppSidebar: React.FC = () => {
         radius="md"
       >
         <Text size="sm" mb="lg">
-          {t('editor.deleteConfirm', { date: noteToDelete })}
+          {t('editor.deleteConfirm', {
+            date: noteToDelete
+              ? `${formatTemplateDate(noteToDelete, 'dddd, MMMM D, YYYY', i18n.language)} (${noteToDelete}.md)`
+              : '',
+          })}
         </Text>
         <Group justify="flex-end" gap="xs">
           <Button variant="default" onClick={() => setNoteToDelete(null)}>
