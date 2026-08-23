@@ -17,6 +17,7 @@ import { CalendarView } from '../views/CalendarView';
 import { KanbanView } from '../views/KanbanView';
 import { SettingsModal } from '../modals/SettingsModal';
 import { TaskModal } from '../modals/TaskModal';
+import { ManageRoutinesModal } from '../modals/ManageRoutinesModal';
 
 export const AppLayout: React.FC = () => {
   const { t } = useTranslation();
@@ -69,6 +70,7 @@ export const AppLayout: React.FC = () => {
       {/* Global Modals */}
       <SettingsModal />
       <TaskModal />
+      <ManageRoutinesModal />
     </AppShell>
   );
 };

@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportDocument: (payload: { title: string; defaultPath: string; content: string; format: string }) =>
     ipcRenderer.invoke('export-document', payload),
   openInFileManager: (filePath?: string) => ipcRenderer.invoke('open-in-file-manager', filePath),
+  openExternalUrl: (url: string) => ipcRenderer.invoke('open-external-url', url),
   logTaskToDailyNote: (payload: { date?: string; taskTitle: string; status: string; priority?: string; filename?: string }) =>
     ipcRenderer.invoke('log-task-to-daily-note', payload),
   onNoteFileChanged: (callback: (data: { date: string; content: string }) => void) => {

@@ -111,6 +111,17 @@ export interface NoteTemplate {
   content: string;
 }
 
+export type RoutineSchedule = 'everyday' | 'weekdays' | number[]; // [0..6] for Sun..Sat
+
+export interface DailyRoutine {
+  id: string;
+  title: string;
+  description?: string;
+  url?: string;
+  schedule: RoutineSchedule;
+  enabled: boolean;
+}
+
 export interface AppSettings {
   vaultPath: string;
   language: 'en' | 'es';
@@ -125,6 +136,9 @@ export interface AppSettings {
   dateFormat: string;
   editorFontSize: number;
   hideCompletedOlderThan30Days?: boolean;
+  routines?: DailyRoutine[];
+  routineCompletions?: Record<string, string[]>; // 'YYYY-MM-DD' -> routine ids completed on that date
+  showDailyRoutinesPanel?: boolean;
 }
 
 export type AppViewMode = 'daily' | 'weekly' | 'monthly' | 'calendar' | 'tasks' | 'settings';

@@ -126,6 +126,34 @@ const DEFAULT_KANBAN_COLUMNS = [
   },
 ];
 
+// Default Routines
+const DEFAULT_ROUTINES = [
+  {
+    id: 'routine-email',
+    title: 'Check Email & Messages',
+    description: 'Review inbox and team chat channels',
+    url: '',
+    schedule: 'weekdays' as const,
+    enabled: true,
+  },
+  {
+    id: 'routine-calendar',
+    title: 'Check Calendar & Schedule',
+    description: 'Review meetings and agenda for today',
+    url: '',
+    schedule: 'weekdays' as const,
+    enabled: true,
+  },
+  {
+    id: 'routine-monitoring',
+    title: 'Check System Status & Monitoring',
+    description: 'Verify server health, alerts and dashboards',
+    url: 'https://uptimerobot.com',
+    schedule: 'everyday' as const,
+    enabled: true,
+  },
+];
+
 // Default Settings
 const defaultVaultPath = path.join(os.homedir(), 'Documents', 'DailyWorklog');
 const DEFAULT_SETTINGS = {
@@ -142,6 +170,9 @@ const DEFAULT_SETTINGS = {
   dateFormat: 'YYYY-MM-DD',
   editorFontSize: 15,
   hideCompletedOlderThan30Days: false,
+  routines: DEFAULT_ROUTINES,
+  routineCompletions: {} as Record<string, string[]>,
+  showDailyRoutinesPanel: true,
 };
 
 function getColumnBehavior(status: string): string {
@@ -645,6 +676,23 @@ ipcMain.handle('open-in-file-manager', async (_event, targetPath?: string) => {
     return { success: false, error: 'Path not found' };
   } catch (err: any) {
     console.error('Error opening in file manager:', err);
+    return { success: false, error: err?.message };
+  }
+});
+
+ipcMain.handle('open-external-url', async (_event, targetUrl: string) => {
+  try {
+    if (targetUrl) {
+      let formattedUrl = targetUrl.trim();
+      if (!/^https?:\/\//i.test(formattedUrl)) {
+        formattedUrl = `https://${formattedUrl}`;
+      }
+      await shell.openExternal(formattedUrl);
+      return { success: true };
+    }
+    return { success: false, error: 'Empty URL' };
+  } catch (err: any) {
+    console.error('Error opening external URL:', err);
     return { success: false, error: err?.message };
   }
 });

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
-import { AppSettings, AppViewMode, DailyNote, DEFAULT_KANBAN_COLUMNS, TaskItem, TaskPriority, TaskStatus } from '../types';
+import { AppSettings, AppViewMode, DailyNote, DailyRoutine, DEFAULT_KANBAN_COLUMNS, TaskItem, TaskPriority, TaskStatus } from '../types';
 import i18n, { getSystemLanguage } from '../i18n';
 
 dayjs.extend(isoWeek);
@@ -24,6 +24,9 @@ interface AppState {
   isTaskModalOpen: boolean;
   taskModalInitialStatus: TaskStatus;
   isTasksLoading: boolean;
+
+  // Routines state
+  isManageRoutinesModalOpen: boolean;
 
   // Actions
   initApp: () => Promise<void>;
@@ -61,6 +64,16 @@ interface AppState {
   logTaskToDailyNote: (task: TaskItem, targetDate?: string) => Promise<boolean>;
   openTaskModal: (task?: TaskItem | null, defaultStatus?: TaskStatus) => void;
   closeTaskModal: () => void;
+
+  // Routine actions
+  toggleRoutineCompletion: (date: string, routineId: string) => Promise<void>;
+  completeAllDailyRoutines: (date: string, routineIds: string[]) => Promise<void>;
+  resetDailyRoutines: (date: string) => Promise<void>;
+  saveRoutinesList: (routines: DailyRoutine[]) => Promise<void>;
+  toggleDailyRoutinesPanel: () => Promise<void>;
+  openExternalUrl: (url: string) => Promise<void>;
+  openManageRoutinesModal: () => void;
+  closeManageRoutinesModal: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -81,6 +94,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   taskModalInitialStatus: 'todo',
   isTasksLoading: false,
 
+  isManageRoutinesModalOpen: false,
 
   initApp: async () => {
     try {
@@ -367,6 +381,68 @@ export const useAppStore = create<AppState>((set, get) => ({
       activeTask: null,
       isTaskModalOpen: false,
     });
+  },
+
+  toggleRoutineCompletion: async (date: string, routineId: string) => {
+    const settings = get().settings;
+    if (!settings) return;
+    const currentCompletions = { ...(settings.routineCompletions || {}) };
+    const dateCompletions = new Set(currentCompletions[date] || []);
+    if (dateCompletions.has(routineId)) {
+      dateCompletions.delete(routineId);
+    } else {
+      dateCompletions.add(routineId);
+    }
+    currentCompletions[date] = Array.from(dateCompletions);
+    await get().updateSettings({ routineCompletions: currentCompletions });
+  },
+
+  completeAllDailyRoutines: async (date: string, routineIds: string[]) => {
+    const settings = get().settings;
+    if (!settings) return;
+    const currentCompletions = { ...(settings.routineCompletions || {}) };
+    currentCompletions[date] = Array.from(new Set([...(currentCompletions[date] || []), ...routineIds]));
+    await get().updateSettings({ routineCompletions: currentCompletions });
+  },
+
+  resetDailyRoutines: async (date: string) => {
+    const settings = get().settings;
+    if (!settings) return;
+    const currentCompletions = { ...(settings.routineCompletions || {}) };
+    delete currentCompletions[date];
+    await get().updateSettings({ routineCompletions: currentCompletions });
+  },
+
+  saveRoutinesList: async (routines: DailyRoutine[]) => {
+    await get().updateSettings({ routines });
+  },
+
+  toggleDailyRoutinesPanel: async () => {
+    const settings = get().settings;
+    if (!settings) return;
+    const current = settings.showDailyRoutinesPanel !== false;
+    await get().updateSettings({ showDailyRoutinesPanel: !current });
+  },
+
+  openExternalUrl: async (url: string) => {
+    if (!url) return;
+    if (window.electronAPI?.openExternalUrl) {
+      await window.electronAPI.openExternalUrl(url);
+    } else {
+      let target = url.trim();
+      if (!/^https?:\/\//i.test(target)) {
+        target = `https://${target}`;
+      }
+      window.open(target, '_blank');
+    }
+  },
+
+  openManageRoutinesModal: () => {
+    set({ isManageRoutinesModalOpen: true });
+  },
+
+  closeManageRoutinesModal: () => {
+    set({ isManageRoutinesModalOpen: false });
   },
 }));
 

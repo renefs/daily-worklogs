@@ -29,6 +29,7 @@ export interface ElectronAPI {
   deleteTask: (filename: string) => Promise<{ success: boolean }>;
   exportDocument: (payload: { title: string; defaultPath: string; content: string; format: 'md' | 'html' | 'txt' }) => Promise<{ success: boolean; filePath?: string }>;
   openInFileManager: (filePath?: string) => Promise<void>;
+  openExternalUrl: (url: string) => Promise<{ success: boolean }>;
   logTaskToDailyNote: (payload: { date?: string; taskTitle: string; status: string; priority?: string; filename?: string }) => Promise<{ success: boolean }>;
   onNoteFileChanged: (callback: (data: { date: string; content: string }) => void) => () => void;
 }

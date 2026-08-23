@@ -37,6 +37,7 @@ import {
   IconRotate,
   IconEye,
   IconEyeOff,
+  IconChecklist,
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
@@ -48,6 +49,7 @@ import {
   getColumnIcon,
   getColumnTitle,
 } from '../kanban/columnUtils';
+import { RoutinesManagerView } from './ManageRoutinesModal';
 
 const THEME_COLORS = [
   'indigo',
@@ -382,6 +384,9 @@ export const SettingsModal: React.FC = () => {
             </Tabs.Tab>
             <Tabs.Tab value="kanban" leftSection={<IconLayoutKanban size={16} />}>
               {t('settings.kanbanColumns')}
+            </Tabs.Tab>
+            <Tabs.Tab value="routines" leftSection={<IconChecklist size={16} />}>
+              {t('settings.tabRoutines')}
             </Tabs.Tab>
             <Tabs.Tab value="appearance" leftSection={<IconPalette size={16} />}>
               {t('settings.appearance')}
@@ -839,6 +844,11 @@ export const SettingsModal: React.FC = () => {
                 </Paper>
               ))}
             </Stack>
+          </Tabs.Panel>
+
+          {/* Routines Tab */}
+          <Tabs.Panel value="routines">
+            <RoutinesManagerView />
           </Tabs.Panel>
         </Tabs>
 
