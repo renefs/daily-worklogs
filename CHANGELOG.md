@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Removed
+- **Calendar View & Tab**: Removed the standalone calendar tab and page to streamline top navigation across daily, weekly, monthly, and task views.
+
 ## [1.1.0] - 2026-08-20
 
 ### Added

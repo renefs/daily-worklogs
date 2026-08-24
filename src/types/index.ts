@@ -152,7 +152,7 @@ export interface AppSettings {
   hasCompletedOnboarding?: boolean;
 }
 
-export type AppViewMode = 'daily' | 'weekly' | 'monthly' | 'calendar' | 'tasks' | 'settings';
+export type AppViewMode = 'daily' | 'weekly' | 'monthly' | 'tasks' | 'settings';
 
 export interface DailyChecklistItem {
   date: string;

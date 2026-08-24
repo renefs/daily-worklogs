@@ -7,7 +7,6 @@
     "daily": "Daily",
     "weekly": "Weekly",
     "monthly": "Monthly",
-    "calendar": "Calendar",
     "tasks": "Tasks",
     "settings": "Settings",
     "today": "Today",
@@ -173,13 +172,9 @@
     "createNoteForDay": "Create Note for this Day",
     "openInEditor": "Open in Daily Editor"
   },
-  "calendar": {
-    "title": "Calendar & Worklog History",
-    "subtitle": "Browse all your notes by date, week, or month",
-    "daysWithNotes": "Days with notes are highlighted",
-    "selectedDate": "Selected Note",
-    "openInDaily": "Open in Daily Editor",
-    "totalNotes": "Total Notes"
+  "sidebar": {
+    "worklogHistory": "Worklog History",
+    "openInDaily": "Open in Daily Editor"
   },
   "settings": {
     "title": "Settings",
@@ -200,7 +195,7 @@
     "dark": "Dark",
     "auto": "System Default",
     "weekStart": "First Day of the Week",
-    "weekStartDescription": "Defines how weekly reports and calendar grids calculate week periods.",
+    "weekStartDescription": "Defines how weekly and monthly reports calculate week periods.",
     "monday": "Monday",
     "tuesday": "Tuesday",
     "wednesday": "Wednesday",
@@ -315,7 +310,7 @@
     "dateFormatHelp": "Controls how the date variable is formatted when creating daily notes or inserting templates.",
     "dateFormatPreview": "Live Date Preview",
     "stepScheduleTitle": "First Day of the Week",
-    "stepScheduleDescription": "Define how your work week starts. This determines how weekly summaries, reporting periods, and calendar grids are calculated.",
+    "stepScheduleDescription": "Define how your work week starts. This determines how weekly summaries and reporting periods are calculated.",
     "weekStartHelp": "For example, selecting Monday groups Monday through Sunday together in your weekly worklog reports.",
     "stepEditorTitle": "Auto-Save & Theme Preferences",
     "stepEditorDescription": "Configure how your work is saved and style the visual look of the application.",

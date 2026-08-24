@@ -392,23 +392,6 @@ textarea {
   background-color: rgba(var(--mantine-color-body), 0.85);
 }
 
-/* Calendar Date Indicators */
-.has-note-indicator {
-  position: relative;
-}
-
-.has-note-indicator::after {
-  content: '';
-  position: absolute;
-  bottom: 2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background-color: var(--mantine-primary-color-filled);
-}
-
 /* Electron App Titlebar drag region for macOS */
 .app-drag-region {
   -webkit-app-region: drag;

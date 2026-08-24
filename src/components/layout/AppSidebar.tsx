@@ -170,7 +170,7 @@ export const AppSidebar: React.FC = () => {
       {/* Recent Notes List */}
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <Text size="xs" fw={700} c="dimmed" tt="uppercase" mb={6} px={4}>
-          {t('calendar.title')} ({filteredNotes.length})
+          {t('sidebar.worklogHistory')} ({filteredNotes.length})
         </Text>
 
         <ScrollArea style={{ flex: 1 }} type="auto" offsetScrollbars>
@@ -279,7 +279,7 @@ export const AppSidebar: React.FC = () => {
                   setContextMenu(null);
                 }}
               >
-                {t('calendar.openInDaily')}
+                {t('sidebar.openInDaily')}
               </Menu.Item>
               {settings?.vaultPath && (
                 <Menu.Item

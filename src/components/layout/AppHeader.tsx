@@ -9,7 +9,6 @@ import {
   IconCalendarEvent,
   IconCalendarWeek,
   IconCalendarMonth,
-  IconCalendar,
   IconLayoutKanban,
   IconSettings,
   IconBook2,
@@ -109,15 +108,6 @@ export const AppHeader: React.FC = () => {
                 <Group gap={6} justify="center" wrap="nowrap" style={{ padding: '2px 4px', whiteSpace: 'nowrap' }}>
                   <IconCalendarMonth size={15} stroke={1.8} />
                   <span style={{ fontWeight: 500, fontSize: 13 }}>{t('nav.monthly')}</span>
-                </Group>
-              ),
-            },
-            {
-              value: 'calendar',
-              label: (
-                <Group gap={6} justify="center" wrap="nowrap" style={{ padding: '2px 4px', whiteSpace: 'nowrap' }}>
-                  <IconCalendar size={15} stroke={1.8} />
-                  <span style={{ fontWeight: 500, fontSize: 13 }}>{t('nav.calendar')}</span>
                 </Group>
               ),
             },

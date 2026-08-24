@@ -7,7 +7,6 @@
     "daily": "Diario",
     "weekly": "Semanal",
     "monthly": "Mensual",
-    "calendar": "Calendario",
     "tasks": "Tareas",
     "settings": "Configuración",
     "today": "Hoy",
@@ -173,13 +172,9 @@
     "createNoteForDay": "Crear Nota para este Día",
     "openInEditor": "Abrir en Editor Diario"
   },
-  "calendar": {
-    "title": "Calendario e Historial de Notas",
-    "subtitle": "Explora tus notas por fecha, semana o mes",
-    "daysWithNotes": "Los días con notas están resaltados",
-    "selectedDate": "Nota Seleccionada",
-    "openInDaily": "Abrir en Editor Diario",
-    "totalNotes": "Total de Notas"
+  "sidebar": {
+    "worklogHistory": "Historial de Notas",
+    "openInDaily": "Abrir en Editor Diario"
   },
   "settings": {
     "title": "Configuración",
@@ -200,7 +195,7 @@
     "dark": "Oscuro",
     "auto": "Predeterminado del Sistema",
     "weekStart": "Primer Día de la Semana",
-    "weekStartDescription": "Define cómo se calculan los informes semanales y la vista de calendario.",
+    "weekStartDescription": "Define cómo se calculan los informes semanales y mensuales.",
     "monday": "Lunes",
     "tuesday": "Martes",
     "wednesday": "Miércoles",
@@ -315,7 +310,7 @@
     "dateFormatHelp": "Determina el formato en que se inserta la fecha en tus notas diarias al usar la variable {{date}}.",
     "dateFormatPreview": "Vista Previa de Fecha",
     "stepScheduleTitle": "Primer Día de la Semana",
-    "stepScheduleDescription": "Define qué día comienza tu semana de trabajo. Esto influye en cómo se calculan los resúmenes semanales y la cuadrícula del calendario.",
+    "stepScheduleDescription": "Define qué día comienza tu semana de trabajo. Esto influye en cómo se calculan los resúmenes semanales y mensuales.",
     "weekStartHelp": "Por ejemplo, si eliges Lunes, tus reportes semanales agruparán automáticamente de lunes a domingo.",
     "stepEditorTitle": "Autoguardado y Personalización Visual",
     "stepEditorDescription": "Configura cómo se guardan tus cambios y personaliza la apariencia visual a tu gusto.",

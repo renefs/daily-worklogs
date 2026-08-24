@@ -69,7 +69,7 @@ daily-worklog/
 │   │   ├── viewer/          # Rendered Markdown Visualizer with interactive tasks
 │   │   ├── layout/          # AppShell, AppHeader, AppSidebar
 │   │   ├── modals/          # SettingsModal, ExportModal
-│   │   └── views/           # DailyView, WeeklyView, MonthlyView, CalendarView
+│   │   └── views/           # DailyView, WeeklyView, MonthlyView, KanbanView
 │   ├── i18n/                # Translation catalogs (en.json, es.json)
 │   ├── store/               # Zustand store for app state & reactive saves
 │   ├── styles/              # Mantine CSS imports & typography
