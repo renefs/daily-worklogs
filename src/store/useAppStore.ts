@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
-import { AppSettings, AppViewMode, DailyNote, DailyNoteMeta, DailyRoutine, DEFAULT_KANBAN_COLUMNS, TagDefinition, TaskItem, TaskPriority, TaskStatus } from '../types';
+import { AppSettings, AppViewMode, AreaDefinition, DailyNote, DailyNoteMeta, DailyRoutine, DEFAULT_KANBAN_COLUMNS, ProjectDefinition, TagDefinition, TaskItem, TaskPriority, TaskStatus } from '../types';
 import i18n, { getSystemLanguage } from '../i18n';
 import { formatTemplateContent } from '../utils/dateTemplate';
+import { DEFAULT_AREAS } from '../utils/areaProjectUtils';
 
 dayjs.extend(isoWeek);
 
@@ -26,6 +27,10 @@ interface AppState {
   isTaskModalOpen: boolean;
   taskModalInitialStatus: TaskStatus;
   isTasksLoading: boolean;
+
+  // Areas & Projects state
+  areas: AreaDefinition[];
+  projects: ProjectDefinition[];
 
   // Tags state
   allTags: TagDefinition[];
@@ -59,6 +64,12 @@ interface AppState {
   renameTag: (oldName: string, newName: string) => Promise<number>;
   deleteTag: (tagName: string, removeFromTasks?: boolean) => Promise<number>;
 
+  // Area & Project actions
+  saveArea: (area: AreaDefinition, oldName?: string) => Promise<void>;
+  deleteArea: (areaIdOrName: string) => Promise<void>;
+  saveProject: (project: ProjectDefinition, oldName?: string, oldAreaName?: string) => Promise<void>;
+  deleteProject: (projectIdOrName: string) => Promise<void>;
+
   // Task actions
   refreshTasksList: () => Promise<void>;
   createOrUpdateTask: (taskData: {
@@ -66,6 +77,8 @@ interface AppState {
     title: string;
     status: TaskStatus;
     priority?: TaskPriority;
+    area?: string;
+    project?: string;
     created?: string;
     due?: string;
     startedDate?: string;
@@ -109,6 +122,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   taskModalInitialStatus: 'todo',
   isTasksLoading: false,
 
+  areas: DEFAULT_AREAS,
+  projects: [],
+
   allTags: [],
 
   isManageRoutinesModalOpen: false,
@@ -123,6 +139,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         const shouldShowOnboarding = !settings.hasCompletedOnboarding;
         set({
           settings,
+          areas: settings.areas || DEFAULT_AREAS,
+          projects: settings.projects || [],
           isLoading: false,
           isOnboardingOpen: shouldShowOnboarding,
         });
@@ -147,7 +165,11 @@ export const useAppStore = create<AppState>((set, get) => ({
             dateFormat: 'YYYY-MM-DD',
             editorFontSize: 15,
             hasCompletedOnboarding: false,
+            areas: DEFAULT_AREAS,
+            projects: [],
           },
+          areas: DEFAULT_AREAS,
+          projects: [],
           isLoading: false,
           isOnboardingOpen: true,
         });
@@ -181,7 +203,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (settings.language && i18n.language !== settings.language) {
       i18n.changeLanguage(settings.language);
     }
-    set({ settings });
+    set({
+      settings,
+      areas: settings.areas || DEFAULT_AREAS,
+      projects: settings.projects || [],
+    });
   },
 
   updateSettings: async (partial) => {
@@ -190,7 +216,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (updated.language && i18n.language !== updated.language) {
       i18n.changeLanguage(updated.language);
     }
-    set({ settings: updated });
+    set({
+      settings: updated,
+      areas: updated.areas || DEFAULT_AREAS,
+      projects: updated.projects || [],
+    });
     await get().refreshNotesList();
     if (partial.vaultPath) {
       await get().refreshTasksList();
@@ -410,6 +440,106 @@ export const useAppStore = create<AppState>((set, get) => ({
       console.error('Failed to delete tag:', err);
       return 0;
     }
+  },
+
+  saveArea: async (area: AreaDefinition, oldName?: string) => {
+    const effectiveOldName = oldName || area.name;
+    const isRename = effectiveOldName.trim().toLowerCase() !== area.name.trim().toLowerCase();
+
+    if (window.electronAPI?.renameArea) {
+      await window.electronAPI.renameArea(effectiveOldName, area);
+      await get().loadSettings();
+      await get().refreshTasksList();
+      return;
+    }
+
+    const currentAreas = get().areas || DEFAULT_AREAS;
+    const cleanId = area.id || area.name.toLowerCase().replace(/\s+/g, '-');
+    const existingIndex = currentAreas.findIndex(
+      (a) => a.id === cleanId || a.name.toLowerCase() === effectiveOldName.toLowerCase()
+    );
+
+    let updatedAreas: AreaDefinition[];
+    if (existingIndex >= 0) {
+      updatedAreas = [...currentAreas];
+      updatedAreas[existingIndex] = { ...area, id: cleanId };
+    } else {
+      updatedAreas = [...currentAreas, { ...area, id: cleanId }];
+    }
+
+    // Cascade rename to child projects
+    let updatedProjects = get().projects || [];
+    if (isRename) {
+      updatedProjects = updatedProjects.map((p) =>
+        (p.areaName || '').toLowerCase() === effectiveOldName.toLowerCase()
+          ? { ...p, areaName: area.name }
+          : p
+      );
+    }
+
+    await get().updateSettings({ areas: updatedAreas, projects: updatedProjects });
+    await get().refreshTasksList();
+  },
+
+  deleteArea: async (areaIdOrName: string) => {
+    const currentAreas = get().areas || DEFAULT_AREAS;
+    const clean = areaIdOrName.toLowerCase();
+    const areaToRemove = currentAreas.find(
+      (a) => a.id.toLowerCase() === clean || a.name.toLowerCase() === clean
+    );
+    const updatedAreas = currentAreas.filter(
+      (a) => a.id.toLowerCase() !== clean && a.name.toLowerCase() !== clean
+    );
+    const targetArea = updatedAreas[0]?.name || 'General';
+    const updatedProjects = (get().projects || []).map((p) =>
+      areaToRemove && (p.areaName || '').toLowerCase() === areaToRemove.name.toLowerCase()
+        ? { ...p, areaName: targetArea }
+        : p
+    );
+    await get().updateSettings({ areas: updatedAreas, projects: updatedProjects });
+    await get().refreshTasksList();
+  },
+
+  saveProject: async (project: ProjectDefinition, oldName?: string, oldAreaName?: string) => {
+    const effectiveOldName = oldName || project.name;
+    const effectiveOldArea = oldAreaName || project.areaName;
+
+    if (window.electronAPI?.renameProject) {
+      await window.electronAPI.renameProject(effectiveOldName, project, effectiveOldArea);
+      await get().loadSettings();
+      await get().refreshTasksList();
+      return;
+    }
+
+    const currentProjects = get().projects || [];
+    const cleanId = project.id || project.name.toLowerCase().replace(/\s+/g, '-');
+    const existingIndex = currentProjects.findIndex(
+      (p) =>
+        p.id === cleanId ||
+        (p.name.toLowerCase() === effectiveOldName.toLowerCase() &&
+          (p.areaName || '').toLowerCase() === effectiveOldArea.toLowerCase())
+    );
+
+    let updatedProjects: ProjectDefinition[];
+    if (existingIndex >= 0) {
+      updatedProjects = [...currentProjects];
+      updatedProjects[existingIndex] = { ...project, id: cleanId };
+    } else {
+      updatedProjects = [...currentProjects, { ...project, id: cleanId }];
+    }
+
+    await get().updateSettings({ projects: updatedProjects });
+    await get().refreshTasksList();
+  },
+
+  deleteProject: async (projectIdOrName: string) => {
+    const currentProjects = get().projects || [];
+    const clean = projectIdOrName.toLowerCase();
+    const updatedProjects = currentProjects.filter(
+      (p) => p.id.toLowerCase() !== clean && p.name.toLowerCase() !== clean
+    );
+    await get().updateSettings({ projects: updatedProjects });
+    await get().refreshTasksList();
   },
 
   refreshTasksList: async () => {

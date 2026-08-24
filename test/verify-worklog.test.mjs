@@ -806,12 +806,200 @@ assert.strictEqual(serviceBreakdown['Auth'].completed, 1);
 
 console.log('✓ Tag hierarchy and service/project aggregation metrics tests passed');
 
+// --- Test Area vs. Project (Things 3 / OmniFocus Model) ---
+const testAreas = [
+  {
+    id: 'webcast',
+    name: 'Webcast',
+    color: 'indigo',
+    icon: 'broadcast',
+    defaultTags: ['webcast', 'streaming'],
+  },
+  {
+    id: 'vc',
+    name: 'VC',
+    color: 'teal',
+    icon: 'video',
+    defaultTags: ['vc', 'rooms'],
+  },
+  {
+    id: 'asr',
+    name: 'ASR',
+    color: 'violet',
+    icon: 'microphone',
+    defaultTags: ['asr', 'transcription'],
+  },
+];
+
+const testProjects = [
+  {
+    id: 'proj-wowza',
+    name: 'Migración Wowza',
+    areaName: 'Webcast',
+    targetDate: '2026-09-30',
+    status: 'active',
+    tags: ['wowza-v4'],
+  },
+  {
+    id: 'proj-sala1',
+    name: 'Renovación Sala 1',
+    areaName: 'VC',
+    targetDate: '2026-08-31',
+    status: 'active',
+  },
+];
+
+function resolveTaskContext(task, areas = [], projects = [], tagDefinitions = []) {
+  let area = (task.area || '').trim();
+  let project = (task.project || '').trim() || undefined;
+  let isInheritedFromTag = false;
+
+  if (!area && task.tags && task.tags.length > 0) {
+    for (const tag of task.tags) {
+      const parsed = parseTagHierarchy(tag, tagDefinitions);
+      if (parsed.isHierarchical || parsed.service !== 'General') {
+        area = parsed.service;
+        if (!project && parsed.project && parsed.project !== 'General' && parsed.project !== parsed.service) {
+          project = parsed.project;
+        }
+        isInheritedFromTag = true;
+        break;
+      }
+    }
+  }
+
+  if (!area) area = 'General';
+
+  const cleanArea = area.toLowerCase();
+  const areaDef = areas.find((a) => a.name.toLowerCase() === cleanArea);
+  const cleanProject = project ? project.toLowerCase() : '';
+  const projectDef = cleanProject
+    ? projects.find((p) => p.name.toLowerCase() === cleanProject && (!p.areaName || p.areaName.toLowerCase() === cleanArea))
+    : undefined;
+
+  const inheritedTagsSet = new Set();
+  if (areaDef && areaDef.defaultTags) {
+    areaDef.defaultTags.forEach((t) => inheritedTagsSet.add(t));
+  }
+  if (projectDef && projectDef.tags) {
+    projectDef.tags.forEach((t) => inheritedTagsSet.add(t));
+  }
+
+  const explicitTags = Array.isArray(task.tags) ? task.tags : [];
+  const effectiveTagsSet = new Set([...explicitTags, ...Array.from(inheritedTagsSet)]);
+  const pureInherited = Array.from(inheritedTagsSet).filter((t) => !explicitTags.includes(t));
+
+  return {
+    area,
+    project,
+    isInheritedFromTag,
+    areaDefinition: areaDef,
+    projectDefinition: projectDef,
+    inheritedTags: pureInherited,
+    allEffectiveTags: Array.from(effectiveTagsSet),
+  };
+}
+
+// 1. Test Task in Area with Project inherits Area default tags and Project tags
+const taskInWowza = {
+  id: 'task-1',
+  title: 'Configure streaming endpoint on edge servers',
+  area: 'Webcast',
+  project: 'Migración Wowza',
+  tags: ['backend'],
+  status: 'done',
+};
+
+const resolvedCtx = resolveTaskContext(taskInWowza, testAreas, testProjects);
+assert.strictEqual(resolvedCtx.area, 'Webcast');
+assert.strictEqual(resolvedCtx.project, 'Migración Wowza');
+assert.deepStrictEqual(resolvedCtx.inheritedTags.sort(), ['streaming', 'webcast', 'wowza-v4'].sort());
+assert.deepStrictEqual(resolvedCtx.allEffectiveTags.sort(), ['backend', 'streaming', 'webcast', 'wowza-v4'].sort());
+assert.strictEqual(taskInWowza.title, 'Configure streaming endpoint on edge servers', 'Task title must remain clean without prefixes');
+
+// 2. Test Direct Task in Area (no project)
+const directAreaTask = {
+  id: 'task-2',
+  title: 'Monitor morning executive webcast',
+  area: 'Webcast',
+  status: 'in_progress',
+};
+
+const directCtx = resolveTaskContext(directAreaTask, testAreas, testProjects);
+assert.strictEqual(directCtx.area, 'Webcast');
+assert.strictEqual(directCtx.project, undefined);
+assert.deepStrictEqual(directCtx.inheritedTags.sort(), ['streaming', 'webcast'].sort());
+
+// 3. Test Project Progress Calculation (% completion) vs Area Continuous Metrics
+function calculateProjectProgress(projectName, areaName, tasks, areas, projects) {
+  const projectTasks = tasks.filter((t) => {
+    const ctx = resolveTaskContext(t, areas, projects);
+    return ctx.project === projectName && (!areaName || ctx.area === areaName);
+  });
+  const completed = projectTasks.filter((t) => t.status === 'done' || t.status === 'cancelled').length;
+  const inProgress = projectTasks.filter((t) => t.status === 'in_progress').length;
+  const total = projectTasks.length;
+  const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+  return { total, completed, inProgress, percent };
+}
+
+const testTaskList = [
+  { id: 't1', title: 'Task 1', area: 'Webcast', project: 'Migración Wowza', status: 'done' },
+  { id: 't2', title: 'Task 2', area: 'Webcast', project: 'Migración Wowza', status: 'done' },
+  { id: 't3', title: 'Task 3', area: 'Webcast', project: 'Migración Wowza', status: 'in_progress' },
+  { id: 't4', title: 'Task 4', area: 'Webcast', project: 'Migración Wowza', status: 'todo' },
+  { id: 't5', title: 'Task 5', area: 'Webcast', status: 'done' }, // Direct task
+];
+
+const wowzaProgress = calculateProjectProgress('Migración Wowza', 'Webcast', testTaskList, testAreas, testProjects);
+assert.strictEqual(wowzaProgress.total, 4);
+assert.strictEqual(wowzaProgress.completed, 2);
+assert.strictEqual(wowzaProgress.inProgress, 1);
+assert.strictEqual(wowzaProgress.percent, 50, 'Progress must be 50% (2 of 4 tasks completed)');
+
+// 4. Test Area Rename cascading to child projects and task files
+let localAreas = [
+  { id: 'webcast', name: 'Webcast', color: 'indigo' },
+  { id: 'vc', name: 'VC', color: 'teal' },
+];
+let localProjects = [
+  { id: 'p1', name: 'Migración Wowza', areaName: 'Webcast' },
+  { id: 'p2', name: 'CDN Setup', areaName: 'Webcast' },
+  { id: 'p3', name: 'Renovación Sala 1', areaName: 'VC' },
+];
+
+function cascadeAreaRename(oldName, newAreaName, areasList, projectsList) {
+  const cleanOld = oldName.trim().toLowerCase();
+  const cleanNew = newAreaName.trim();
+  const updatedAreas = areasList.map((a) =>
+    a.name.toLowerCase() === cleanOld ? { ...a, name: cleanNew } : a
+  );
+  const updatedProjects = projectsList.map((p) =>
+    (p.areaName || '').toLowerCase() === cleanOld ? { ...p, areaName: cleanNew } : p
+  );
+  return { updatedAreas, updatedProjects };
+}
+
+const renameResult = cascadeAreaRename('Webcast', 'Streaming & Webcast', localAreas, localProjects);
+assert.strictEqual(renameResult.updatedAreas.find((a) => a.id === 'webcast').name, 'Streaming & Webcast');
+// Child projects must now belong to "Streaming & Webcast"
+const webcastProjects = renameResult.updatedProjects.filter(
+  (p) => p.areaName === 'Streaming & Webcast'
+);
+assert.strictEqual(webcastProjects.length, 2, 'All projects inside the renamed area must cascade and not disappear');
+assert.strictEqual(webcastProjects[0].name, 'Migración Wowza');
+assert.strictEqual(webcastProjects[1].name, 'CDN Setup');
+
+console.log('✓ Area vs Project (Things 3 / OmniFocus model) with tag inheritance, cascading rename, and progress metrics tests passed');
+
 // Cleanup
 fs.rmSync(testVault, { recursive: true });
 if (fs.existsSync(sharedCloudVault)) fs.rmSync(sharedCloudVault, { recursive: true });
 if (fs.existsSync(computerASettingsFile)) fs.rmSync(computerASettingsFile);
 if (fs.existsSync(computerBSettingsFile)) fs.rmSync(computerBSettingsFile);
 console.log('✓ All verification tests passed successfully!');
+
+
 
 
 

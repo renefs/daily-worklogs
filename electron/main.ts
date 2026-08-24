@@ -217,6 +217,70 @@ const DEFAULT_ROUTINES = [
   },
 ];
 
+// Default Areas (Permanent Containers - Things 3 / OmniFocus model)
+const DEFAULT_AREAS = [
+  {
+    id: 'webcast',
+    name: 'Webcast',
+    color: 'indigo',
+    icon: 'broadcast',
+    description: 'Streaming, live events, recording & encoding services',
+    defaultTags: ['webcast'],
+  },
+  {
+    id: 'vc',
+    name: 'VC',
+    color: 'teal',
+    icon: 'video',
+    description: 'Videoconference rooms, endpoints & unified communications',
+    defaultTags: ['vc'],
+  },
+  {
+    id: 'asr',
+    name: 'ASR',
+    color: 'violet',
+    icon: 'microphone',
+    description: 'Automatic speech recognition, audio processing & transcription',
+    defaultTags: ['asr'],
+  },
+  {
+    id: 'infra',
+    name: 'Infrastructure',
+    color: 'blue',
+    icon: 'server',
+    description: 'Core servers, networks, cloud services & deployments',
+    defaultTags: ['infra'],
+  },
+  {
+    id: 'general',
+    name: 'General',
+    color: 'gray',
+    icon: 'folder',
+    description: 'General administrative & miscellaneous tasks',
+    defaultTags: [],
+  },
+];
+
+// Default Projects (Concrete efforts with deadlines and progress within Areas)
+const DEFAULT_PROJECTS = [
+  {
+    id: 'proj-wowza',
+    name: 'Migración Wowza',
+    areaName: 'Webcast',
+    description: 'Migración de arquitectura de streaming a nueva versión de Wowza',
+    color: 'indigo',
+    status: 'active' as const,
+  },
+  {
+    id: 'proj-sala1',
+    name: 'Renovación Sala 1',
+    areaName: 'VC',
+    description: 'Renovación de hardware y cableado de videoconferencia en Sala 1',
+    color: 'teal',
+    status: 'active' as const,
+  },
+];
+
 // Default Settings
 const defaultVaultPath = path.join(os.homedir(), 'Documents', 'DailyWorklog');
 const DEFAULT_SETTINGS = {
@@ -237,6 +301,8 @@ const DEFAULT_SETTINGS = {
   routineCompletions: {} as Record<string, string[]>,
   showDailyRoutinesPanel: true,
   hasCompletedOnboarding: false,
+  areas: DEFAULT_AREAS,
+  projects: DEFAULT_PROJECTS,
 };
 
 function getColumnBehavior(status: string): string {
@@ -335,6 +401,13 @@ function getSettings() {
         vaultPath: localSettings.vaultPath, // Preserve local machine vaultPath
       };
     }
+  }
+
+  if (!Array.isArray(localSettings.areas) || localSettings.areas.length === 0) {
+    localSettings.areas = DEFAULT_AREAS;
+  }
+  if (!Array.isArray(localSettings.projects)) {
+    localSettings.projects = DEFAULT_PROJECTS;
   }
 
   return localSettings;
@@ -1160,11 +1233,8 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
             backlogTasksList.push(task);
           }
 
-          // Tag, Service, and Project breakdown
+          // Tag breakdown
           if (task.tags && task.tags.length > 0) {
-            const countedServicesInTask = new Set<string>();
-            const countedProjectsInTask = new Set<string>();
-
             for (const tag of task.tags) {
               if (!tagBreakdown[tag]) {
                 tagBreakdown[tag] = { total: 0, completed: 0, inProgress: 0 };
@@ -1176,74 +1246,85 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
               if (isInProgress) {
                 tagBreakdown[tag].inProgress += 1;
               }
+            }
+          }
 
+          // Area/Service and Project resolution (from frontmatter or tag fallback)
+          let taskArea = task.area ? String(task.area).trim() : '';
+          let taskProject = task.project ? String(task.project).trim() : '';
+
+          if (!taskArea && task.tags && task.tags.length > 0) {
+            for (const tag of task.tags) {
               const { service, project } = resolveTagHierarchy(tag);
-              const projectKey = `${service} / ${project}`;
-
-              // Update project breakdown
-              if (!countedProjectsInTask.has(projectKey)) {
-                countedProjectsInTask.add(projectKey);
-                if (!projectBreakdown[projectKey]) {
-                  projectBreakdown[projectKey] = {
-                    service,
-                    project,
-                    total: 0,
-                    completed: 0,
-                    inProgress: 0,
-                    tasks: [],
-                  };
+              if (service && service !== 'General') {
+                taskArea = service;
+                if (!taskProject && project && project !== 'General' && project !== service) {
+                  taskProject = project;
                 }
-                projectBreakdown[projectKey].total += 1;
-                if (isDoneOrCancelled) {
-                  projectBreakdown[projectKey].completed += 1;
-                }
-                if (isInProgress) {
-                  projectBreakdown[projectKey].inProgress += 1;
-                }
-                projectBreakdown[projectKey].tasks.push(task);
-              }
-
-              // Update service breakdown
-              if (!serviceBreakdown[service]) {
-                serviceBreakdown[service] = {
-                  service,
-                  total: 0,
-                  completed: 0,
-                  inProgress: 0,
-                  projects: {},
-                };
-              }
-
-              if (!countedServicesInTask.has(service)) {
-                countedServicesInTask.add(service);
-                serviceBreakdown[service].total += 1;
-                if (isDoneOrCancelled) {
-                  serviceBreakdown[service].completed += 1;
-                }
-                if (isInProgress) {
-                  serviceBreakdown[service].inProgress += 1;
-                }
-              }
-
-              if (!serviceBreakdown[service].projects[project]) {
-                serviceBreakdown[service].projects[project] = {
-                  total: 0,
-                  completed: 0,
-                  inProgress: 0,
-                  tasks: [],
-                };
-              }
-              if (!serviceBreakdown[service].projects[project].tasks.some((t: any) => t.id === task.id)) {
-                serviceBreakdown[service].projects[project].total += 1;
-                if (isDoneOrCancelled) {
-                  serviceBreakdown[service].projects[project].completed += 1;
-                }
-                if (isInProgress) {
-                  serviceBreakdown[service].projects[project].inProgress += 1;
-                }
-                serviceBreakdown[service].projects[project].tasks.push(task);
+                break;
               }
             }
+          }
+
+          if (!taskArea) {
+            taskArea = 'General';
+          }
+
+          // Update service / area breakdown
+          if (!serviceBreakdown[taskArea]) {
+            serviceBreakdown[taskArea] = {
+              service: taskArea,
+              total: 0,
+              completed: 0,
+              inProgress: 0,
+              projects: {},
+            };
+          }
+          serviceBreakdown[taskArea].total += 1;
+          if (isDoneOrCancelled) {
+            serviceBreakdown[taskArea].completed += 1;
+          }
+          if (isInProgress) {
+            serviceBreakdown[taskArea].inProgress += 1;
+          }
+
+          if (taskProject) {
+            const projectKey = `${taskArea} / ${taskProject}`;
+            if (!projectBreakdown[projectKey]) {
+              projectBreakdown[projectKey] = {
+                service: taskArea,
+                project: taskProject,
+                total: 0,
+                completed: 0,
+                inProgress: 0,
+                tasks: [],
+              };
+            }
+            projectBreakdown[projectKey].total += 1;
+            if (isDoneOrCancelled) {
+              projectBreakdown[projectKey].completed += 1;
+            }
+            if (isInProgress) {
+              projectBreakdown[projectKey].inProgress += 1;
+            }
+            projectBreakdown[projectKey].tasks.push(task);
+
+            if (!serviceBreakdown[taskArea].projects[taskProject]) {
+              serviceBreakdown[taskArea].projects[taskProject] = {
+                total: 0,
+                completed: 0,
+                inProgress: 0,
+                tasks: [],
+              };
+            }
+            serviceBreakdown[taskArea].projects[taskProject].total += 1;
+            if (isDoneOrCancelled) {
+              serviceBreakdown[taskArea].projects[taskProject].completed += 1;
+            }
+            if (isInProgress) {
+              serviceBreakdown[taskArea].projects[taskProject].inProgress += 1;
+            }
+            serviceBreakdown[taskArea].projects[taskProject].tasks.push(task);
           }
 
           // Priority breakdown
@@ -1379,6 +1460,8 @@ function parseTaskFile(filepath: string, filename: string) {
     title,
     status,
     priority: data.priority || 'medium',
+    area: data.area ? String(data.area).trim() : undefined,
+    project: data.project ? String(data.project).trim() : undefined,
     created: data.created || stat.birthtime.toISOString().split('T')[0],
     due: data.due || undefined,
     startedDate: data.startedDate || undefined,
@@ -1486,6 +1569,22 @@ ipcMain.handle('write-task', async (_event, taskData: any) => {
     created: taskData.created || existingData.created || todayStr,
     tags: Array.isArray(taskData.tags) ? taskData.tags : existingData.tags || [],
   };
+
+  if (taskData.area !== undefined) {
+    if (taskData.area && taskData.area.trim()) {
+      frontmatterData.area = taskData.area.trim();
+    } else {
+      delete frontmatterData.area;
+    }
+  }
+
+  if (taskData.project !== undefined) {
+    if (taskData.project && taskData.project.trim()) {
+      frontmatterData.project = taskData.project.trim();
+    } else {
+      delete frontmatterData.project;
+    }
+  }
 
   if (startedDate) {
     frontmatterData.startedDate = startedDate;
@@ -1885,6 +1984,145 @@ ipcMain.handle('delete-tag', async (_event, tagName: string, removeFromTasks: bo
 
   return { success: true, updatedCount };
 });
+
+// Area & Project Management IPC Handlers
+ipcMain.handle('rename-area', async (_event, oldName: string, newArea: any) => {
+  if (!oldName || !newArea || !newArea.name) {
+    return { success: false, error: 'Old and new name required', updatedCount: 0 };
+  }
+  const cleanOld = oldName.trim();
+  const cleanNew = newArea.name.trim();
+
+  const settings = getSettings();
+  const currentAreas: any[] = settings.areas || DEFAULT_AREAS;
+  const currentProjects: any[] = settings.projects || [];
+
+  // Update in settings.areas
+  const cleanId = newArea.id || cleanNew.toLowerCase().replace(/\s+/g, '-');
+  const existingIdx = currentAreas.findIndex(
+    (a) => a.id === cleanId || a.name.toLowerCase() === cleanOld.toLowerCase()
+  );
+
+  let updatedAreas: any[];
+  if (existingIdx >= 0) {
+    updatedAreas = [...currentAreas];
+    updatedAreas[existingIdx] = { ...currentAreas[existingIdx], ...newArea, id: cleanId, name: cleanNew };
+  } else {
+    updatedAreas = [...currentAreas, { ...newArea, id: cleanId, name: cleanNew }];
+  }
+
+  // Update in settings.projects (cascade parent area name)
+  const updatedProjects = currentProjects.map((p) => {
+    if ((p.areaName || '').toLowerCase() === cleanOld.toLowerCase()) {
+      return { ...p, areaName: cleanNew };
+    }
+    return p;
+  });
+
+  saveSettings({ areas: updatedAreas, projects: updatedProjects });
+
+  // Update in all task files on disk
+  let updatedCount = 0;
+  if (cleanOld.toLowerCase() !== cleanNew.toLowerCase()) {
+    try {
+      const tasksDir = ensureTasksDir(settings.vaultPath);
+      if (fs.existsSync(tasksDir)) {
+        const files = fs.readdirSync(tasksDir);
+        for (const file of files) {
+          if (!file.toLowerCase().endsWith('.md')) continue;
+          const filepath = path.join(tasksDir, file);
+          try {
+            const raw = fs.readFileSync(filepath, 'utf-8');
+            const parsed = matter(raw);
+            const data = parsed.data || {};
+            if (data.area && String(data.area).toLowerCase() === cleanOld.toLowerCase()) {
+              const newRaw = matter.stringify(parsed.content, { ...data, area: cleanNew });
+              fs.writeFileSync(filepath, newRaw, 'utf-8');
+              updatedCount++;
+            }
+          } catch (fileErr) {
+            console.warn(`Error updating area in task file ${file}:`, fileErr);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error scanning task files during area rename:', err);
+    }
+  }
+
+  return { success: true, updatedCount, areas: updatedAreas, projects: updatedProjects };
+});
+
+ipcMain.handle('rename-project', async (_event, oldName: string, newProject: any, oldAreaName?: string) => {
+  if (!oldName || !newProject || !newProject.name) {
+    return { success: false, error: 'Old and new name required', updatedCount: 0 };
+  }
+  const cleanOld = oldName.trim();
+  const cleanNew = newProject.name.trim();
+
+  const settings = getSettings();
+  const currentProjects: any[] = settings.projects || [];
+
+  const cleanId = newProject.id || cleanNew.toLowerCase().replace(/\s+/g, '-');
+  const existingIdx = currentProjects.findIndex(
+    (p) =>
+      p.id === cleanId ||
+      (p.name.toLowerCase() === cleanOld.toLowerCase() &&
+        (!oldAreaName || (p.areaName || '').toLowerCase() === oldAreaName.toLowerCase()))
+  );
+
+  let updatedProjects: any[];
+  if (existingIdx >= 0) {
+    updatedProjects = [...currentProjects];
+    updatedProjects[existingIdx] = { ...currentProjects[existingIdx], ...newProject, id: cleanId, name: cleanNew };
+  } else {
+    updatedProjects = [...currentProjects, { ...newProject, id: cleanId, name: cleanNew }];
+  }
+
+  saveSettings({ projects: updatedProjects });
+
+  // Update in all task files on disk
+  let updatedCount = 0;
+  const isNameChanged = cleanOld.toLowerCase() !== cleanNew.toLowerCase();
+  const isAreaChanged = Boolean(oldAreaName && oldAreaName.toLowerCase() !== (newProject.areaName || '').toLowerCase());
+
+  if (isNameChanged || isAreaChanged) {
+    try {
+      const tasksDir = ensureTasksDir(settings.vaultPath);
+      if (fs.existsSync(tasksDir)) {
+        const files = fs.readdirSync(tasksDir);
+        for (const file of files) {
+          if (!file.toLowerCase().endsWith('.md')) continue;
+          const filepath = path.join(tasksDir, file);
+          try {
+            const raw = fs.readFileSync(filepath, 'utf-8');
+            const parsed = matter(raw);
+            const data = parsed.data || {};
+            const matchesProject = data.project && String(data.project).toLowerCase() === cleanOld.toLowerCase();
+            const matchesArea = !oldAreaName || (data.area && String(data.area).toLowerCase() === oldAreaName.toLowerCase());
+
+            if (matchesProject && matchesArea) {
+              const updatedData: Record<string, any> = { ...data, project: cleanNew };
+              if (newProject.areaName) {
+                updatedData.area = newProject.areaName;
+              }
+              const newRaw = matter.stringify(parsed.content, updatedData);
+              fs.writeFileSync(filepath, newRaw, 'utf-8');
+              updatedCount++;
+            }
+          } catch (fileErr) {
+            console.warn(`Error updating project in task file ${file}:`, fileErr);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error scanning task files during project rename:', err);
+    }
+  }
+
+  return { success: true, updatedCount, projects: updatedProjects };
+});
+
 
 
 

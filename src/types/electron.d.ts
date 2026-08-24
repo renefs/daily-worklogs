@@ -33,6 +33,8 @@ export interface ElectronAPI {
     title: string;
     status: TaskStatus;
     priority?: TaskPriority;
+    area?: string;
+    project?: string;
     created?: string;
     due?: string;
     startedDate?: string;
@@ -46,6 +48,8 @@ export interface ElectronAPI {
   deleteTag?: (tagName: string, removeFromTasks?: boolean) => Promise<{ success: boolean; updatedCount: number }>;
   saveTagDefinition?: (tagDef: import('./index').TagDefinition) => Promise<{ success: boolean }>;
   getAllTags?: () => Promise<import('./index').TagDefinition[]>;
+  renameArea?: (oldName: string, newArea: import('./index').AreaDefinition) => Promise<{ success: boolean; updatedCount: number; areas?: import('./index').AreaDefinition[]; projects?: import('./index').ProjectDefinition[] }>;
+  renameProject?: (oldName: string, newProject: import('./index').ProjectDefinition, oldAreaName?: string) => Promise<{ success: boolean; updatedCount: number; projects?: import('./index').ProjectDefinition[] }>;
   exportDocument: (payload: { title: string; defaultPath: string; content: string; format: 'md' | 'html' | 'txt' }) => Promise<{ success: boolean; filePath?: string }>;
   openInFileManager: (filePath?: string) => Promise<void>;
   openExternalUrl: (url: string) => Promise<{ success: boolean }>;

@@ -61,6 +61,7 @@ import {
 } from '../kanban/columnUtils';
 import { RoutinesManagerView } from './ManageRoutinesModal';
 import { TagsManager } from '../settings/TagsManager';
+import { AreasProjectsManager } from '../settings/AreasProjectsManager';
 import { DATE_FORMAT_PRESETS, formatTemplateDate } from '../../utils/dateTemplate';
 
 const THEME_COLORS = [
@@ -416,6 +417,9 @@ export const SettingsModal: React.FC = () => {
           <Tabs.List mb="md">
             <Tabs.Tab value="general" leftSection={<IconSettings size={16} />}>
               {t('settings.general')}
+            </Tabs.Tab>
+            <Tabs.Tab value="areas" leftSection={<IconFolder size={16} />}>
+              {t('settings.tabAreasProjects', 'Areas & Projects')}
             </Tabs.Tab>
             <Tabs.Tab value="kanban" leftSection={<IconLayoutKanban size={16} />}>
               {t('settings.kanbanColumns')}
@@ -992,6 +996,11 @@ export const SettingsModal: React.FC = () => {
                 </Paper>
               ))}
             </Stack>
+          </Tabs.Panel>
+
+          {/* Areas & Projects Tab */}
+          <Tabs.Panel value="areas">
+            <AreasProjectsManager />
           </Tabs.Panel>
 
           {/* Tags & Projects Tab */}

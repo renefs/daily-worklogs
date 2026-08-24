@@ -36,7 +36,13 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
 import { PeriodSummary, TaskItem, TaskPriority } from '../../types';
 import { formatLocalizedDateTitle } from '../../utils/dateTemplate';
-import { getTagColor, parseTagHierarchy } from '../../utils/tagUtils';
+import { getTagColor } from '../../utils/tagUtils';
+import {
+  DEFAULT_AREAS,
+  getAreaColor,
+  getProjectColor,
+  resolveTaskContext,
+} from '../../utils/areaProjectUtils';
 
 interface PeriodTasksBreakdownProps {
   periodSummary: PeriodSummary | null;
@@ -51,7 +57,11 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
   const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
   const isDark = computedColorScheme === 'dark';
 
-  const { allTags: storeAllTags } = useAppStore();
+  const {
+    allTags: storeAllTags,
+    areas = DEFAULT_AREAS,
+    projects = [],
+  } = useAppStore();
 
   const [selectedService, setSelectedService] = useState<string>('all');
   const [selectedProject, setSelectedProject] = useState<string>('all');
@@ -85,25 +95,20 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
       if (selectedTag !== 'all') {
         if (!task.tags || !task.tags.includes(selectedTag)) return false;
       }
+      const taskCtx = resolveTaskContext(task, areas, projects, storeAllTags);
+
       if (selectedService !== 'all') {
-        if (!task.tags || task.tags.length === 0) return false;
-        const belongsToService = task.tags.some((tag) => {
-          const { service } = parseTagHierarchy(tag, storeAllTags);
-          return service.toLowerCase() === selectedService.toLowerCase();
-        });
-        if (!belongsToService) return false;
+        if (taskCtx.area.toLowerCase() !== selectedService.toLowerCase()) return false;
       }
       if (selectedProject !== 'all') {
-        if (!task.tags || task.tags.length === 0) return false;
-        const belongsToProject = task.tags.some((tag) => {
-          const { service, project } = parseTagHierarchy(tag, storeAllTags);
-          const pKey = `${service} / ${project}`;
-          return (
-            pKey.toLowerCase() === selectedProject.toLowerCase() ||
-            project.toLowerCase() === selectedProject.toLowerCase()
-          );
-        });
-        if (!belongsToProject) return false;
+        const pKey = `${taskCtx.area} / ${taskCtx.project}`;
+        if (
+          !taskCtx.project ||
+          (pKey.toLowerCase() !== selectedProject.toLowerCase() &&
+            taskCtx.project.toLowerCase() !== selectedProject.toLowerCase())
+        ) {
+          return false;
+        }
       }
       return true;
     });
@@ -274,6 +279,7 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
             <Stack gap="xs" mt="xs">
               {sortedServices.map((sItem) => {
                 const isSelected = selectedService.toLowerCase() === sItem.service.toLowerCase();
+                const aColor = getAreaColor(sItem.service, areas);
                 const pct = Math.round((sItem.completed / (sItem.total || 1)) * 100);
                 const projectsCount = Object.keys(sItem.projects || {}).length;
 
@@ -285,7 +291,7 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
                     withBorder
                     style={{
                       cursor: 'pointer',
-                      borderColor: isSelected ? 'var(--mantine-color-indigo-6)' : undefined,
+                      borderColor: isSelected ? `var(--mantine-color-${aColor}-6)` : undefined,
                       backgroundColor: isSelected
                         ? isDark ? 'rgba(76, 110, 245, 0.15)' : 'rgba(76, 110, 245, 0.08)'
                         : undefined,
@@ -298,7 +304,7 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
                         <Text size="sm" fw={600}>
                           {sItem.service}
                         </Text>
-                        <Badge size="xs" variant="light" color="indigo">
+                        <Badge size="xs" variant="light" color={aColor}>
                           {sItem.completed}/{sItem.total} done ({pct}%)
                         </Badge>
                       </Group>
@@ -310,7 +316,7 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
                       value={pct}
                       size="sm"
                       radius="xl"
-                      color="indigo"
+                      color={aColor}
                       animated={sItem.inProgress > 0}
                     />
                   </Paper>
@@ -346,6 +352,8 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
               {sortedProjects.map((pItem) => {
                 const projectKey = `${pItem.service} / ${pItem.project}`;
                 const isSelected = selectedProject.toLowerCase() === projectKey.toLowerCase();
+                const aColor = getAreaColor(pItem.service, areas);
+                const pColor = getProjectColor(pItem.project, pItem.service, projects, areas);
                 const pct = Math.round((pItem.completed / (pItem.total || 1)) * 100);
 
                 return (
@@ -356,7 +364,7 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
                     withBorder
                     style={{
                       cursor: 'pointer',
-                      borderColor: isSelected ? 'var(--mantine-color-violet-6)' : undefined,
+                      borderColor: isSelected ? `var(--mantine-color-${pColor}-6)` : undefined,
                       backgroundColor: isSelected
                         ? isDark ? 'rgba(130, 80, 223, 0.15)' : 'rgba(130, 80, 223, 0.08)'
                         : undefined,
@@ -366,18 +374,18 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
                   >
                     <Group justify="space-between" mb={4}>
                       <Group gap="xs">
-                        <Badge size="xs" color="indigo" variant="outline">
+                        <Badge size="xs" color={aColor} variant="outline">
                           {pItem.service}
                         </Badge>
                         <Text size="sm" fw={600}>
                           {pItem.project}
                         </Text>
                       </Group>
-                      <Badge size="xs" variant="light" color="violet">
+                      <Badge size="xs" variant="light" color={pColor}>
                         {pItem.completed}/{pItem.total} ({pct}%)
                       </Badge>
                     </Group>
-                    <Progress value={pct} size="xs" radius="xl" color="violet" />
+                    <Progress value={pct} size="xs" radius="xl" color={pColor} />
                   </Paper>
                 );
               })}

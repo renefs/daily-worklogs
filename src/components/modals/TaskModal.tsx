@@ -44,6 +44,12 @@ import { DEFAULT_KANBAN_COLUMNS, TaskPriority, TaskStatus } from '../../types';
 import { MarkdownViewer } from '../viewer/MarkdownViewer';
 import { getColumnIcon, getColumnTitle } from '../kanban/columnUtils';
 import { getTagColor } from '../../utils/tagUtils';
+import {
+  DEFAULT_AREAS,
+  getAreaColor,
+  getProjectColor,
+  resolveTaskContext,
+} from '../../utils/areaProjectUtils';
 import { createTagAutocompleteExtension } from '../editor/tagAutocompleteExtension';
 
 export const TaskModal: React.FC = () => {
@@ -61,6 +67,8 @@ export const TaskModal: React.FC = () => {
     logTaskToDailyNote,
     settings,
     allTags,
+    areas = DEFAULT_AREAS,
+    projects = [],
   } = useAppStore();
 
   const allTagsRef = useRef(allTags);
@@ -69,6 +77,8 @@ export const TaskModal: React.FC = () => {
   }, [allTags]);
 
   const [title, setTitle] = useState('');
+  const [area, setArea] = useState<string>('General');
+  const [project, setProject] = useState<string | null>(null);
   const [status, setStatus] = useState<TaskStatus>('todo');
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [dueDate, setDueDate] = useState<Date | null>(null);
@@ -111,11 +121,35 @@ export const TaskModal: React.FC = () => {
     return opts;
   }, [availableColumns, status, t]);
 
+  // Available projects filtered by current selected area
+  const availableProjectsForArea = useMemo(() => {
+    const cleanArea = (area || '').toLowerCase().trim();
+    if (!cleanArea) return projects;
+    return projects.filter((p) => (p.areaName || '').toLowerCase() === cleanArea);
+  }, [projects, area]);
+
+  // Inherited tags resolution
+  const resolvedInheritedContext = useMemo(() => {
+    return resolveTaskContext(
+      {
+        area,
+        project: project || undefined,
+        tags,
+      },
+      areas,
+      projects,
+      allTags
+    );
+  }, [area, project, tags, areas, projects, allTags]);
+
   // Initialize or reset form when modal opens / task changes
   useEffect(() => {
     if (isTaskModalOpen) {
       if (activeTask) {
+        const resolved = resolveTaskContext(activeTask, areas, projects, allTags);
         setTitle(activeTask.title || '');
+        setArea(activeTask.area || resolved.area || 'General');
+        setProject(activeTask.project || resolved.project || null);
         setStatus(activeTask.status || 'todo');
         setPriority(activeTask.priority || 'medium');
         setDueDate(activeTask.due ? dayjs(activeTask.due).toDate() : null);
@@ -129,6 +163,8 @@ export const TaskModal: React.FC = () => {
         const behavior = targetCol?.behavior || 'todo';
 
         setTitle('');
+        setArea(areas[0]?.name || 'General');
+        setProject(null);
         setStatus(initialStatus);
         setPriority('medium');
         setDueDate(null);
@@ -143,7 +179,7 @@ export const TaskModal: React.FC = () => {
       setIsLogging(false);
       setIsDraggingOver(false);
     }
-  }, [isTaskModalOpen, activeTask, taskModalInitialStatus, availableColumns]);
+  }, [isTaskModalOpen, activeTask, taskModalInitialStatus, availableColumns, areas, projects, allTags]);
 
   const handleInsertImage = async () => {
     try {
@@ -283,6 +319,8 @@ export const TaskModal: React.FC = () => {
         title: title.trim(),
         status,
         priority,
+        area: area.trim() || undefined,
+        project: project ? project.trim() : undefined,
         due: formattedDue,
         startedDate: formattedStarted,
         completedDate: formattedCompleted,
@@ -396,7 +434,7 @@ export const TaskModal: React.FC = () => {
       <Stack gap="md">
         {/* Title input */}
         <TextInput
-          label="Title"
+          label={t('tasks.titleField', 'Title')}
           placeholder={t('tasks.titlePlaceholder')}
           value={title}
           onChange={(e) => setTitle(e.currentTarget.value)}
@@ -410,6 +448,98 @@ export const TaskModal: React.FC = () => {
             },
           }}
         />
+
+        {/* Row 0: Area vs. Project (Things 3 / OmniFocus model) */}
+        <Group grow align="flex-start">
+          <Select
+            label={t('areas.areaLabel', 'Area (Service)')}
+            description={t('areas.areaFieldDesc', 'Permanent continuous domain')}
+            value={area}
+            onChange={(val) => {
+              if (val) {
+                setArea(val);
+                // If current project doesn't belong to new area, reset project
+                if (project) {
+                  const projMatches = projects.some(
+                    (p) => p.name.toLowerCase() === project.toLowerCase() && (p.areaName || '').toLowerCase() === val.toLowerCase()
+                  );
+                  if (!projMatches) setProject(null);
+                }
+              }
+            }}
+            data={areas.map((a) => ({
+              value: a.name,
+              label: a.name,
+            }))}
+            radius="md"
+            allowDeselect={false}
+            renderOption={({ option }) => {
+              const aColor = getAreaColor(option.value, areas);
+              return (
+                <Group gap="xs">
+                  <Badge size="xs" color={aColor} variant="filled">
+                    {option.label}
+                  </Badge>
+                </Group>
+              );
+            }}
+          />
+
+          <Select
+            label={t('areas.projectLabel', 'Project')}
+            description={t('areas.projectFieldDesc', 'Finite effort with a goal')}
+            placeholder={t('areas.noProject', 'None (Direct Area task)')}
+            value={project}
+            onChange={(val) => setProject(val || null)}
+            data={[
+              { value: '', label: t('areas.noProject', 'None (Direct Area task)') },
+              ...availableProjectsForArea.map((p) => ({
+                value: p.name,
+                label: p.name,
+              })),
+            ]}
+            radius="md"
+            clearable
+            renderOption={({ option }) => {
+              if (!option.value) return <Text size="sm" c="dimmed">{option.label}</Text>;
+              const pColor = getProjectColor(option.value, area, projects, areas);
+              return (
+                <Group gap="xs">
+                  <Badge size="xs" color={pColor} variant="light">
+                    {option.label}
+                  </Badge>
+                </Group>
+              );
+            }}
+          />
+        </Group>
+
+        {/* Inherited Context Banner */}
+        {resolvedInheritedContext.inheritedTags.length > 0 && (
+          <Paper
+            p="xs"
+            radius="sm"
+            withBorder
+            style={{
+              backgroundColor: isDark ? 'rgba(76, 110, 245, 0.05)' : 'rgba(76, 110, 245, 0.03)',
+              borderColor: isDark ? 'rgba(76, 110, 245, 0.2)' : 'rgba(76, 110, 245, 0.15)',
+            }}
+          >
+            <Group gap="xs" align="center">
+              <Text size="xs" fw={600} c="indigo">
+                {t('areas.autoInherited', 'Inherited Context')}:
+              </Text>
+              {resolvedInheritedContext.inheritedTags.map((tg) => (
+                <Badge key={tg} size="xs" color={getAreaColor(area, areas)} variant="dot">
+                  #{tg}
+                </Badge>
+              ))}
+              <Text size="xs" c="dimmed" style={{ marginLeft: 'auto' }}>
+                {t('areas.cleanTitleNotice', 'Title is kept clean without prefixes')}
+              </Text>
+            </Group>
+          </Paper>
+        )}
 
         {/* Row 1: Status & Priority */}
         <Group grow align="flex-start">

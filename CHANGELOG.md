@@ -9,11 +9,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [Unreleased]
 
 ### Added
-- **Project and Service Tracking**: Support for organizing tasks and tags into hierarchical Services and Projects (supporting `#service/project`, `#service:project`, and explicit custom mappings).
-- **Period Analytics (Top Services & Projects)**: Visual breakdown in Weekly and Monthly reports highlighting the services and projects worked on the most in any given time period, with completion progress bars and interactive filter chips.
+- **Task Organization Model**: Redesigned task organization into continuous Areas of responsibility and finite Projects.
+- **Area (Service) Permanent Containers**: Permanent containers without end dates or progress bars that define default tags, colors, and icons.
+- **Finite Projects with Progress Bars**: Goal-driven efforts within Areas featuring target dates, status tracking (*Active*, *Completed*, *On Hold*, *Archived*), and live completion progress indicators.
+- **Automatic Context & Tag Inheritance**: Tasks assigned to an Area or Project automatically inherit their context and default tags without requiring prefixes in the task title.
+- **Areas & Projects Manager**: Dedicated manager in Settings to customize Areas, Projects, default tags, colors, and icons.
+- **Kanban Board Navigation**: Area and Project switcher tabs, live progress indicators, and task card context badges.
 - **Interactive Markdown Tag Autocompletion**: Live `#` tag autocomplete popup inside the daily note Markdown editor and task description editor displaying matching tags, color badges, and service/project details.
-- **Custom Tag Colors**: Ability to assign custom color palettes to any tag, which automatically propagate across task cards, filters, and period reports.
-- **Tags & Projects Manager**: Dedicated settings tab to create, edit, rename, colorize, and delete tags across the entire vault with automatic cascading updates to all task markdown files.
+- **Tags & Labels Manager**: Dedicated settings tab to create, edit, rename, colorize, and delete custom tags.
 
 ### Removed
 - **Calendar View & Tab**: Removed the standalone calendar tab and page to streamline top navigation across daily, weekly, monthly, and task views.

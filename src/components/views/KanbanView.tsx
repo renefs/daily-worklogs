@@ -39,9 +39,19 @@ import {
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
-import { DEFAULT_KANBAN_COLUMNS, KanbanColumnConfig, TaskItem, TaskPriority } from '../../types';
+import { AreaDefinition, DEFAULT_KANBAN_COLUMNS, KanbanColumnConfig, TaskItem, TaskPriority } from '../../types';
 import { getColumnIcon, getColumnTitle } from '../kanban/columnUtils';
 import { getTagColor } from '../../utils/tagUtils';
+import {
+  DEFAULT_AREAS,
+  getAreaColor,
+  getAreaIcon,
+  getProjectColor,
+  resolveTaskContext,
+  calculateProjectProgress,
+  calculateAreaMetrics,
+} from '../../utils/areaProjectUtils';
+import { IconFolder, IconTarget } from '@tabler/icons-react';
 
 export const KanbanView: React.FC = () => {
   const { t } = useTranslation();
@@ -58,9 +68,13 @@ export const KanbanView: React.FC = () => {
     settings,
     openSettings,
     allTags: storeAllTags,
+    areas = DEFAULT_AREAS,
+    projects = [],
   } = useAppStore();
 
   const [search, setSearch] = useState('');
+  const [selectedArea, setSelectedArea] = useState<string>('all');
+  const [selectedProject, setSelectedProject] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [tagFilter, setTagFilter] = useState<string>('all');
   const [showHiddenTasks, setShowHiddenTasks] = useState(false);
@@ -144,7 +158,24 @@ export const KanbanView: React.FC = () => {
         const matchesTitle = task.title.toLowerCase().includes(query);
         const matchesContent = task.content.toLowerCase().includes(query);
         const matchesTags = task.tags?.some((tag) => tag.toLowerCase().includes(query));
-        if (!matchesTitle && !matchesContent && !matchesTags) {
+        const matchesArea = (task.area || '').toLowerCase().includes(query);
+        const matchesProject = (task.project || '').toLowerCase().includes(query);
+        if (!matchesTitle && !matchesContent && !matchesTags && !matchesArea && !matchesProject) {
+          return false;
+        }
+      }
+
+      // Area filter
+      const taskContext = resolveTaskContext(task, areas, projects, storeAllTags);
+      if (selectedArea !== 'all') {
+        if (taskContext.area.toLowerCase() !== selectedArea.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // Project filter
+      if (selectedProject !== 'all') {
+        if (!taskContext.project || taskContext.project.toLowerCase() !== selectedProject.toLowerCase()) {
           return false;
         }
       }
@@ -161,7 +192,7 @@ export const KanbanView: React.FC = () => {
 
       return true;
     });
-  }, [tasks, search, priorityFilter, tagFilter, settings?.hideCompletedOlderThan30Days, showHiddenTasks, isTaskOldClosed]);
+  }, [tasks, search, selectedArea, selectedProject, priorityFilter, tagFilter, settings?.hideCompletedOlderThan30Days, showHiddenTasks, isTaskOldClosed, areas, projects, storeAllTags]);
 
   // Group tasks by column status
   const tasksByColumn = useMemo(() => {
@@ -302,6 +333,47 @@ export const KanbanView: React.FC = () => {
     }).length;
   }, [tasks, columnBehaviorMap]);
 
+  // Current selected Area object
+  const activeAreaObj = useMemo((): AreaDefinition | null => {
+    if (selectedArea === 'all') return null;
+    return (
+      areas.find((a) => a.name.toLowerCase() === selectedArea.toLowerCase()) ||
+      DEFAULT_AREAS.find((a) => a.name.toLowerCase() === selectedArea.toLowerCase()) || {
+        id: selectedArea.toLowerCase().replace(/\s+/g, '-'),
+        name: selectedArea,
+        color: getAreaColor(selectedArea, areas),
+        icon: getAreaIcon(selectedArea, areas),
+        description: undefined,
+        defaultTags: [],
+      }
+    );
+  }, [selectedArea, areas]);
+
+  // Projects belonging to active selected area
+  const activeAreaProjects = useMemo(() => {
+    if (selectedArea === 'all') return projects;
+    return projects.filter((p) => (p.areaName || '').toLowerCase() === selectedArea.toLowerCase());
+  }, [projects, selectedArea]);
+
+  // Current selected Project object
+  const activeProjectObj = useMemo(() => {
+    if (selectedProject === 'all') return null;
+    return projects.find((p) => p.name.toLowerCase() === selectedProject.toLowerCase());
+  }, [selectedProject, projects]);
+
+  const activeProjectMetrics = useMemo(() => {
+    if (!activeProjectObj) return null;
+    return calculateProjectProgress(
+      activeProjectObj.name,
+      activeProjectObj.areaName,
+      tasks,
+      areas,
+      projects,
+      storeAllTags,
+      columnBehaviorMap
+    );
+  }, [activeProjectObj, tasks, areas, projects, storeAllTags, columnBehaviorMap]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 12 }}>
       {/* Top Header & Toolbar */}
@@ -324,7 +396,7 @@ export const KanbanView: React.FC = () => {
           <div>
             <Title order={3}>{t('tasks.title')}</Title>
             <Text size="xs" c="dimmed">
-              {tasks.length} {t('common.tasks')} • {totalCompleted} {t('tasks.statusDone').toLowerCase()}
+              {filteredTasks.length} {t('common.tasks')} • {totalCompleted} {t('tasks.statusDone').toLowerCase()}
             </Text>
           </div>
         </Group>
@@ -340,6 +412,18 @@ export const KanbanView: React.FC = () => {
             >
               <IconRefresh size={16} />
             </ActionIcon>
+          </Tooltip>
+
+          <Tooltip label={t('areas.manageAreasProjects', 'Manage Areas & Projects')} withArrow>
+            <Button
+              variant="default"
+              size="sm"
+              radius="md"
+              leftSection={<IconFolder size={16} />}
+              onClick={() => openSettings('areas')}
+            >
+              {t('areas.title', 'Areas & Projects')}
+            </Button>
           </Tooltip>
 
           <Tooltip label={t('tasks.boardSettings')} withArrow>
@@ -364,6 +448,182 @@ export const KanbanView: React.FC = () => {
           </Button>
         </Group>
       </Group>
+
+      {/* Area Selector / Things 3 Navigation */}
+      <Paper p="xs" withBorder radius="md">
+        <Group justify="space-between" align="center" wrap="wrap" gap="xs">
+          <Group gap={6} wrap="wrap">
+            <Text size="xs" fw={700} c="dimmed" tt="uppercase" mr={4}>
+              {t('areas.areasLabel', 'Areas')}:
+            </Text>
+            <Button
+              size="xs"
+              variant={selectedArea === 'all' ? 'filled' : 'subtle'}
+              color="indigo"
+              radius="xl"
+              onClick={() => {
+                setSelectedArea('all');
+                setSelectedProject('all');
+              }}
+            >
+              {t('areas.allAreas', 'All Tasks')} ({tasks.length})
+            </Button>
+
+            {areas.map((a) => {
+              const aColor = getAreaColor(a.name, areas);
+              const aMetrics = calculateAreaMetrics(a.name, tasks, projects, areas, storeAllTags);
+              const isSelected = selectedArea.toLowerCase() === a.name.toLowerCase();
+
+              return (
+                <Button
+                  key={a.id || a.name}
+                  size="xs"
+                  variant={isSelected ? 'filled' : 'light'}
+                  color={aColor}
+                  radius="xl"
+                  leftSection={<span style={{ display: 'inline-flex', alignItems: 'center' }}><IconFolder size={13} /></span>}
+                  onClick={() => {
+                    if (isSelected) {
+                      setSelectedArea('all');
+                      setSelectedProject('all');
+                    } else {
+                      setSelectedArea(a.name);
+                      setSelectedProject('all');
+                    }
+                  }}
+                >
+                  {a.name} ({aMetrics.totalTasks})
+                </Button>
+              );
+            })}
+          </Group>
+        </Group>
+      </Paper>
+
+      {/* Area Context Header (Permanent Container) & Projects Sub-bar */}
+      {activeAreaObj && (
+        <Paper
+          p="sm"
+          radius="md"
+          withBorder
+          style={{
+            backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.01)',
+            borderColor: `var(--mantine-color-${getAreaColor(activeAreaObj.name, areas)}-6)`,
+            borderLeftWidth: 4,
+          }}
+        >
+          <Group justify="space-between" align="center" wrap="wrap">
+            <div>
+              <Group gap="xs" align="center">
+                <Text fw={700} size="sm">
+                  {activeAreaObj.name}
+                </Text>
+                <Badge size="xs" color={getAreaColor(activeAreaObj.name, areas)} variant="filled">
+                  {t('areas.permanentArea', 'Permanent Container')}
+                </Badge>
+                {activeAreaObj.defaultTags && activeAreaObj.defaultTags.length > 0 && (
+                  <Group gap={4}>
+                    {activeAreaObj.defaultTags.map((tg: string) => (
+                      <Badge key={tg} size="xs" variant="dot" color={getAreaColor(activeAreaObj.name, areas)}>
+                        #{tg}
+                      </Badge>
+                    ))}
+                  </Group>
+                )}
+              </Group>
+              {activeAreaObj.description && (
+                <Text size="xs" c="dimmed" mt={2}>
+                  {activeAreaObj.description}
+                </Text>
+              )}
+            </div>
+
+            {/* Project sub-selector pills */}
+            {activeAreaProjects.length > 0 && (
+              <Group gap={6} wrap="wrap">
+                <Text size="xs" fw={600} c="dimmed">
+                  {t('areas.projectsLabel', 'Projects')}:
+                </Text>
+                <Button
+                  size="compact-xs"
+                  variant={selectedProject === 'all' ? 'filled' : 'subtle'}
+                  color="gray"
+                  radius="xl"
+                  onClick={() => setSelectedProject('all')}
+                >
+                  {t('areas.allAreaTasks', 'All Area Tasks')}
+                </Button>
+                {activeAreaProjects.map((p) => {
+                  const pColor = getProjectColor(p.name, activeAreaObj.name, projects, areas);
+                  const pMetrics = calculateProjectProgress(p.name, activeAreaObj.name, tasks, areas, projects, storeAllTags, columnBehaviorMap);
+                  const isSelected = selectedProject.toLowerCase() === p.name.toLowerCase();
+
+                  return (
+                    <Button
+                      key={p.id || p.name}
+                      size="compact-xs"
+                      variant={isSelected ? 'filled' : 'light'}
+                      color={pColor}
+                      radius="xl"
+                      leftSection={<IconTarget size={12} />}
+                      onClick={() => setSelectedProject(isSelected ? 'all' : p.name)}
+                    >
+                      {p.name} ({pMetrics.percent}%)
+                    </Button>
+                  );
+                })}
+              </Group>
+            )}
+          </Group>
+
+          {/* Active Project Banner with Live Progress Bar */}
+          {activeProjectObj && activeProjectMetrics && (
+            <Paper
+              mt="xs"
+              p="xs"
+              radius="sm"
+              withBorder
+              style={{
+                backgroundColor: isDark ? 'rgba(76, 110, 245, 0.06)' : 'rgba(76, 110, 245, 0.04)',
+              }}
+            >
+              <Group justify="space-between" align="center" wrap="wrap">
+                <div>
+                  <Group gap="xs" align="center">
+                    <IconTarget size={15} color={`var(--mantine-color-${getProjectColor(activeProjectObj.name, activeAreaObj.name, projects, areas)}-6)`} />
+                    <Text fw={600} size="sm">
+                      {activeProjectObj.name}
+                    </Text>
+                    {activeProjectObj.targetDate && (
+                      <Badge size="xs" variant="outline" color="gray" leftSection={<IconCalendar size={10} />}>
+                        {t('areas.due', 'Due')}: {activeProjectObj.targetDate}
+                      </Badge>
+                    )}
+                  </Group>
+                  {activeProjectObj.description && (
+                    <Text size="xs" c="dimmed" mt={2}>
+                      {activeProjectObj.description}
+                    </Text>
+                  )}
+                </div>
+
+                <Group gap="xs" align="center" style={{ width: '100%', maxWidth: 300 }}>
+                  <Progress
+                    value={activeProjectMetrics.percent}
+                    color={activeProjectMetrics.percent === 100 ? 'teal' : getProjectColor(activeProjectObj.name, activeAreaObj.name, projects, areas)}
+                    size="sm"
+                    radius="xl"
+                    style={{ flex: 1 }}
+                  />
+                  <Text size="xs" fw={700} c={activeProjectMetrics.percent === 100 ? 'teal' : 'dimmed'}>
+                    {activeProjectMetrics.percent}% ({activeProjectMetrics.completed}/{activeProjectMetrics.total})
+                  </Text>
+                </Group>
+              </Group>
+            </Paper>
+          )}
+        </Paper>
+      )}
 
       {/* Filter Bar */}
       <Paper p="xs" withBorder radius="md">
@@ -672,6 +932,28 @@ export const KanbanView: React.FC = () => {
                               </Menu.Dropdown>
                             </Menu>
                           </Group>
+
+                          {/* Area & Project Badges */}
+                          {(() => {
+                            const taskCtx = resolveTaskContext(task, areas, projects, storeAllTags);
+                            const aColor = getAreaColor(taskCtx.area, areas);
+                            const pColor = taskCtx.project ? getProjectColor(taskCtx.project, taskCtx.area, projects, areas) : undefined;
+
+                            return (
+                              <Group gap={4} wrap="wrap">
+                                {taskCtx.area && taskCtx.area !== 'General' && (
+                                  <Badge size="xs" color={aColor} variant="dot">
+                                    {taskCtx.area}
+                                  </Badge>
+                                )}
+                                {taskCtx.project && (
+                                  <Badge size="xs" color={pColor || 'blue'} variant="light" leftSection={<IconTarget size={9} />}>
+                                    {taskCtx.project}
+                                  </Badge>
+                                )}
+                              </Group>
+                            );
+                          })()}
 
                           {/* Task Title */}
                           <Text

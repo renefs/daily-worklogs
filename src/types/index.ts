@@ -98,6 +98,8 @@ export interface TaskItem {
   title: string;
   status: TaskStatus;
   priority?: TaskPriority;
+  area?: string; // Area / Service container (e.g. "Webcast", "VC", "ASR")
+  project?: string; // Project name (e.g. "Migración Wowza")
   created: string; // YYYY-MM-DD
   due?: string; // YYYY-MM-DD
   startedDate?: string; // YYYY-MM-DD
@@ -132,11 +134,33 @@ export interface DailyRoutine {
   enabled: boolean;
 }
 
+export interface AreaDefinition {
+  id: string;
+  name: string; // e.g. "Webcast", "VC", "ASR"
+  color?: string; // Mantine color string or hex
+  icon?: string; // Tabler icon name e.g. "video", "broadcast", "device-tv", "folder"
+  description?: string;
+  defaultTags?: string[]; // Tags inherited automatically by all tasks inside this area
+}
+
+export type ProjectStatus = 'active' | 'completed' | 'on_hold' | 'archived';
+
+export interface ProjectDefinition {
+  id: string;
+  name: string; // e.g. "Migración Wowza", "Renovación Sala 1"
+  areaName: string; // Parent Area name (e.g. "Webcast")
+  description?: string;
+  color?: string;
+  targetDate?: string; // YYYY-MM-DD (finite goal)
+  status?: ProjectStatus;
+  tags?: string[];
+}
+
 export interface TagDefinition {
   name: string; // e.g. "auth/oauth", "billing/stripe", "infra"
   color?: string; // Mantine color string, e.g. 'teal', 'blue', 'indigo', 'violet', 'orange', 'cyan', 'grape', 'red', 'pink' or hex
-  service?: string; // Service name (e.g. "Auth", "Billing", "Infrastructure")
-  project?: string; // Project name (e.g. "OAuth Migration", "Stripe Checkout")
+  service?: string; // Service/Area name (e.g. "Webcast", "Auth", "Billing")
+  project?: string; // Project name (e.g. "Migración Wowza", "Stripe Checkout")
   description?: string;
 }
 
@@ -159,6 +183,8 @@ export interface AppSettings {
   showDailyRoutinesPanel?: boolean;
   hasCompletedOnboarding?: boolean;
   tags?: TagDefinition[];
+  areas?: AreaDefinition[];
+  projects?: ProjectDefinition[];
 }
 
 export type AppViewMode = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'tasks' | 'settings';

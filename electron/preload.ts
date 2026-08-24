@@ -22,6 +22,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteTag: (tagName: string, removeFromTasks?: boolean) => ipcRenderer.invoke('delete-tag', tagName, removeFromTasks),
   saveTagDefinition: (tagDef: any) => ipcRenderer.invoke('save-tag-definition', tagDef),
   getAllTags: () => ipcRenderer.invoke('get-all-tags'),
+  renameArea: (oldName: string, newArea: any) => ipcRenderer.invoke('rename-area', oldName, newArea),
+  renameProject: (oldName: string, newProject: any, oldAreaName?: string) =>
+    ipcRenderer.invoke('rename-project', oldName, newProject, oldAreaName),
   exportDocument: (payload: { title: string; defaultPath: string; content: string; format: string }) =>
     ipcRenderer.invoke('export-document', payload),
   openInFileManager: (filePath?: string) => ipcRenderer.invoke('open-in-file-manager', filePath),
