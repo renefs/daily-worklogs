@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Modal,
   TextInput,
@@ -43,6 +43,8 @@ import { useAppStore } from '../../store/useAppStore';
 import { DEFAULT_KANBAN_COLUMNS, TaskPriority, TaskStatus } from '../../types';
 import { MarkdownViewer } from '../viewer/MarkdownViewer';
 import { getColumnIcon, getColumnTitle } from '../kanban/columnUtils';
+import { getTagColor } from '../../utils/tagUtils';
+import { createTagAutocompleteExtension } from '../editor/tagAutocompleteExtension';
 
 export const TaskModal: React.FC = () => {
   const { t } = useTranslation();
@@ -58,7 +60,13 @@ export const TaskModal: React.FC = () => {
     deleteTask,
     logTaskToDailyNote,
     settings,
+    allTags,
   } = useAppStore();
+
+  const allTagsRef = useRef(allTags);
+  useEffect(() => {
+    allTagsRef.current = allTags;
+  }, [allTags]);
 
   const [title, setTitle] = useState('');
   const [status, setStatus] = useState<TaskStatus>('todo');
@@ -472,9 +480,26 @@ export const TaskModal: React.FC = () => {
             placeholder={t('tasks.addTagPlaceholder')}
             value={tags}
             onChange={setTags}
+            data={allTags.map((t) => t.name)}
             leftSection={<IconTag size={16} />}
             clearable
             radius="md"
+            renderOption={({ option }) => {
+              const tagColor = getTagColor(option.value, allTags);
+              const tagDef = allTags.find((t) => t.name.toLowerCase() === option.value.toLowerCase());
+              return (
+                <Group justify="space-between" w="100%" gap="xs">
+                  <Badge size="xs" color={tagColor} variant="light">
+                    #{option.value}
+                  </Badge>
+                  {tagDef?.service && (
+                    <Text size="xs" c="dimmed">
+                      {tagDef.service} {tagDef.project ? `• ${tagDef.project}` : ''}
+                    </Text>
+                  )}
+                </Group>
+              );
+            }}
           />
         </Group>
 
@@ -552,7 +577,7 @@ export const TaskModal: React.FC = () => {
                 value={content}
                 height="100%"
                 theme={isDark ? oneDark : 'light'}
-                extensions={[markdown()]}
+                extensions={[markdown(), createTagAutocompleteExtension(() => allTagsRef.current)]}
                 onChange={(val) => setContent(val)}
                 placeholder={t('tasks.descriptionPlaceholder')}
                 basicSetup={{

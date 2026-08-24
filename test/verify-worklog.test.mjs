@@ -709,12 +709,110 @@ assert.strictEqual(computerBLoadedSettings.vaultPath, computerBMachineVaultPath,
 
 console.log('✓ Cross-computer vault configuration synchronization (.daily-worklogs/config.json) tests passed');
 
+// --- Test Tag, Service & Project Hierarchy and Metrics ---
+function parseTagHierarchy(tagName, tagDefinitions = []) {
+  if (!tagName) return { service: 'General', project: 'General', isHierarchical: false };
+  const trimmed = tagName.trim();
+  const match = tagDefinitions.find((t) => t.name.toLowerCase() === trimmed.toLowerCase());
+  if (match && (match.service || match.project)) {
+    return {
+      service: match.service || 'General',
+      project: match.project || match.name,
+      isHierarchical: Boolean(match.service && match.project),
+    };
+  }
+  if (trimmed.includes('/')) {
+    const parts = trimmed.split('/');
+    const s = parts[0].trim();
+    const p = parts.slice(1).join('/').trim();
+    return {
+      service: s ? s.charAt(0).toUpperCase() + s.slice(1) : 'General',
+      project: p || trimmed,
+      isHierarchical: true,
+    };
+  }
+  if (trimmed.includes(':')) {
+    const parts = trimmed.split(':');
+    const s = parts[0].trim();
+    const p = parts.slice(1).join(':').trim();
+    return {
+      service: s ? s.charAt(0).toUpperCase() + s.slice(1) : 'General',
+      project: p || trimmed,
+      isHierarchical: true,
+    };
+  }
+  return {
+    service: 'General',
+    project: trimmed,
+    isHierarchical: false,
+  };
+}
+
+// 1. Tag hierarchy tests
+const tagSlash = parseTagHierarchy('billing/stripe-integration');
+assert.strictEqual(tagSlash.service, 'Billing');
+assert.strictEqual(tagSlash.project, 'stripe-integration');
+assert.strictEqual(tagSlash.isHierarchical, true);
+
+const tagColon = parseTagHierarchy('auth:oauth2');
+assert.strictEqual(tagColon.service, 'Auth');
+assert.strictEqual(tagColon.project, 'oauth2');
+assert.strictEqual(tagColon.isHierarchical, true);
+
+const customDefinitions = [
+  { name: 'frontend-core', service: 'Frontend', project: 'Design System', color: 'teal' },
+];
+const tagCustom = parseTagHierarchy('frontend-core', customDefinitions);
+assert.strictEqual(tagCustom.service, 'Frontend');
+assert.strictEqual(tagCustom.project, 'Design System');
+
+// 2. Service and project aggregation logic
+const sampleTasks = [
+  { id: '1', title: 'Setup Stripe', tags: ['billing/stripe'], status: 'done' },
+  { id: '2', title: 'Handle Webhooks', tags: ['billing/stripe'], status: 'in_progress' },
+  { id: '3', title: 'Paypal Checkout', tags: ['billing/paypal'], status: 'todo' },
+  { id: '4', title: 'OAuth Login', tags: ['auth/login'], status: 'done' },
+];
+
+const serviceBreakdown = {};
+for (const task of sampleTasks) {
+  const isDone = task.status === 'done';
+  const isInProgress = task.status === 'in_progress';
+  for (const tag of task.tags) {
+    const { service, project } = parseTagHierarchy(tag, customDefinitions);
+    if (!serviceBreakdown[service]) {
+      serviceBreakdown[service] = { service, total: 0, completed: 0, inProgress: 0, projects: {} };
+    }
+    serviceBreakdown[service].total += 1;
+    if (isDone) serviceBreakdown[service].completed += 1;
+    if (isInProgress) serviceBreakdown[service].inProgress += 1;
+
+    if (!serviceBreakdown[service].projects[project]) {
+      serviceBreakdown[service].projects[project] = { total: 0, completed: 0, inProgress: 0 };
+    }
+    serviceBreakdown[service].projects[project].total += 1;
+    if (isDone) serviceBreakdown[service].projects[project].completed += 1;
+    if (isInProgress) serviceBreakdown[service].projects[project].inProgress += 1;
+  }
+}
+
+assert.strictEqual(serviceBreakdown['Billing'].total, 3);
+assert.strictEqual(serviceBreakdown['Billing'].completed, 1);
+assert.strictEqual(serviceBreakdown['Billing'].inProgress, 1);
+assert.strictEqual(serviceBreakdown['Billing'].projects['stripe'].total, 2);
+assert.strictEqual(serviceBreakdown['Billing'].projects['paypal'].total, 1);
+assert.strictEqual(serviceBreakdown['Auth'].total, 1);
+assert.strictEqual(serviceBreakdown['Auth'].completed, 1);
+
+console.log('✓ Tag hierarchy and service/project aggregation metrics tests passed');
+
 // Cleanup
 fs.rmSync(testVault, { recursive: true });
 if (fs.existsSync(sharedCloudVault)) fs.rmSync(sharedCloudVault, { recursive: true });
 if (fs.existsSync(computerASettingsFile)) fs.rmSync(computerASettingsFile);
 if (fs.existsSync(computerBSettingsFile)) fs.rmSync(computerBSettingsFile);
 console.log('✓ All verification tests passed successfully!');
+
 
 
 

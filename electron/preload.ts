@@ -18,6 +18,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeTask: (task: any) => ipcRenderer.invoke('write-task', task),
   updateTaskStatus: (filename: string, status: string) => ipcRenderer.invoke('update-task-status', filename, status),
   deleteTask: (filename: string) => ipcRenderer.invoke('delete-task', filename),
+  renameTag: (oldName: string, newName: string) => ipcRenderer.invoke('rename-tag', oldName, newName),
+  deleteTag: (tagName: string, removeFromTasks?: boolean) => ipcRenderer.invoke('delete-tag', tagName, removeFromTasks),
+  saveTagDefinition: (tagDef: any) => ipcRenderer.invoke('save-tag-definition', tagDef),
+  getAllTags: () => ipcRenderer.invoke('get-all-tags'),
   exportDocument: (payload: { title: string; defaultPath: string; content: string; format: string }) =>
     ipcRenderer.invoke('export-document', payload),
   openInFileManager: (filePath?: string) => ipcRenderer.invoke('open-in-file-manager', filePath),

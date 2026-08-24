@@ -45,6 +45,7 @@ import {
   IconBook2,
   IconBrandGithub,
   IconExternalLink,
+  IconTag,
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
@@ -59,6 +60,7 @@ import {
   getColumnTitle,
 } from '../kanban/columnUtils';
 import { RoutinesManagerView } from './ManageRoutinesModal';
+import { TagsManager } from '../settings/TagsManager';
 import { DATE_FORMAT_PRESETS, formatTemplateDate } from '../../utils/dateTemplate';
 
 const THEME_COLORS = [
@@ -417,6 +419,9 @@ export const SettingsModal: React.FC = () => {
             </Tabs.Tab>
             <Tabs.Tab value="kanban" leftSection={<IconLayoutKanban size={16} />}>
               {t('settings.kanbanColumns')}
+            </Tabs.Tab>
+            <Tabs.Tab value="tags" leftSection={<IconTag size={16} />}>
+              {t('settings.tabTags')}
             </Tabs.Tab>
             <Tabs.Tab value="routines" leftSection={<IconChecklist size={16} />}>
               {t('settings.tabRoutines')}
@@ -987,6 +992,11 @@ export const SettingsModal: React.FC = () => {
                 </Paper>
               ))}
             </Stack>
+          </Tabs.Panel>
+
+          {/* Tags & Projects Tab */}
+          <Tabs.Panel value="tags">
+            <TagsManager />
           </Tabs.Panel>
 
           {/* Routines Tab */}

@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Added
+- **Project and Service Tracking**: Support for organizing tasks and tags into hierarchical Services and Projects (supporting `#service/project`, `#service:project`, and explicit custom mappings).
+- **Period Analytics (Top Services & Projects)**: Visual breakdown in Weekly and Monthly reports highlighting the services and projects worked on the most in any given time period, with completion progress bars and interactive filter chips.
+- **Interactive Markdown Tag Autocompletion**: Live `#` tag autocomplete popup inside the daily note Markdown editor and task description editor displaying matching tags, color badges, and service/project details.
+- **Custom Tag Colors**: Ability to assign custom color palettes to any tag, which automatically propagate across task cards, filters, and period reports.
+- **Tags & Projects Manager**: Dedicated settings tab to create, edit, rename, colorize, and delete tags across the entire vault with automatic cascading updates to all task markdown files.
+
 ### Removed
 - **Calendar View & Tab**: Removed the standalone calendar tab and page to streamline top navigation across daily, weekly, monthly, and task views.
 

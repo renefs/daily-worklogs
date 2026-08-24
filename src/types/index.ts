@@ -132,6 +132,14 @@ export interface DailyRoutine {
   enabled: boolean;
 }
 
+export interface TagDefinition {
+  name: string; // e.g. "auth/oauth", "billing/stripe", "infra"
+  color?: string; // Mantine color string, e.g. 'teal', 'blue', 'indigo', 'violet', 'orange', 'cyan', 'grape', 'red', 'pink' or hex
+  service?: string; // Service name (e.g. "Auth", "Billing", "Infrastructure")
+  project?: string; // Project name (e.g. "OAuth Migration", "Stripe Checkout")
+  description?: string;
+}
+
 export interface AppSettings {
   vaultPath: string;
   language: 'en' | 'es';
@@ -150,6 +158,7 @@ export interface AppSettings {
   routineCompletions?: Record<string, string[]>; // 'YYYY-MM-DD' -> routine ids completed on that date
   showDailyRoutinesPanel?: boolean;
   hasCompletedOnboarding?: boolean;
+  tags?: TagDefinition[];
 }
 
 export type AppViewMode = 'daily' | 'weekly' | 'monthly' | 'tasks' | 'settings';
@@ -170,6 +179,21 @@ export interface WorklogDaySummary {
   checklistItems?: DailyChecklistItem[];
 }
 
+export interface ServiceProjectMetric {
+  total: number;
+  completed: number;
+  inProgress: number;
+  tasks: TaskItem[];
+}
+
+export interface ServiceBreakdownItem {
+  service: string;
+  total: number;
+  completed: number;
+  inProgress: number;
+  projects: Record<string, ServiceProjectMetric>;
+}
+
 export interface PeriodSummary {
   startDate: string;
   endDate: string;
@@ -185,6 +209,9 @@ export interface PeriodSummary {
   waitingTasksList?: TaskItem[];
   backlogTasksList?: TaskItem[];
   dailyChecklistItems?: DailyChecklistItem[];
-  tagBreakdown?: Record<string, { total: number; completed: number }>;
+  tagBreakdown?: Record<string, { total: number; completed: number; inProgress?: number }>;
   priorityBreakdown?: Record<string, { total: number; completed: number }>;
+  serviceBreakdown?: Record<string, ServiceBreakdownItem>;
+  projectBreakdown?: Record<string, ServiceProjectMetric & { service: string; project: string }>;
 }
+

@@ -955,7 +955,8 @@ ipcMain.handle('list-notes', async () => {
 });
 
 ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: string) => {
-  const { vaultPath } = getSettings();
+  const settings = getSettings();
+  const vaultPath = settings.vaultPath;
   ensureVaultDir(vaultPath);
 
   // Generate array of dates between start and end
@@ -1040,12 +1041,70 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
   const inProgressTasksList: any[] = [];
   const waitingTasksList: any[] = [];
   const backlogTasksList: any[] = [];
-  const tagBreakdown: Record<string, { total: number; completed: number }> = {};
+  const tagBreakdown: Record<string, { total: number; completed: number; inProgress: number }> = {};
+  const serviceBreakdown: Record<
+    string,
+    {
+      service: string;
+      total: number;
+      completed: number;
+      inProgress: number;
+      projects: Record<string, { total: number; completed: number; inProgress: number; tasks: any[] }>;
+    }
+  > = {};
+  const projectBreakdown: Record<
+    string,
+    {
+      service: string;
+      project: string;
+      total: number;
+      completed: number;
+      inProgress: number;
+      tasks: any[];
+    }
+  > = {};
+
   const priorityBreakdown: Record<string, { total: number; completed: number }> = {
     urgent: { total: 0, completed: 0 },
     high: { total: 0, completed: 0 },
     medium: { total: 0, completed: 0 },
     low: { total: 0, completed: 0 },
+  };
+
+  const configuredTags: Array<{ name: string; service?: string; project?: string; color?: string }> =
+    settings.tags || [];
+
+  const resolveTagHierarchy = (rawTag: string) => {
+    const trimmed = rawTag.trim();
+    const match = configuredTags.find((t) => t.name.toLowerCase() === trimmed.toLowerCase());
+    if (match && (match.service || match.project)) {
+      return {
+        service: match.service || 'General',
+        project: match.project || match.name,
+      };
+    }
+    if (trimmed.includes('/')) {
+      const parts = trimmed.split('/');
+      const s = parts[0].trim();
+      const p = parts.slice(1).join('/').trim();
+      return {
+        service: s ? s.charAt(0).toUpperCase() + s.slice(1) : 'General',
+        project: p || trimmed,
+      };
+    }
+    if (trimmed.includes(':')) {
+      const parts = trimmed.split(':');
+      const s = parts[0].trim();
+      const p = parts.slice(1).join(':').trim();
+      return {
+        service: s ? s.charAt(0).toUpperCase() + s.slice(1) : 'General',
+        project: p || trimmed,
+      };
+    }
+    return {
+      service: 'General',
+      project: trimmed,
+    };
   };
 
   try {
@@ -1065,6 +1124,7 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
         // Accurate period inclusion check
         const taskBehavior = getColumnBehavior(task.status);
         const isDoneOrCancelled = taskBehavior === 'done' || taskBehavior === 'cancelled';
+        const isInProgress = taskBehavior === 'in_progress';
         const wasCompletedInPeriod = completedDate >= startDate && completedDate <= endDate;
         const wasStartedInPeriod = startedDate >= startDate && startedDate <= endDate;
         const wasDueInPeriod = dueDate >= startDate && dueDate <= endDate;
@@ -1098,15 +1158,88 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
             backlogTasksList.push(task);
           }
 
-          // Tag breakdown
+          // Tag, Service, and Project breakdown
           if (task.tags && task.tags.length > 0) {
+            const countedServicesInTask = new Set<string>();
+            const countedProjectsInTask = new Set<string>();
+
             for (const tag of task.tags) {
               if (!tagBreakdown[tag]) {
-                tagBreakdown[tag] = { total: 0, completed: 0 };
+                tagBreakdown[tag] = { total: 0, completed: 0, inProgress: 0 };
               }
               tagBreakdown[tag].total += 1;
               if (isDoneOrCancelled) {
                 tagBreakdown[tag].completed += 1;
+              }
+              if (isInProgress) {
+                tagBreakdown[tag].inProgress += 1;
+              }
+
+              const { service, project } = resolveTagHierarchy(tag);
+              const projectKey = `${service} / ${project}`;
+
+              // Update project breakdown
+              if (!countedProjectsInTask.has(projectKey)) {
+                countedProjectsInTask.add(projectKey);
+                if (!projectBreakdown[projectKey]) {
+                  projectBreakdown[projectKey] = {
+                    service,
+                    project,
+                    total: 0,
+                    completed: 0,
+                    inProgress: 0,
+                    tasks: [],
+                  };
+                }
+                projectBreakdown[projectKey].total += 1;
+                if (isDoneOrCancelled) {
+                  projectBreakdown[projectKey].completed += 1;
+                }
+                if (isInProgress) {
+                  projectBreakdown[projectKey].inProgress += 1;
+                }
+                projectBreakdown[projectKey].tasks.push(task);
+              }
+
+              // Update service breakdown
+              if (!serviceBreakdown[service]) {
+                serviceBreakdown[service] = {
+                  service,
+                  total: 0,
+                  completed: 0,
+                  inProgress: 0,
+                  projects: {},
+                };
+              }
+
+              if (!countedServicesInTask.has(service)) {
+                countedServicesInTask.add(service);
+                serviceBreakdown[service].total += 1;
+                if (isDoneOrCancelled) {
+                  serviceBreakdown[service].completed += 1;
+                }
+                if (isInProgress) {
+                  serviceBreakdown[service].inProgress += 1;
+                }
+              }
+
+              if (!serviceBreakdown[service].projects[project]) {
+                serviceBreakdown[service].projects[project] = {
+                  total: 0,
+                  completed: 0,
+                  inProgress: 0,
+                  tasks: [],
+                };
+              }
+              if (!serviceBreakdown[service].projects[project].tasks.some((t: any) => t.id === task.id)) {
+                serviceBreakdown[service].projects[project].total += 1;
+                if (isDoneOrCancelled) {
+                  serviceBreakdown[service].projects[project].completed += 1;
+                }
+                if (isInProgress) {
+                  serviceBreakdown[service].projects[project].inProgress += 1;
+                }
+                serviceBreakdown[service].projects[project].tasks.push(task);
               }
             }
           }
@@ -1144,6 +1277,8 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
     dailyChecklistItems: allDailyChecklistItems,
     tagBreakdown,
     priorityBreakdown,
+    serviceBreakdown,
+    projectBreakdown,
   };
 });
 
@@ -1561,6 +1696,192 @@ ipcMain.handle('resolve-media-url', (_event, relativeOrAbsPath: string) => {
   }
   const clean = relativeOrAbsPath.replace(/^\.?\/+/, '');
   return `worklog-media://vault/${clean}`;
+});
+
+// Tag Management IPC Handlers
+ipcMain.handle('get-all-tags', async () => {
+  const settings = getSettings();
+  const configuredTags: Array<{ name: string; color?: string; service?: string; project?: string; description?: string }> =
+    settings.tags || [];
+
+  const tagMap = new Map<string, any>();
+  for (const t of configuredTags) {
+    if (t && t.name) {
+      tagMap.set(t.name.toLowerCase(), { ...t });
+    }
+  }
+
+  // Scan tasks directory for any tags not explicitly configured
+  try {
+    const tasksDir = ensureTasksDir(settings.vaultPath);
+    if (fs.existsSync(tasksDir)) {
+      const files = fs.readdirSync(tasksDir);
+      for (const file of files) {
+        if (!file.toLowerCase().endsWith('.md')) continue;
+        const filepath = path.join(tasksDir, file);
+        const task = parseTaskFile(filepath, file);
+        if (task.tags && Array.isArray(task.tags)) {
+          for (const rawTag of task.tags) {
+            const trimmed = String(rawTag).trim();
+            if (!trimmed) continue;
+            const lower = trimmed.toLowerCase();
+            if (!tagMap.has(lower)) {
+              // Infer service and project from hierarchical tag if present
+              let service: string | undefined;
+              let project: string | undefined;
+              if (trimmed.includes('/')) {
+                const parts = trimmed.split('/');
+                service = parts[0].trim();
+                service = service ? service.charAt(0).toUpperCase() + service.slice(1) : undefined;
+                project = parts.slice(1).join('/').trim() || undefined;
+              } else if (trimmed.includes(':')) {
+                const parts = trimmed.split(':');
+                service = parts[0].trim();
+                service = service ? service.charAt(0).toUpperCase() + service.slice(1) : undefined;
+                project = parts.slice(1).join(':').trim() || undefined;
+              }
+              tagMap.set(lower, {
+                name: trimmed,
+                service,
+                project,
+              });
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error scanning tasks for tags:', err);
+  }
+
+  return Array.from(tagMap.values());
+});
+
+ipcMain.handle('save-tag-definition', async (_event, tagDef: { name: string; color?: string; service?: string; project?: string; description?: string }) => {
+  if (!tagDef || !tagDef.name) return { success: false, error: 'Tag name required' };
+
+  const settings = getSettings();
+  const currentTags: any[] = settings.tags || [];
+  const index = currentTags.findIndex((t) => t.name.toLowerCase() === tagDef.name.toLowerCase());
+
+  if (index >= 0) {
+    currentTags[index] = { ...currentTags[index], ...tagDef };
+  } else {
+    currentTags.push(tagDef);
+  }
+
+  saveSettings({ tags: currentTags });
+  return { success: true };
+});
+
+ipcMain.handle('rename-tag', async (_event, oldName: string, newName: string) => {
+  if (!oldName || !newName) return { success: false, error: 'Old and new name required', updatedCount: 0 };
+  const cleanOld = oldName.trim();
+  const cleanNew = newName.trim();
+  if (cleanOld.toLowerCase() === cleanNew.toLowerCase()) {
+    return { success: true, updatedCount: 0 };
+  }
+
+  const settings = getSettings();
+  const currentTags: any[] = settings.tags || [];
+  let tagDefFound = false;
+
+  // Update in settings.tags
+  const updatedTags = currentTags.map((t) => {
+    if (t.name.toLowerCase() === cleanOld.toLowerCase()) {
+      tagDefFound = true;
+      return { ...t, name: cleanNew };
+    }
+    return t;
+  });
+
+  if (!tagDefFound) {
+    updatedTags.push({ name: cleanNew });
+  }
+  saveSettings({ tags: updatedTags });
+
+  // Update in all task files
+  let updatedCount = 0;
+  try {
+    const tasksDir = ensureTasksDir(settings.vaultPath);
+    if (fs.existsSync(tasksDir)) {
+      const files = fs.readdirSync(tasksDir);
+      for (const file of files) {
+        if (!file.toLowerCase().endsWith('.md')) continue;
+        const filepath = path.join(tasksDir, file);
+        try {
+          const raw = fs.readFileSync(filepath, 'utf-8');
+          const parsed = matter(raw);
+          const data = parsed.data || {};
+          if (Array.isArray(data.tags)) {
+            let modified = false;
+            const newTags = data.tags.map((tg: string) => {
+              if (String(tg).toLowerCase() === cleanOld.toLowerCase()) {
+                modified = true;
+                return cleanNew;
+              }
+              return tg;
+            });
+
+            if (modified) {
+              // Deduplicate
+              const dedupedTags = Array.from(new Set(newTags));
+              const newRaw = matter.stringify(parsed.content, { ...data, tags: dedupedTags });
+              fs.writeFileSync(filepath, newRaw, 'utf-8');
+              updatedCount++;
+            }
+          }
+        } catch (fileErr) {
+          console.warn(`Error updating tag in task file ${file}:`, fileErr);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error scanning task files during tag rename:', err);
+  }
+
+  return { success: true, updatedCount };
+});
+
+ipcMain.handle('delete-tag', async (_event, tagName: string, removeFromTasks: boolean = true) => {
+  if (!tagName) return { success: false, error: 'Tag name required', updatedCount: 0 };
+  const cleanName = tagName.trim().toLowerCase();
+
+  const settings = getSettings();
+  const currentTags: any[] = settings.tags || [];
+  const filteredTags = currentTags.filter((t) => t.name.toLowerCase() !== cleanName);
+  saveSettings({ tags: filteredTags });
+
+  let updatedCount = 0;
+  if (removeFromTasks) {
+    try {
+      const tasksDir = ensureTasksDir(settings.vaultPath);
+      if (fs.existsSync(tasksDir)) {
+        const files = fs.readdirSync(tasksDir);
+        for (const file of files) {
+          if (!file.toLowerCase().endsWith('.md')) continue;
+          const filepath = path.join(tasksDir, file);
+          try {
+            const raw = fs.readFileSync(filepath, 'utf-8');
+            const parsed = matter(raw);
+            const data = parsed.data || {};
+            if (Array.isArray(data.tags) && data.tags.some((tg: string) => String(tg).toLowerCase() === cleanName)) {
+              const newTags = data.tags.filter((tg: string) => String(tg).toLowerCase() !== cleanName);
+              const newRaw = matter.stringify(parsed.content, { ...data, tags: newTags });
+              fs.writeFileSync(filepath, newRaw, 'utf-8');
+              updatedCount++;
+            }
+          } catch (fileErr) {
+            console.warn(`Error deleting tag from task file ${file}:`, fileErr);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error scanning task files during tag delete:', err);
+    }
+  }
+
+  return { success: true, updatedCount };
 });
 
 

@@ -41,6 +41,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
 import { DEFAULT_KANBAN_COLUMNS, KanbanColumnConfig, TaskItem, TaskPriority } from '../../types';
 import { getColumnIcon, getColumnTitle } from '../kanban/columnUtils';
+import { getTagColor } from '../../utils/tagUtils';
 
 export const KanbanView: React.FC = () => {
   const { t } = useTranslation();
@@ -48,14 +49,15 @@ export const KanbanView: React.FC = () => {
   const isDark = computedColorScheme === 'dark';
 
   const {
-    settings,
     tasks,
     isTasksLoading,
-    refreshTasksList,
+    openTaskModal,
     updateTaskStatus,
     deleteTask,
-    openTaskModal,
+    refreshTasksList,
+    settings,
     openSettings,
+    allTags: storeAllTags,
   } = useAppStore();
 
   const [search, setSearch] = useState('');
@@ -704,11 +706,14 @@ export const KanbanView: React.FC = () => {
                           {/* Tags pills */}
                           {task.tags && task.tags.length > 0 && (
                             <Group gap={4} wrap="wrap">
-                              {task.tags.map((tag) => (
-                                <Badge key={tag} size="xs" variant="outline" color="gray" radius="sm">
-                                  #{tag}
-                                </Badge>
-                              ))}
+                              {task.tags.map((tag) => {
+                                const tColor = getTagColor(tag, storeAllTags);
+                                return (
+                                  <Badge key={tag} size="xs" variant="light" color={tColor} radius="sm">
+                                    #{tag}
+                                  </Badge>
+                                );
+                              })}
                             </Group>
                           )}
                         </Stack>

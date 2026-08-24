@@ -42,6 +42,10 @@ export interface ElectronAPI {
   }) => Promise<{ success: boolean; task: TaskItem }>;
   updateTaskStatus: (filename: string, status: TaskStatus) => Promise<{ success: boolean; task: TaskItem }>;
   deleteTask: (filename: string) => Promise<{ success: boolean }>;
+  renameTag?: (oldName: string, newName: string) => Promise<{ success: boolean; updatedCount: number }>;
+  deleteTag?: (tagName: string, removeFromTasks?: boolean) => Promise<{ success: boolean; updatedCount: number }>;
+  saveTagDefinition?: (tagDef: import('./index').TagDefinition) => Promise<{ success: boolean }>;
+  getAllTags?: () => Promise<import('./index').TagDefinition[]>;
   exportDocument: (payload: { title: string; defaultPath: string; content: string; format: 'md' | 'html' | 'txt' }) => Promise<{ success: boolean; filePath?: string }>;
   openInFileManager: (filePath?: string) => Promise<void>;
   openExternalUrl: (url: string) => Promise<{ success: boolean }>;

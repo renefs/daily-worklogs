@@ -42,6 +42,7 @@ import { formatTemplateContent } from '../../utils/dateTemplate';
 
 import { EditorView } from '@codemirror/view';
 import { liveMarkdownExtension } from './liveMarkdownExtension';
+import { createTagAutocompleteExtension } from './tagAutocompleteExtension';
 
 /**
  * Unified syntax highlighting style matching Mantine light and dark themes
@@ -89,7 +90,13 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     isDirty,
     settings,
     selectedDate,
+    allTags,
   } = useAppStore();
+
+  const allTagsRef = useRef(allTags);
+  useEffect(() => {
+    allTagsRef.current = allTags;
+  }, [allTags]);
 
   const isDark = computedColorScheme === 'dark';
 
@@ -279,6 +286,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       markdown({ codeLanguages: languages }),
       syntaxHighlighting(editorHighlightStyle, { fallback: true }),
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+      createTagAutocompleteExtension(() => allTagsRef.current),
       EditorView.lineWrapping,
     ];
     if (isLivePreview) {

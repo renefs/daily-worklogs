@@ -13,6 +13,7 @@ import {
   Tooltip,
   Checkbox,
   ThemeIcon,
+  Button,
   useComputedColorScheme,
 } from '@mantine/core';
 import {
@@ -27,10 +28,15 @@ import {
   IconClockCheck,
   IconEdit,
   IconNotes,
+  IconFolders,
+  IconBriefcase,
+  IconX,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
+import { useAppStore } from '../../store/useAppStore';
 import { PeriodSummary, TaskItem, TaskPriority } from '../../types';
 import { formatLocalizedDateTitle } from '../../utils/dateTemplate';
+import { getTagColor, parseTagHierarchy } from '../../utils/tagUtils';
 
 interface PeriodTasksBreakdownProps {
   periodSummary: PeriodSummary | null;
@@ -45,6 +51,10 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
   const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
   const isDark = computedColorScheme === 'dark';
 
+  const { allTags: storeAllTags } = useAppStore();
+
+  const [selectedService, setSelectedService] = useState<string>('all');
+  const [selectedProject, setSelectedProject] = useState<string>('all');
   const [selectedTag, setSelectedTag] = useState<string>('all');
   const [selectedPriority, setSelectedPriority] = useState<string>('all');
 
@@ -55,6 +65,8 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
   const dailyChecklists = periodSummary?.dailyChecklistItems || [];
   const tagBreakdown = periodSummary?.tagBreakdown || {};
   const priorityBreakdown = periodSummary?.priorityBreakdown || {};
+  const serviceBreakdown = periodSummary?.serviceBreakdown || {};
+  const projectBreakdown = periodSummary?.projectBreakdown || {};
 
   // Priority metadata
   const priorityMeta: Record<TaskPriority, { label: string; color: string }> = {
@@ -64,23 +76,43 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
     low: { label: t('tasks.priorityLow'), color: 'gray' },
   };
 
-  // Filter tasks based on selected tag & priority
+  // Filter tasks based on selected service, project, tag & priority
   const filterTasks = (taskList: TaskItem[]) => {
     return taskList.filter((task) => {
+      if (selectedPriority !== 'all') {
+        if (task.priority !== selectedPriority) return false;
+      }
       if (selectedTag !== 'all') {
         if (!task.tags || !task.tags.includes(selectedTag)) return false;
       }
-      if (selectedPriority !== 'all') {
-        if (task.priority !== selectedPriority) return false;
+      if (selectedService !== 'all') {
+        if (!task.tags || task.tags.length === 0) return false;
+        const belongsToService = task.tags.some((tag) => {
+          const { service } = parseTagHierarchy(tag, storeAllTags);
+          return service.toLowerCase() === selectedService.toLowerCase();
+        });
+        if (!belongsToService) return false;
+      }
+      if (selectedProject !== 'all') {
+        if (!task.tags || task.tags.length === 0) return false;
+        const belongsToProject = task.tags.some((tag) => {
+          const { service, project } = parseTagHierarchy(tag, storeAllTags);
+          const pKey = `${service} / ${project}`;
+          return (
+            pKey.toLowerCase() === selectedProject.toLowerCase() ||
+            project.toLowerCase() === selectedProject.toLowerCase()
+          );
+        });
+        if (!belongsToProject) return false;
       }
       return true;
     });
   };
 
-  const filteredCompleted = useMemo(() => filterTasks(completedList), [completedList, selectedTag, selectedPriority]);
-  const filteredInProgress = useMemo(() => filterTasks(inProgressList), [inProgressList, selectedTag, selectedPriority]);
-  const filteredWaiting = useMemo(() => filterTasks(waitingList), [waitingList, selectedTag, selectedPriority]);
-  const filteredBacklog = useMemo(() => filterTasks(backlogList), [backlogList, selectedTag, selectedPriority]);
+  const filteredCompleted = useMemo(() => filterTasks(completedList), [completedList, selectedTag, selectedPriority, selectedService, selectedProject, storeAllTags]);
+  const filteredInProgress = useMemo(() => filterTasks(inProgressList), [inProgressList, selectedTag, selectedPriority, selectedService, selectedProject, storeAllTags]);
+  const filteredWaiting = useMemo(() => filterTasks(waitingList), [waitingList, selectedTag, selectedPriority, selectedService, selectedProject, storeAllTags]);
+  const filteredBacklog = useMemo(() => filterTasks(backlogList), [backlogList, selectedTag, selectedPriority, selectedService, selectedProject, storeAllTags]);
 
   // Group daily checklist items by date
   const checklistsByDate = useMemo(() => {
@@ -94,6 +126,29 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
     }
     return map;
   }, [periodSummary]);
+
+  // Sort services by total tasks descending
+  const sortedServices = useMemo(() => {
+    return Object.values(serviceBreakdown).sort((a, b) => b.total - a.total);
+  }, [serviceBreakdown]);
+
+  // Sort projects by total tasks descending
+  const sortedProjects = useMemo(() => {
+    return Object.values(projectBreakdown).sort((a, b) => b.total - a.total);
+  }, [projectBreakdown]);
+
+  const hasActiveFilters =
+    selectedService !== 'all' ||
+    selectedProject !== 'all' ||
+    selectedTag !== 'all' ||
+    selectedPriority !== 'all';
+
+  const resetAllFilters = () => {
+    setSelectedService('all');
+    setSelectedProject('all');
+    setSelectedTag('all');
+    setSelectedPriority('all');
+  };
 
   const totalPeriodTasks = (periodSummary?.periodTasks || []).length;
   const hasNoPeriodTasks = totalPeriodTasks === 0 && dailyChecklists.length === 0;
@@ -110,6 +165,227 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
 
   return (
     <Stack gap="md">
+      {/* Active Filter Bar (if any filter active) */}
+      {hasActiveFilters && (
+        <Paper
+          withBorder
+          p="xs"
+          radius="md"
+          style={{
+            backgroundColor: isDark ? 'var(--mantine-color-dark-6)' : 'var(--mantine-color-blue-0)',
+            borderColor: 'var(--mantine-color-blue-4)',
+          }}
+        >
+          <Group justify="space-between" align="center" wrap="wrap">
+            <Group gap="xs" wrap="wrap">
+              <Text size="xs" fw={700} c="blue">
+                Active Filter:
+              </Text>
+              {selectedService !== 'all' && (
+                <Badge
+                  color="indigo"
+                  variant="filled"
+                  size="sm"
+                  rightSection={
+                    <ActionIcon size="xs" color="indigo" variant="transparent" onClick={() => setSelectedService('all')}>
+                      <IconX size={10} />
+                    </ActionIcon>
+                  }
+                >
+                  Service: {selectedService}
+                </Badge>
+              )}
+              {selectedProject !== 'all' && (
+                <Badge
+                  color="violet"
+                  variant="filled"
+                  size="sm"
+                  rightSection={
+                    <ActionIcon size="xs" color="violet" variant="transparent" onClick={() => setSelectedProject('all')}>
+                      <IconX size={10} />
+                    </ActionIcon>
+                  }
+                >
+                  Project: {selectedProject}
+                </Badge>
+              )}
+              {selectedTag !== 'all' && (
+                <Badge
+                  color={getTagColor(selectedTag, storeAllTags)}
+                  variant="filled"
+                  size="sm"
+                  rightSection={
+                    <ActionIcon size="xs" color="gray" variant="transparent" onClick={() => setSelectedTag('all')}>
+                      <IconX size={10} />
+                    </ActionIcon>
+                  }
+                >
+                  #{selectedTag}
+                </Badge>
+              )}
+              {selectedPriority !== 'all' && (
+                <Badge
+                  color={priorityMeta[selectedPriority as TaskPriority]?.color || 'gray'}
+                  variant="filled"
+                  size="sm"
+                  rightSection={
+                    <ActionIcon size="xs" color="gray" variant="transparent" onClick={() => setSelectedPriority('all')}>
+                      <IconX size={10} />
+                    </ActionIcon>
+                  }
+                >
+                  Priority: {selectedPriority}
+                </Badge>
+              )}
+            </Group>
+            <Button size="compact-xs" variant="subtle" color="red" onClick={resetAllFilters}>
+              Reset All Filters
+            </Button>
+          </Group>
+        </Paper>
+      )}
+
+      {/* Services & Projects Analytics Cards */}
+      {(sortedServices.length > 0 || sortedProjects.length > 0) && (
+        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+          {/* Top Services Card */}
+          <Card withBorder radius="md" p="md">
+            <Group justify="space-between" mb="xs">
+              <Group gap="xs">
+                <ThemeIcon size="sm" variant="light" color="indigo" radius="md">
+                  <IconFolders size={16} />
+                </ThemeIcon>
+                <Text size="xs" fw={700} tt="uppercase" c="dimmed">
+                  {t('reports.topServices') || 'Top Services Worked On'}
+                </Text>
+              </Group>
+              {selectedService !== 'all' && (
+                <Badge
+                  variant="light"
+                  size="xs"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => setSelectedService('all')}
+                >
+                  Reset
+                </Badge>
+              )}
+            </Group>
+
+            <Stack gap="xs" mt="xs">
+              {sortedServices.map((sItem) => {
+                const isSelected = selectedService.toLowerCase() === sItem.service.toLowerCase();
+                const pct = Math.round((sItem.completed / (sItem.total || 1)) * 100);
+                const projectsCount = Object.keys(sItem.projects || {}).length;
+
+                return (
+                  <Paper
+                    key={sItem.service}
+                    p="xs"
+                    radius="md"
+                    withBorder
+                    style={{
+                      cursor: 'pointer',
+                      borderColor: isSelected ? 'var(--mantine-color-indigo-6)' : undefined,
+                      backgroundColor: isSelected
+                        ? isDark ? 'rgba(76, 110, 245, 0.15)' : 'rgba(76, 110, 245, 0.08)'
+                        : undefined,
+                      transition: 'all 0.15s ease',
+                    }}
+                    onClick={() => setSelectedService(isSelected ? 'all' : sItem.service)}
+                  >
+                    <Group justify="space-between" mb={4}>
+                      <Group gap="xs">
+                        <Text size="sm" fw={600}>
+                          {sItem.service}
+                        </Text>
+                        <Badge size="xs" variant="light" color="indigo">
+                          {sItem.completed}/{sItem.total} done ({pct}%)
+                        </Badge>
+                      </Group>
+                      <Text size="xs" c="dimmed">
+                        {projectsCount} {projectsCount === 1 ? 'project' : 'projects'}
+                      </Text>
+                    </Group>
+                    <Progress
+                      value={pct}
+                      size="sm"
+                      radius="xl"
+                      color="indigo"
+                      animated={sItem.inProgress > 0}
+                    />
+                  </Paper>
+                );
+              })}
+            </Stack>
+          </Card>
+
+          {/* Top Projects Card */}
+          <Card withBorder radius="md" p="md">
+            <Group justify="space-between" mb="xs">
+              <Group gap="xs">
+                <ThemeIcon size="sm" variant="light" color="violet" radius="md">
+                  <IconBriefcase size={16} />
+                </ThemeIcon>
+                <Text size="xs" fw={700} tt="uppercase" c="dimmed">
+                  {t('reports.topProjects') || 'Top Projects Worked On'}
+                </Text>
+              </Group>
+              {selectedProject !== 'all' && (
+                <Badge
+                  variant="light"
+                  size="xs"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => setSelectedProject('all')}
+                >
+                  Reset
+                </Badge>
+              )}
+            </Group>
+
+            <Stack gap="xs" mt="xs" style={{ maxHeight: 250, overflowY: 'auto' }}>
+              {sortedProjects.map((pItem) => {
+                const projectKey = `${pItem.service} / ${pItem.project}`;
+                const isSelected = selectedProject.toLowerCase() === projectKey.toLowerCase();
+                const pct = Math.round((pItem.completed / (pItem.total || 1)) * 100);
+
+                return (
+                  <Paper
+                    key={projectKey}
+                    p="xs"
+                    radius="md"
+                    withBorder
+                    style={{
+                      cursor: 'pointer',
+                      borderColor: isSelected ? 'var(--mantine-color-violet-6)' : undefined,
+                      backgroundColor: isSelected
+                        ? isDark ? 'rgba(130, 80, 223, 0.15)' : 'rgba(130, 80, 223, 0.08)'
+                        : undefined,
+                      transition: 'all 0.15s ease',
+                    }}
+                    onClick={() => setSelectedProject(isSelected ? 'all' : projectKey)}
+                  >
+                    <Group justify="space-between" mb={4}>
+                      <Group gap="xs">
+                        <Badge size="xs" color="indigo" variant="outline">
+                          {pItem.service}
+                        </Badge>
+                        <Text size="sm" fw={600}>
+                          {pItem.project}
+                        </Text>
+                      </Group>
+                      <Badge size="xs" variant="light" color="violet">
+                        {pItem.completed}/{pItem.total} ({pct}%)
+                      </Badge>
+                    </Group>
+                    <Progress value={pct} size="xs" radius="xl" color="violet" />
+                  </Paper>
+                );
+              })}
+            </Stack>
+          </Card>
+        </SimpleGrid>
+      )}
+
       {/* Priority & Tag Metrics Summary */}
       <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
         {/* Priority Breakdown Card */}
@@ -183,10 +459,11 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
             ) : (
               Object.entries(tagBreakdown).map(([tag, data]) => {
                 const isSelected = selectedTag === tag;
+                const tagColor = getTagColor(tag, storeAllTags);
                 return (
                   <Badge
                     key={tag}
-                    color="indigo"
+                    color={tagColor}
                     variant={isSelected ? 'filled' : 'outline'}
                     size="md"
                     radius="sm"
@@ -432,6 +709,7 @@ const TaskReportCard: React.FC<TaskReportCardProps> = ({
   priorityMeta,
   onOpenTask,
 }) => {
+  const { allTags: storeAllTags } = useAppStore();
   const pMeta = task.priority ? priorityMeta[task.priority] : priorityMeta.medium;
   const isCancelled = task.status === 'cancelled';
   const isDone = task.status === 'done' || isCancelled || !!task.completedDate;
@@ -505,11 +783,14 @@ const TaskReportCard: React.FC<TaskReportCardProps> = ({
               </Badge>
             )}
             {task.tags &&
-              task.tags.map((tag) => (
-                <Badge key={tag} color="indigo" variant="dot" size="xs">
-                  #{tag}
-                </Badge>
-              ))}
+              task.tags.map((tag) => {
+                const tagColor = getTagColor(tag, storeAllTags);
+                return (
+                  <Badge key={tag} color={tagColor} variant="light" size="xs">
+                    #{tag}
+                  </Badge>
+                );
+              })}
           </Group>
 
           {/* Internal checklist progress if any */}
