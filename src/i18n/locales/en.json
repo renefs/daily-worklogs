@@ -7,6 +7,7 @@
     "daily": "Daily",
     "weekly": "Weekly",
     "monthly": "Monthly",
+    "yearly": "Yearly",
     "tasks": "Tasks",
     "settings": "Settings",
     "today": "Today",
@@ -137,6 +138,20 @@
     "currentMonth": "This Month",
     "prevMonth": "Previous Month",
     "nextMonth": "Next Month"
+  },
+  "yearly": {
+    "title": "Annual Worklog Report",
+    "subtitle": "Overview and consolidated log for {{year}} ({{start}} – {{end}})",
+    "activeDays": "Active Days",
+    "totalTasks": "Tasks Tracked",
+    "completedTasks": "Tasks Finished",
+    "copyReport": "Copy Annual Report",
+    "reportCopied": "Annual report markdown copied to clipboard!",
+    "exportReport": "Export Annual Report",
+    "noNotes": "No notes found for this year.",
+    "currentYear": "This Year",
+    "prevYear": "Previous Year",
+    "nextYear": "Next Year"
   },
   "reports": {
     "documentTab": "📄 Executive Document",

@@ -161,7 +161,7 @@ export interface AppSettings {
   tags?: TagDefinition[];
 }
 
-export type AppViewMode = 'daily' | 'weekly' | 'monthly' | 'tasks' | 'settings';
+export type AppViewMode = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'tasks' | 'settings';
 
 export interface DailyChecklistItem {
   date: string;

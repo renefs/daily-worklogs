@@ -960,16 +960,17 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
   ensureVaultDir(vaultPath);
 
   // Generate array of dates between start and end
-  const start = new Date(startDate);
-  const end = new Date(endDate);
   const days = [];
   let totalTasks = 0;
   let completedTasks = 0;
   let activeDays = 0;
   const allDailyChecklistItems: Array<{ date: string; text: string; completed: boolean }> = [];
 
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const dateStr = d.toISOString().split('T')[0];
+  let currDate = dayjs(startDate);
+  const endDay = dayjs(endDate);
+
+  while (!currDate.isAfter(endDay, 'day')) {
+    const dateStr = currDate.format('YYYY-MM-DD');
     const { filepath, exists } = getNoteFilePath(vaultPath, dateStr);
 
     if (exists) {
@@ -1033,6 +1034,7 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
         checklistItems: [],
       });
     }
+    currDate = currDate.add(1, 'day');
   }
 
   // Load and include standalone task documents from vault/tasks

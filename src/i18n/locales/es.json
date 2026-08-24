@@ -7,6 +7,7 @@
     "daily": "Diario",
     "weekly": "Semanal",
     "monthly": "Mensual",
+    "yearly": "Anual",
     "tasks": "Tareas",
     "settings": "Configuración",
     "today": "Hoy",
@@ -137,6 +138,20 @@
     "currentMonth": "Este Mes",
     "prevMonth": "Mes Anterior",
     "nextMonth": "Mes Siguiente"
+  },
+  "yearly": {
+    "title": "Informe Anual de Trabajo",
+    "subtitle": "Visión general y registro consolidado de {{year}} ({{start}} – {{end}})",
+    "activeDays": "Días Activos",
+    "totalTasks": "Tareas Registradas",
+    "completedTasks": "Tareas Finalizadas",
+    "copyReport": "Copiar Informe Anual",
+    "reportCopied": "¡Markdown del informe anual copiado al portapapeles!",
+    "exportReport": "Exportar Informe Anual",
+    "noNotes": "No se encontraron notas para este año.",
+    "currentYear": "Este Año",
+    "prevYear": "Año Anterior",
+    "nextYear": "Año Siguiente"
   },
   "reports": {
     "documentTab": "📄 Documento Ejecutivo",

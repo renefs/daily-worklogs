@@ -13,6 +13,7 @@ import { AppSidebar } from './AppSidebar';
 import { DailyView } from '../views/DailyView';
 import { WeeklyView } from '../views/WeeklyView';
 import { MonthlyView } from '../views/MonthlyView';
+import { YearlyView } from '../views/YearlyView';
 import { KanbanView } from '../views/KanbanView';
 import { SettingsModal } from '../modals/SettingsModal';
 import { TaskModal } from '../modals/TaskModal';
@@ -72,6 +73,7 @@ export const AppLayout: React.FC = () => {
         {currentView === 'daily' && <DailyView />}
         {currentView === 'weekly' && <WeeklyView />}
         {currentView === 'monthly' && <MonthlyView />}
+        {currentView === 'yearly' && <YearlyView />}
         {currentView === 'tasks' && <KanbanView />}
       </AppShell.Main>
 
