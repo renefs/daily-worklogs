@@ -12,10 +12,12 @@ Built with **React**, **TypeScript**, **Mantine UI v7**, **CodeMirror 6**, and *
 - ✍️ **Modern Markdown Editor**: Syntax highlighting, formatting toolbar (Headings, Checkboxes, Code, Tables), word & character counters, live task completion indicators, and customizable font size.
 - 👁️ **Visualizer with Interactive Checklists**: Beautiful live preview where toggling checkboxes updates the underlying Markdown file on disk in real time.
 - 📅 **Daily Notes with Customizable Templates**: Create today's note with a single click. Choose from built-in templates (Standard Worklog, Agile Standup, Simple Checklist, Blank) or configure your own in Settings.
-- 📊 **Weekly Continuous Executive Report**: Continuous document compiling all notes from the week (Mon–Sun or customized start/end day) with KPI metrics (Active Days, Completed Tasks, Completion Rate). Instant **Copy Report Markdown** and **Export to file** for weekly team meetings.
-- 🗓️ **Monthly Overview**: Month-at-a-glance digest compiling all days of the selected month.
-- 📆 **Calendar & Archive Browser**: Visual calendar highlighting days with notes. Jump to any date, week, or month instantly.
-- 🎨 **Mantine UI v7 Theming**: Light and Dark mode support with 9 curated accent color themes (Indigo, Teal, Violet, Cyan, Green, Orange, Grape, Blue, Pink).
+- 📊 **Weekly & Monthly Continuous Reports**: Continuous document compiling all notes from the week (Mon–Sun or customized start/end day) or month with KPI metrics (Active Days, Completed Tasks, Completion Rate). Instant **Copy Report Markdown** and **Export to file** for team syncs.
+- 📈 **Yearly Analytics & Tracking**: Comprehensive annual tracking view summarizing total worklogs, completed tasks, monthly activity distributions, and deliverable progress across Areas and Projects.
+- 📋 **Task Management with Areas & Projects**: Kanban board and dedicated Task View featuring permanent Areas of responsibility, finite Projects with live progress bars, automatic sequential GitHub-style IDs (`#1`, `#2`), and tag inheritance.
+- 🏷️ **Interactive Tagging & Autocomplete**: Live `#` tag autocomplete popup inside the markdown editor and task descriptions, with full tag management in Settings.
+- 🔄 **Cross-Device Vault Synchronization**: Workspace configuration automatically synchronizes across devices when using iCloud, Dropbox, OneDrive, Google Drive, or Syncthing.
+- 🎨 **Mantine UI v7 Theming**: Light, Dark, and Automatic OS-synced mode support with 9 curated accent color themes.
 - 🌐 **Multi-Language (i18n)**: Full English (default) and Spanish support with instant language switching. Modular architecture ready for more languages.
 - 💻 **Cross-Platform**: Designed for Windows, macOS, and Linux.
 

@@ -8,18 +8,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-08-25
+
 ### Added
-- **Task Organization Model**: Redesigned task organization into continuous Areas of responsibility and finite Projects.
-- **Area (Service) Permanent Containers**: Permanent containers without end dates or progress bars that define default tags, colors, and icons.
-- **Finite Projects with Progress Bars**: Goal-driven efforts within Areas featuring target dates, status tracking (*Active*, *Completed*, *On Hold*, *Archived*), and live completion progress indicators.
-- **Automatic Context & Tag Inheritance**: Tasks assigned to an Area or Project automatically inherit their context and default tags without requiring prefixes in the task title.
-- **Areas & Projects Manager**: Dedicated manager in Settings to customize Areas, Projects, default tags, colors, and icons.
-- **Kanban Board Navigation**: Area and Project switcher tabs, live progress indicators, and task card context badges.
-- **Interactive Markdown Tag Autocompletion**: Live `#` tag autocomplete popup inside the daily note Markdown editor and task description editor displaying matching tags, color badges, and service/project details.
+- **Task Organization Model (Areas & Projects)**: Redesigned task management into permanent Areas of responsibility (services/domains) and finite, goal-oriented Projects.
+- **Area Permanent Containers**: Long-term containers without artificial deadlines or completion percentages that define default tags, colors, and icons.
+- **Finite Projects with Progress Tracking**: Goal-driven efforts within Areas featuring target dates, status lifecycle (*Active*, *Completed*, *On Hold*, *Archived*), and live progress bars based on completed tasks.
+- **Automatic Context & Tag Inheritance**: Tasks assigned to an Area or Project automatically inherit context tags and properties without requiring manual prefixes in titles.
+- **Automatic Sequential Task IDs**: Assigns unique, auto-incrementing GitHub-style task identifiers (e.g. `#1`, `#2`, `#12`) to every task with high-visibility badges on Kanban cards, period breakdowns, and editor headers with one-click clipboard copying.
+- **Dedicated Fullscreen Task View**: Comprehensive task editing interface for managing titles, descriptions with full Markdown editing, priorities, due dates, statuses, and tags.
+- **Yearly Worklog & Task Analytics View**: Dedicated annual tracking view summarizing total worklogs created, tasks completed, monthly activity distributions, deliverable progress, and direct navigation across any selected year.
+- **Interactive Markdown Tag Autocompletion**: Live `#` tag autocomplete popover inside the daily note Markdown editor and task description editor displaying matching tags, color badges, and service/project details.
+- **Areas & Projects Manager**: Dedicated management tab in Settings to create, customize, reorder, and archive Areas and Projects.
 - **Tags & Labels Manager**: Dedicated settings tab to create, edit, rename, colorize, and delete custom tags.
+- **Kanban Board Multi-View Navigation**: Area and Project switcher tabs, live progress indicators, and task card context badges.
 
 ### Removed
-- **Calendar View & Tab**: Removed the standalone calendar tab and page to streamline top navigation across daily, weekly, monthly, and task views.
+- **Calendar View & Tab**: Removed the standalone calendar tab and page to streamline top navigation across daily, weekly, monthly, yearly, and task views.
+
+### Improved
+- **Editor Canvas Note & Task Title**: Moved title editing from the sub-header bar into a seamless document title input directly at the top of the editor canvas.
+- **Periodic Task Breakdown**: Enhanced weekly, monthly, and yearly overview reports to render task ID badges and Area/Project context tags.
 
 ## [1.1.0] - 2026-08-20
 
