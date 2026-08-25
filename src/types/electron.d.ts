@@ -29,6 +29,8 @@ export interface ElectronAPI {
   listTasks: () => Promise<TaskItem[]>;
   readTask: (filename: string) => Promise<TaskItem | null>;
   writeTask: (task: {
+    id?: string;
+    taskId?: number;
     filename?: string;
     title: string;
     status: TaskStatus;
@@ -53,7 +55,7 @@ export interface ElectronAPI {
   exportDocument: (payload: { title: string; defaultPath: string; content: string; format: 'md' | 'html' | 'txt' }) => Promise<{ success: boolean; filePath?: string }>;
   openInFileManager: (filePath?: string) => Promise<void>;
   openExternalUrl: (url: string) => Promise<{ success: boolean }>;
-  logTaskToDailyNote: (payload: { date?: string; taskTitle: string; status: string; priority?: string; filename?: string }) => Promise<{ success: boolean }>;
+  logTaskToDailyNote: (payload: { date?: string; taskTitle: string; status: string; priority?: string; filename?: string; taskId?: number }) => Promise<{ success: boolean }>;
   saveImage: (payload: {
     sourcePath?: string;
     buffer?: ArrayBuffer | Uint8Array;

@@ -79,7 +79,14 @@
     "hiddenTasksBanner_plural": "{{count}} closed/completed tasks older than 30 days are hidden",
     "showAll": "Show all",
     "hiddenBadge": "> 30d",
-    "hiddenBadgeTooltip": "Completed or closed more than 30 days ago"
+    "hiddenBadgeTooltip": "Completed or closed more than 30 days ago",
+    "openInFullEditor": "Open in Full Editor",
+    "quickEdit": "Quick Edit (Modal)",
+    "backToTasks": "Back to Tasks",
+    "properties": "Properties",
+    "toggleProperties": "Toggle Task Properties Panel",
+    "taskProperties": "Task Properties",
+    "untitledTask": "Untitled Task"
   },
   "editor": {
     "editing": "Editing",

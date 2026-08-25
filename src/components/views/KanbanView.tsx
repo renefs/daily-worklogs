@@ -35,6 +35,7 @@ import {
   IconEye,
   IconEyeOff,
   IconHistory,
+  IconArrowsMaximize,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
@@ -62,6 +63,7 @@ export const KanbanView: React.FC = () => {
     tasks,
     isTasksLoading,
     openTaskModal,
+    openTaskEditor,
     updateTaskStatus,
     deleteTask,
     refreshTasksList,
@@ -830,7 +832,7 @@ export const KanbanView: React.FC = () => {
                         draggable
                         onDragStart={(e) => handleDragStart(e, task)}
                         onDragEnd={handleDragEnd}
-                        onClick={() => openTaskModal(task)}
+                        onClick={() => openTaskEditor(task)}
                         withBorder
                         p="xs"
                         radius="md"
@@ -848,6 +850,20 @@ export const KanbanView: React.FC = () => {
                           {/* Card Top: Priority & Action Menu */}
                           <Group justify="space-between" align="center" wrap="nowrap">
                             <Group gap={4} wrap="nowrap">
+                              {(task.taskId !== undefined || task.id) && (
+                                <Badge
+                                  size="xs"
+                                  variant="subtle"
+                                  color="gray"
+                                  style={{
+                                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                                    fontWeight: 700,
+                                    padding: '0 4px',
+                                  }}
+                                >
+                                  #{task.taskId ?? task.id}
+                                </Badge>
+                              )}
                               {task.priority && (
                                 <Badge
                                   size="xs"
@@ -891,10 +907,16 @@ export const KanbanView: React.FC = () => {
                               </Menu.Target>
                               <Menu.Dropdown onClick={(e) => e.stopPropagation()}>
                                 <Menu.Item
+                                  leftSection={<IconArrowsMaximize size={14} />}
+                                  onClick={() => openTaskEditor(task)}
+                                >
+                                  {t('tasks.openInFullEditor', 'Open in Full Editor')}
+                                </Menu.Item>
+                                <Menu.Item
                                   leftSection={<IconEdit size={14} />}
                                   onClick={() => openTaskModal(task)}
                                 >
-                                  {t('tasks.editTask')}
+                                  {t('tasks.quickEdit', 'Quick Edit (Modal)')}
                                 </Menu.Item>
 
                                 <Menu.Label>{t('tasks.moveTo')}</Menu.Label>

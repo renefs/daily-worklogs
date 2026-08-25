@@ -66,16 +66,34 @@ const editorHighlightStyle = HighlightStyle.define([
   { tag: tags.invalid, color: 'var(--cm-hl-invalid, #82071e)' },
 ]);
 
-interface MarkdownEditorProps {
+export interface MarkdownEditorProps {
+  content?: string;
+  onChange?: (val: string) => void;
+  onSave?: () => Promise<any> | any;
+  isSaving?: boolean;
+  isDirty?: boolean;
   onExportClick?: () => void;
   onDeleteClick?: () => void;
   isLivePreview?: boolean;
+  showTemplates?: boolean;
+  showDelete?: boolean;
+  showExport?: boolean;
+  placeholder?: string;
+  tasksStats?: { total: number; completed: number };
 }
 
 export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
+  content,
+  onChange,
+  onSave,
+  isSaving: customIsSaving,
+  isDirty: customIsDirty,
   onExportClick,
   onDeleteClick,
   isLivePreview = true,
+  showTemplates = true,
+  placeholder,
+  tasksStats,
 }) => {
   const { t, i18n } = useTranslation();
   const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
@@ -86,12 +104,19 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     activeNote,
     setNoteContent,
     saveActiveNote,
-    isSaving,
-    isDirty,
+    isSaving: storeIsSaving,
+    isDirty: storeIsDirty,
     settings,
     selectedDate,
     allTags,
   } = useAppStore();
+
+  const isControlled = content !== undefined;
+  const effectiveContent = isControlled ? content : activeNote?.content || '';
+  const effectiveOnChange = isControlled ? (onChange || (() => {})) : setNoteContent;
+  const effectiveOnSave = isControlled ? (onSave || (() => {})) : saveActiveNote;
+  const effectiveIsSaving = customIsSaving !== undefined ? customIsSaving : storeIsSaving;
+  const effectiveIsDirty = customIsDirty !== undefined ? customIsDirty : storeIsDirty;
 
   const allTagsRef = useRef(allTags);
   useEffect(() => {
@@ -102,14 +127,15 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
   // Auto-save debounce timer
   useEffect(() => {
-    if (!settings?.autoSave || !isDirty || !activeNote) return;
+    if (!settings?.autoSave || !effectiveIsDirty) return;
+    if (!isControlled && !activeNote) return;
 
     const timer = setTimeout(() => {
-      saveActiveNote();
+      effectiveOnSave();
     }, settings.autoSaveDelay || 1000);
 
     return () => clearTimeout(timer);
-  }, [activeNote?.content, isDirty, settings?.autoSave, settings?.autoSaveDelay, saveActiveNote]);
+  }, [effectiveContent, effectiveIsDirty, settings?.autoSave, settings?.autoSaveDelay, effectiveOnSave, isControlled, activeNote]);
 
   // Insert text helper
   const insertText = useCallback((before: string, after: string = '', defaultText: string = '') => {
@@ -154,11 +180,11 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         });
         view.focus();
       } else {
-        const current = activeNote?.content || '';
-        setNoteContent(current ? `${current}\n\n${processedContent}` : processedContent);
+        const current = effectiveContent || '';
+        effectiveOnChange(current ? `${current}\n\n${processedContent}` : processedContent);
       }
     },
-    [settings, selectedDate, activeNote?.content, setNoteContent, i18n.language]
+    [settings, selectedDate, effectiveContent, effectiveOnChange, i18n.language]
   );
 
   const insertTable = () => {
@@ -275,11 +301,11 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     }
   };
 
-  const wordCount = (activeNote?.content || '')
+  const wordCount = effectiveContent
     .trim()
     .split(/\s+/)
     .filter(Boolean).length;
-  const charCount = (activeNote?.content || '').length;
+  const charCount = effectiveContent.length;
 
   const extensions = React.useMemo(() => {
     const list = [
@@ -368,27 +394,29 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               </ActionIcon>
             </Tooltip>
 
-            {/* Template Selector */}
-            <Menu shadow="md" width={220}>
-              <Menu.Target>
-                <Button
-                  variant="subtle"
-                  size="compact-xs"
-                  leftSection={<IconTemplate size={14} />}
-                  style={{ marginLeft: 4 }}
-                >
-                  {t('editor.chooseTemplate')}
-                </Button>
-              </Menu.Target>
-              <Menu.Dropdown>
-                <Menu.Label>{t('settings.templates')}</Menu.Label>
-                {settings?.templates.map((tpl) => (
-                  <Menu.Item key={tpl.id} onClick={() => insertTemplate(tpl.id)}>
-                    {tpl.name}
-                  </Menu.Item>
-                ))}
-              </Menu.Dropdown>
-            </Menu>
+            {/* Template Selector (only if enabled) */}
+            {showTemplates && settings?.templates && settings.templates.length > 0 && (
+              <Menu shadow="md" width={220}>
+                <Menu.Target>
+                  <Button
+                    variant="subtle"
+                    size="compact-xs"
+                    leftSection={<IconTemplate size={14} />}
+                    style={{ marginLeft: 4 }}
+                  >
+                    {t('editor.chooseTemplate')}
+                  </Button>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  <Menu.Label>{t('settings.templates')}</Menu.Label>
+                  {settings.templates.map((tpl) => (
+                    <Menu.Item key={tpl.id} onClick={() => insertTemplate(tpl.id)}>
+                      {tpl.name}
+                    </Menu.Item>
+                  ))}
+                </Menu.Dropdown>
+              </Menu>
+            )}
           </Group>
 
           {/* Right Action Icons & Save Status */}
@@ -399,11 +427,11 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               </Badge>
             )}
 
-            {isDirty ? (
+            {effectiveIsDirty ? (
               <Badge color="yellow" variant="light" size="sm">
                 {t('editor.unsaved')}
               </Badge>
-            ) : isSaving ? (
+            ) : effectiveIsSaving ? (
               <Badge color="blue" variant="light" size="sm">
                 {t('editor.saving')}
               </Badge>
@@ -415,11 +443,11 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
             <Tooltip label={t('common.save')} withArrow>
               <ActionIcon
-                variant={isDirty ? 'filled' : 'light'}
+                variant={effectiveIsDirty ? 'filled' : 'light'}
                 color="primary"
                 size="sm"
-                onClick={saveActiveNote}
-                loading={isSaving}
+                onClick={effectiveOnSave}
+                loading={effectiveIsSaving}
               >
                 <IconDeviceFloppy size={16} />
               </ActionIcon>
@@ -433,8 +461,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               </Tooltip>
             )}
 
-            {onDeleteClick && activeNote?.exists && (
-              <Tooltip label={t('editor.deleteNote')} withArrow>
+            {onDeleteClick && (isControlled || activeNote?.exists) && (
+              <Tooltip label={t('common.delete')} withArrow>
                 <ActionIcon variant="subtle" color="red" size="sm" onClick={onDeleteClick}>
                   <IconTrash size={16} />
                 </ActionIcon>
@@ -463,11 +491,12 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       >
         <CodeMirror
           ref={editorRef}
-          value={activeNote?.content || ''}
+          value={effectiveContent}
           height="100%"
           theme={isDark ? oneDark : 'light'}
           extensions={extensions}
-          onChange={(val) => setNoteContent(val)}
+          onChange={(val) => effectiveOnChange(val)}
+          placeholder={placeholder}
           basicSetup={{
             lineNumbers: true,
             foldGutter: true,
@@ -493,13 +522,18 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           <Text size="xs" c="dimmed">
             {charCount} {t('editor.characters')}
           </Text>
-          {activeNote && activeNote.tasksTotal !== undefined && activeNote.tasksTotal > 0 && (
+          {tasksStats && tasksStats.total > 0 && (
+            <Text size="xs" c="dimmed">
+              🎯 {tasksStats.completed}/{tasksStats.total} {t('editor.tasksCompleted')}
+            </Text>
+          )}
+          {!isControlled && activeNote && activeNote.tasksTotal !== undefined && activeNote.tasksTotal > 0 && (
             <Text size="xs" c="dimmed">
               🎯 {activeNote.tasksCompleted}/{activeNote.tasksTotal} {t('editor.tasksCompleted')}
             </Text>
           )}
         </Group>
-        {!activeNote?.exists && (
+        {!isControlled && !activeNote?.exists && (
           <Text size="xs" c="dimmed" fs="italic">
             {t('editor.newNoteNotice')}
           </Text>

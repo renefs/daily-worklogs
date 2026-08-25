@@ -33,6 +33,8 @@ import {
   IconClockPlay,
   IconClockCheck,
   IconPhoto,
+  IconArrowsMaximize,
+  IconWriting,
 } from '@tabler/icons-react';
 import CodeMirror from '@uiw/react-codemirror';
 import { markdown } from '@codemirror/lang-markdown';
@@ -51,6 +53,7 @@ import {
   resolveTaskContext,
 } from '../../utils/areaProjectUtils';
 import { createTagAutocompleteExtension } from '../editor/tagAutocompleteExtension';
+import { liveMarkdownExtension } from '../editor/liveMarkdownExtension';
 
 export const TaskModal: React.FC = () => {
   const { t } = useTranslation();
@@ -62,6 +65,7 @@ export const TaskModal: React.FC = () => {
     activeTask,
     taskModalInitialStatus,
     closeTaskModal,
+    openTaskEditor,
     createOrUpdateTask,
     deleteTask,
     logTaskToDailyNote,
@@ -315,6 +319,8 @@ export const TaskModal: React.FC = () => {
       const formattedCompleted = completedDate ? dayjs(completedDate).format('YYYY-MM-DD') : undefined;
 
       const result = await createOrUpdateTask({
+        id: activeTask?.id,
+        taskId: activeTask?.taskId,
         filename: activeTask?.filename,
         title: title.trim(),
         status,
@@ -414,19 +420,76 @@ export const TaskModal: React.FC = () => {
       opened={isTaskModalOpen}
       onClose={closeTaskModal}
       title={
-        <Group gap="xs">
-          <IconListCheck size={20} color="var(--mantine-primary-color-filled)" />
-          <Text fw={700} size="md">
-            {activeTask ? t('tasks.editTask') : t('tasks.newTask')}
-          </Text>
-          {activeTask?.filename && (
-            <Badge variant="dot" color="gray" size="sm">
-              {activeTask.filename}
-            </Badge>
-          )}
+        <Group justify="space-between" align="center" style={{ width: '100%', paddingRight: 8 }}>
+          <Group gap="xs">
+            <IconListCheck size={20} color="var(--mantine-primary-color-filled)" />
+            <Text fw={700} size="md">
+              {activeTask ? t('tasks.editTask') : t('tasks.newTask')}
+            </Text>
+            {activeTask && (activeTask.taskId !== undefined || activeTask.id) && (
+              <Tooltip
+                label={
+                  <div style={{ textAlign: 'center' }}>
+                    <Text size="xs" fw={700}>#{activeTask.taskId ?? activeTask.id}</Text>
+                    {activeTask.filename && <Text size="xs" c="dimmed">{activeTask.filename}</Text>}
+                  </div>
+                }
+                withArrow
+              >
+                <Badge
+                  variant="light"
+                  color="gray"
+                  size="sm"
+                  style={{
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                    fontWeight: 700,
+                  }}
+                >
+                  #{activeTask.taskId ?? activeTask.id}
+                </Badge>
+              </Tooltip>
+            )}
+          </Group>
+
+          <Tooltip label={t('tasks.openInFullEditor', 'Open in Full Editor')} withArrow>
+            <ActionIcon
+              variant="light"
+              color="primary"
+              size="sm"
+              radius="md"
+              onClick={() => {
+                const formattedDue = dueDate ? dayjs(dueDate).format('YYYY-MM-DD') : undefined;
+                const formattedStarted = startedDate ? dayjs(startedDate).format('YYYY-MM-DD') : undefined;
+                const formattedCompleted = completedDate ? dayjs(completedDate).format('YYYY-MM-DD') : undefined;
+
+                openTaskEditor(
+                  {
+                    id: activeTask?.id || 'draft',
+                    taskId: activeTask?.taskId,
+                    filename: activeTask?.filename || '',
+                    filepath: activeTask?.filepath || '',
+                    title: title.trim(),
+                    status,
+                    priority,
+                    area: area.trim() || undefined,
+                    project: project ? project.trim() : undefined,
+                    due: formattedDue,
+                    startedDate: formattedStarted,
+                    completedDate: formattedCompleted,
+                    tags,
+                    content,
+                    created: activeTask?.created || dayjs().format('YYYY-MM-DD'),
+                  },
+                  status
+                );
+              }}
+            >
+              <IconArrowsMaximize size={15} />
+            </ActionIcon>
+          </Tooltip>
         </Group>
       }
-      size="lg"
+      size="xl"
       radius="md"
       centered
       padding="md"
@@ -663,7 +726,7 @@ export const TaskModal: React.FC = () => {
               <Text size="sm" fw={500}>
                 {t('tasks.markdownEditor')}
               </Text>
-              {activeTab === 'write' && (
+              {(activeTab === 'write' || activeTab === 'live') && (
                 <Button
                   size="compact-xs"
                   variant="subtle"
@@ -676,6 +739,9 @@ export const TaskModal: React.FC = () => {
             </Group>
             <Tabs value={activeTab} onChange={setActiveTab} variant="pills" radius="md">
               <Tabs.List>
+                <Tabs.Tab value="live" leftSection={<IconWriting size={14} />}>
+                  {t('editor.live')}
+                </Tabs.Tab>
                 <Tabs.Tab value="write" leftSection={<IconEdit size={14} />}>
                   {t('editor.write')}
                 </Tabs.Tab>
@@ -686,7 +752,7 @@ export const TaskModal: React.FC = () => {
             </Tabs>
           </Group>
 
-          {activeTab === 'write' ? (
+          {activeTab === 'live' ? (
             <div
               onDragOver={handleDragOver}
               onDragEnter={handleDragOver}
@@ -695,7 +761,44 @@ export const TaskModal: React.FC = () => {
               onPaste={handlePaste}
               className={isDraggingOver ? 'editor-dropzone-active' : ''}
               style={{
-                height: 220,
+                height: 260,
+                border: '1px solid var(--mantine-color-default-border)',
+                borderRadius: 8,
+                overflow: 'hidden',
+                backgroundColor: isDark ? '#141517' : '#ffffff',
+                fontSize: `${settings?.editorFontSize ? settings.editorFontSize - 1 : 14}px`,
+              }}
+            >
+              <CodeMirror
+                value={content}
+                height="100%"
+                theme={isDark ? oneDark : 'light'}
+                extensions={[
+                  markdown(),
+                  createTagAutocompleteExtension(() => allTagsRef.current),
+                  ...liveMarkdownExtension(),
+                ]}
+                onChange={(val) => setContent(val)}
+                placeholder={t('tasks.descriptionPlaceholder')}
+                basicSetup={{
+                  lineNumbers: false,
+                  foldGutter: false,
+                  highlightActiveLine: false,
+                  autocompletion: true,
+                }}
+                style={{ height: '100%' }}
+              />
+            </div>
+          ) : activeTab === 'write' ? (
+            <div
+              onDragOver={handleDragOver}
+              onDragEnter={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onPaste={handlePaste}
+              className={isDraggingOver ? 'editor-dropzone-active' : ''}
+              style={{
+                height: 260,
                 border: '1px solid var(--mantine-color-default-border)',
                 borderRadius: 8,
                 overflow: 'hidden',
@@ -724,7 +827,7 @@ export const TaskModal: React.FC = () => {
               withBorder
               p="sm"
               radius="md"
-              style={{ height: 220, overflow: 'auto', backgroundColor: 'var(--mantine-color-body)' }}
+              style={{ height: 260, overflow: 'auto', backgroundColor: 'var(--mantine-color-body)' }}
             >
               <MarkdownViewer content={content || '_No description provided_'} allowToggleTasks={false} />
             </Paper>

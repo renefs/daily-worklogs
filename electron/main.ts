@@ -1435,6 +1435,106 @@ ipcMain.handle('open-external-url', async (_event, targetUrl: string) => {
   }
 });
 
+// Helper to parse a numeric task ID from frontmatter
+function parseNumericTaskId(data: any): number | undefined {
+  if (!data) return undefined;
+  if (typeof data.id === 'number' && !isNaN(data.id) && data.id > 0) {
+    return Math.floor(data.id);
+  }
+  if (typeof data.taskId === 'number' && !isNaN(data.taskId) && data.taskId > 0) {
+    return Math.floor(data.taskId);
+  }
+  if (typeof data.id === 'string') {
+    const clean = data.id.replace(/^#/, '').trim();
+    const parsed = parseInt(clean, 10);
+    if (!isNaN(parsed) && parsed > 0 && String(parsed) === clean) {
+      return parsed;
+    }
+  }
+  if (typeof data.taskId === 'string') {
+    const clean = data.taskId.replace(/^#/, '').trim();
+    const parsed = parseInt(clean, 10);
+    if (!isNaN(parsed) && parsed > 0 && String(parsed) === clean) {
+      return parsed;
+    }
+  }
+  return undefined;
+}
+
+// Helper to get highest assigned numeric taskId in tasksDir
+function getMaxTaskId(tasksDir: string): number {
+  if (!fs.existsSync(tasksDir)) return 0;
+  try {
+    const files = fs.readdirSync(tasksDir).filter((f) => f.toLowerCase().endsWith('.md'));
+    let maxId = 0;
+    for (const file of files) {
+      const filepath = path.join(tasksDir, file);
+      try {
+        const raw = fs.readFileSync(filepath, 'utf-8');
+        const parsed = matter(raw);
+        const taskId = parseNumericTaskId(parsed.data);
+        if (taskId && taskId > maxId) {
+          maxId = taskId;
+        }
+      } catch {}
+    }
+    return maxId;
+  } catch (err) {
+    console.error('Error getting max task id:', err);
+    return 0;
+  }
+}
+
+// Helper to ensure all task files have a persistent numeric ID
+function ensureTasksHaveIds(tasksDir: string): void {
+  if (!fs.existsSync(tasksDir)) return;
+  try {
+    const files = fs.readdirSync(tasksDir).filter((f) => f.toLowerCase().endsWith('.md'));
+    const unassignedFiles: { file: string; filepath: string; createdTime: number }[] = [];
+    let maxId = 0;
+
+    for (const file of files) {
+      const filepath = path.join(tasksDir, file);
+      try {
+        const stat = fs.statSync(filepath);
+        const raw = fs.readFileSync(filepath, 'utf-8');
+        const parsed = matter(raw);
+        const taskId = parseNumericTaskId(parsed.data);
+        if (taskId) {
+          if (taskId > maxId) maxId = taskId;
+        } else {
+          const createdTime = parsed.data?.created
+            ? new Date(parsed.data.created).getTime()
+            : stat.birthtimeMs || stat.mtimeMs;
+          unassignedFiles.push({ file, filepath, createdTime });
+        }
+      } catch {}
+    }
+
+    if (unassignedFiles.length > 0) {
+      // Sort oldest unassigned files first
+      unassignedFiles.sort((a, b) => a.createdTime - b.createdTime || a.file.localeCompare(b.file));
+      for (const item of unassignedFiles) {
+        maxId++;
+        try {
+          const raw = fs.readFileSync(item.filepath, 'utf-8');
+          const parsed = matter(raw);
+          const updatedData = {
+            ...parsed.data,
+            id: maxId,
+          };
+          const updatedContent = matter.stringify(parsed.content, updatedData);
+          fs.writeFileSync(item.filepath, updatedContent, 'utf-8');
+        } catch (e) {
+          console.warn('Could not auto-assign ID to task file:', item.file, e);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error ensuring task IDs:', err);
+  }
+}
+
 // Helper to parse a task file with frontmatter
 function parseTaskFile(filepath: string, filename: string) {
   const rawContent = fs.readFileSync(filepath, 'utf-8');
@@ -1450,11 +1550,13 @@ function parseTaskFile(filepath: string, filename: string) {
   }
 
   const status = data.status ? String(data.status).trim() : 'todo';
+  const taskId = parseNumericTaskId(data);
 
   const { tasksCompleted, tasksTotal } = parseTaskCounts(parsed.content);
 
   return {
     id: filename.replace(/\.md$/i, ''),
+    taskId,
     filename,
     filepath,
     title,
@@ -1482,6 +1584,7 @@ ipcMain.handle('list-tasks', async () => {
   const { vaultPath } = getSettings();
   const tasksDir = ensureTasksDir(vaultPath);
   try {
+    ensureTasksHaveIds(tasksDir);
     const files = fs.readdirSync(tasksDir);
     const mdFiles = files.filter((f) => f.toLowerCase().endsWith('.md'));
     const tasks = mdFiles.map((file) => {
@@ -1539,6 +1642,13 @@ ipcMain.handle('write-task', async (_event, taskData: any) => {
     }
   }
 
+  // Determine taskId: preserve existing or allocate next maxId + 1
+  let taskId = parseNumericTaskId(taskData) || parseNumericTaskId(existingData);
+  if (!taskId) {
+    const maxId = getMaxTaskId(tasksDir);
+    taskId = maxId + 1;
+  }
+
   const todayStr = new Date().toISOString().split('T')[0];
   const nextStatus = taskData.status || existingData.status || 'todo';
   const behavior = getColumnBehavior(nextStatus);
@@ -1563,6 +1673,7 @@ ipcMain.handle('write-task', async (_event, taskData: any) => {
 
   const frontmatterData: Record<string, any> = {
     ...existingData,
+    id: taskId,
     title: taskData.title,
     status: nextStatus,
     priority: taskData.priority || 'medium',
@@ -1669,7 +1780,7 @@ ipcMain.handle('delete-task', async (_event, filename: string) => {
   return { success: false };
 });
 
-ipcMain.handle('log-task-to-daily-note', async (_event, { date, taskTitle, status, priority, filename }) => {
+ipcMain.handle('log-task-to-daily-note', async (_event, { date, taskTitle, status, priority, filename, taskId }) => {
   const { vaultPath } = getSettings();
   const targetDate = date || new Date().toISOString().split('T')[0];
   const year = getYearFromDate(targetDate);
@@ -1693,8 +1804,8 @@ ipcMain.handle('log-task-to-daily-note', async (_event, { date, taskTitle, statu
   const checkbox = isDone ? '- [x]' : '- [ ]';
   const statusBadge = behavior === 'cancelled' ? ' [Cancelled]' : '';
   const priorityStr = priority ? ` [${priority}]` : '';
-  const fileStr = filename ? ` (\`${filename}\`)` : '';
-  const logLine = `${checkbox} Worked on **${taskTitle}**${statusBadge}${priorityStr}${fileStr}`;
+  const idBadge = taskId ? ` (#${taskId})` : (filename ? ` (\`${filename}\`)` : '');
+  const logLine = `${checkbox} Worked on **${taskTitle}**${idBadge}${statusBadge}${priorityStr}`;
 
   // If not already in content, insert appropriately
   if (!content.includes(taskTitle)) {

@@ -93,6 +93,7 @@ export interface TaskActivityEntry {
 
 export interface TaskItem {
   id: string; // Filename or identifier without extension
+  taskId?: number; // Auto-assigned sequential integer ID (e.g. 1, 2, 3...)
   filename: string; // e.g. "my-task.md"
   filepath: string;
   title: string;
@@ -187,7 +188,7 @@ export interface AppSettings {
   projects?: ProjectDefinition[];
 }
 
-export type AppViewMode = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'tasks' | 'settings';
+export type AppViewMode = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'tasks' | 'task' | 'settings';
 
 export interface DailyChecklistItem {
   date: string;

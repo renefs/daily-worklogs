@@ -36,7 +36,7 @@ dayjs.extend(isoWeek);
 
 export const WeeklyView: React.FC = () => {
   const { t, i18n } = useTranslation();
-  const { settings, selectedDate, notesList, tasks, openTaskModal } = useAppStore();
+  const { settings, selectedDate, notesList, tasks, openTaskEditor } = useAppStore();
   const [currentWeekDate, setCurrentWeekDate] = useState<string>(selectedDate);
   const [periodSummary, setPeriodSummary] = useState<PeriodSummary | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -87,7 +87,7 @@ export const WeeklyView: React.FC = () => {
   };
 
   const handleOpenTask = (task: TaskItem) => {
-    openTaskModal(task);
+    openTaskEditor(task, undefined, 'weekly');
   };
 
   // Compile continuous executive report markdown text

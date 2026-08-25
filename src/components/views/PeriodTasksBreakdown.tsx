@@ -736,6 +736,20 @@ const TaskReportCard: React.FC<TaskReportCardProps> = ({
       <Group justify="space-between" align="flex-start" wrap="nowrap">
         <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
           <Group gap="xs" wrap="wrap">
+            {(task.taskId !== undefined || task.id) && (
+              <Badge
+                size="xs"
+                variant="subtle"
+                color="gray"
+                style={{
+                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                  fontWeight: 700,
+                  padding: '0 4px',
+                }}
+              >
+                #{task.taskId ?? task.id}
+              </Badge>
+            )}
             <Text
               fw={600}
               size="sm"

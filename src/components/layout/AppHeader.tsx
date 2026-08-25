@@ -78,7 +78,7 @@ export const AppHeader: React.FC = () => {
       {/* Center View Selector Tabs */}
       <div className="app-no-drag" style={{ display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
         <SegmentedControl
-          value={currentView}
+          value={currentView === 'task' ? 'tasks' : currentView}
           onChange={(val) => setCurrentView(val as AppViewMode)}
           size="xs"
           radius="md"

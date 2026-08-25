@@ -79,7 +79,14 @@
     "hiddenTasksBanner_plural": "{{count}} tareas cerradas/completadas hace más de 30 días están ocultas",
     "showAll": "Mostrar todas",
     "hiddenBadge": "> 30d",
-    "hiddenBadgeTooltip": "Completada o cerrada hace más de 30 días"
+    "hiddenBadgeTooltip": "Completada o cerrada hace más de 30 días",
+    "openInFullEditor": "Abrir en editor completo",
+    "quickEdit": "Edición rápida (Modal)",
+    "backToTasks": "Volver a Tareas",
+    "properties": "Propiedades",
+    "toggleProperties": "Alternar panel de propiedades",
+    "taskProperties": "Propiedades de la tarea",
+    "untitledTask": "Tarea sin título"
   },
   "editor": {
     "editing": "Editando",

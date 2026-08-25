@@ -7,9 +7,10 @@ import { Paper, ScrollArea, Checkbox, CopyButton, ActionIcon, Tooltip } from '@m
 import { IconCopy, IconCheck, IconCode } from '@tabler/icons-react';
 import { useAppStore } from '../../store/useAppStore';
 
-interface MarkdownViewerProps {
+export interface MarkdownViewerProps {
   content?: string;
   allowToggleTasks?: boolean;
+  onToggleTask?: (taskText: string, checked: boolean) => void;
 }
 
 function extractRawText(node: React.ReactNode): string {
@@ -25,6 +26,7 @@ function extractRawText(node: React.ReactNode): string {
 export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   content,
   allowToggleTasks = true,
+  onToggleTask,
 }) => {
   const { activeNote, toggleTaskInNote } = useAppStore();
   const markdownText = content !== undefined ? content : activeNote?.content || '';
@@ -75,7 +77,11 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                         disabled={!allowToggleTasks}
                         onChange={(e) => {
                           if (allowToggleTasks && textContent) {
-                            toggleTaskInNote(textContent, e.currentTarget.checked);
+                            if (onToggleTask) {
+                              onToggleTask(textContent, e.currentTarget.checked);
+                            } else {
+                              toggleTaskInNote(textContent, e.currentTarget.checked);
+                            }
                           }
                         }}
                         style={{ marginTop: 3 }}

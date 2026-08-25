@@ -33,7 +33,7 @@ import { PeriodDaysList } from './PeriodDaysList';
 
 export const MonthlyView: React.FC = () => {
   const { t, i18n } = useTranslation();
-  const { selectedDate, notesList, tasks, openTaskModal } = useAppStore();
+  const { selectedDate, notesList, tasks, openTaskEditor } = useAppStore();
   const [currentMonthDate, setCurrentMonthDate] = useState<string>(selectedDate);
   const [periodSummary, setPeriodSummary] = useState<PeriodSummary | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -79,7 +79,7 @@ export const MonthlyView: React.FC = () => {
   };
 
   const handleOpenTask = (task: TaskItem) => {
-    openTaskModal(task);
+    openTaskEditor(task, undefined, 'monthly');
   };
 
   // Compile monthly continuous markdown document

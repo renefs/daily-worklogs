@@ -27,6 +27,11 @@ interface AppState {
   isTaskModalOpen: boolean;
   taskModalInitialStatus: TaskStatus;
   isTasksLoading: boolean;
+  previousView: AppViewMode;
+  taskEditorLayoutMode: 'live' | 'split' | 'edit' | 'preview';
+  isTaskPropertiesPanelOpen: boolean;
+  isTaskSaving: boolean;
+  isTaskDirty: boolean;
 
   // Areas & Projects state
   areas: AreaDefinition[];
@@ -73,6 +78,8 @@ interface AppState {
   // Task actions
   refreshTasksList: () => Promise<void>;
   createOrUpdateTask: (taskData: {
+    id?: string;
+    taskId?: number;
     filename?: string;
     title: string;
     status: TaskStatus;
@@ -91,6 +98,12 @@ interface AppState {
   logTaskToDailyNote: (task: TaskItem, targetDate?: string) => Promise<boolean>;
   openTaskModal: (task?: TaskItem | null, defaultStatus?: TaskStatus) => void;
   closeTaskModal: () => void;
+  openTaskEditor: (task?: TaskItem | null, defaultStatus?: TaskStatus, returnView?: AppViewMode) => void;
+  closeTaskEditor: () => void;
+  setActiveTask: (task: TaskItem | null) => void;
+  setTaskEditorLayoutMode: (mode: 'live' | 'split' | 'edit' | 'preview') => void;
+  toggleTaskPropertiesPanel: () => void;
+  setTaskDirty: (isDirty: boolean) => void;
 
   // Routine actions
   toggleRoutineCompletion: (date: string, routineId: string) => Promise<void>;
@@ -121,6 +134,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   isTaskModalOpen: false,
   taskModalInitialStatus: 'todo',
   isTasksLoading: false,
+  previousView: 'tasks',
+  taskEditorLayoutMode: 'live',
+  isTaskPropertiesPanelOpen: true,
+  isTaskSaving: false,
+  isTaskDirty: false,
 
   areas: DEFAULT_AREAS,
   projects: [],
@@ -614,6 +632,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         status: task.status,
         priority: task.priority,
         filename: task.filename,
+        taskId: task.taskId,
       });
 
       if (res.success) {
@@ -644,6 +663,44 @@ export const useAppStore = create<AppState>((set, get) => ({
       activeTask: null,
       isTaskModalOpen: false,
     });
+  },
+
+  openTaskEditor: (task = null, defaultStatus = 'todo', returnView) => {
+    const current = get().currentView;
+    const prev = returnView || (current === 'task' ? get().previousView : current);
+    set({
+      activeTask: task,
+      taskModalInitialStatus: defaultStatus,
+      isTaskModalOpen: false,
+      previousView: prev,
+      currentView: 'task',
+      isTaskDirty: false,
+    });
+  },
+
+  closeTaskEditor: () => {
+    const prev = get().previousView || 'tasks';
+    set({
+      currentView: prev,
+      activeTask: null,
+      isTaskDirty: false,
+    });
+  },
+
+  setActiveTask: (task: TaskItem | null) => {
+    set({ activeTask: task });
+  },
+
+  setTaskEditorLayoutMode: (mode: 'live' | 'split' | 'edit' | 'preview') => {
+    set({ taskEditorLayoutMode: mode });
+  },
+
+  toggleTaskPropertiesPanel: () => {
+    set((state) => ({ isTaskPropertiesPanelOpen: !state.isTaskPropertiesPanelOpen }));
+  },
+
+  setTaskDirty: (isDirty: boolean) => {
+    set({ isTaskDirty: isDirty });
   },
 
   toggleRoutineCompletion: async (date: string, routineId: string) => {

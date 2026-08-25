@@ -2,6 +2,7 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import matter from 'gray-matter';
 
 const testVault = path.join(os.tmpdir(), 'test-daily-worklog-vault');
 if (fs.existsSync(testVault)) {
@@ -992,12 +993,104 @@ assert.strictEqual(webcastProjects[1].name, 'CDN Setup');
 
 console.log('✓ Area vs Project (Things 3 / OmniFocus model) with tag inheritance, cascading rename, and progress metrics tests passed');
 
+// --- Test Automatic Sequential Task IDs (GitHub-style) ---
+function parseNumericTaskId(data) {
+  if (!data) return undefined;
+  if (typeof data.id === 'number' && !isNaN(data.id) && data.id > 0) {
+    return Math.floor(data.id);
+  }
+  if (typeof data.taskId === 'number' && !isNaN(data.taskId) && data.taskId > 0) {
+    return Math.floor(data.taskId);
+  }
+  if (typeof data.id === 'string') {
+    const clean = data.id.replace(/^#/, '').trim();
+    const parsed = parseInt(clean, 10);
+    if (!isNaN(parsed) && parsed > 0 && String(parsed) === clean) {
+      return parsed;
+    }
+  }
+  if (typeof data.taskId === 'string') {
+    const clean = data.taskId.replace(/^#/, '').trim();
+    const parsed = parseInt(clean, 10);
+    if (!isNaN(parsed) && parsed > 0 && String(parsed) === clean) {
+      return parsed;
+    }
+  }
+  return undefined;
+}
+
+assert.strictEqual(parseNumericTaskId({ id: 1 }), 1);
+assert.strictEqual(parseNumericTaskId({ id: '42' }), 42);
+assert.strictEqual(parseNumericTaskId({ id: '#105' }), 105);
+assert.strictEqual(parseNumericTaskId({ taskId: 7 }), 7);
+assert.strictEqual(parseNumericTaskId({ id: '2026-08-21-task-name' }), undefined);
+
+const taskIdTestDir = path.join(testVault, 'task_id_tests');
+if (!fs.existsSync(taskIdTestDir)) fs.mkdirSync(taskIdTestDir, { recursive: true });
+
+fs.writeFileSync(
+  path.join(taskIdTestDir, 'task-existing-1.md'),
+  matter.stringify('First task', { id: 1, title: 'Existing Task 1' })
+);
+fs.writeFileSync(
+  path.join(taskIdTestDir, 'task-existing-3.md'),
+  matter.stringify('Third task', { id: 3, title: 'Existing Task 3' })
+);
+fs.writeFileSync(
+  path.join(taskIdTestDir, 'task-unassigned-a.md'),
+  matter.stringify('Unassigned A', { title: 'Unassigned Task A', created: '2026-08-01' })
+);
+fs.writeFileSync(
+  path.join(taskIdTestDir, 'task-unassigned-b.md'),
+  matter.stringify('Unassigned B', { title: 'Unassigned Task B', created: '2026-08-02' })
+);
+
+// Simulate ensureTasksHaveIds
+function testEnsureTasksHaveIds(tasksDir) {
+  const files = fs.readdirSync(tasksDir).filter((f) => f.toLowerCase().endsWith('.md'));
+  const unassigned = [];
+  let maxId = 0;
+
+  for (const file of files) {
+    const filepath = path.join(tasksDir, file);
+    const parsed = matter(fs.readFileSync(filepath, 'utf-8'));
+    const tId = parseNumericTaskId(parsed.data);
+    if (tId) {
+      if (tId > maxId) maxId = tId;
+    } else {
+      unassigned.push({
+        file,
+        filepath,
+        createdTime: parsed.data?.created ? new Date(parsed.data.created).getTime() : 0,
+      });
+    }
+  }
+
+  unassigned.sort((a, b) => a.createdTime - b.createdTime);
+  for (const item of unassigned) {
+    maxId++;
+    const parsed = matter(fs.readFileSync(item.filepath, 'utf-8'));
+    const updated = matter.stringify(parsed.content, { ...parsed.data, id: maxId });
+    fs.writeFileSync(item.filepath, updated, 'utf-8');
+  }
+}
+
+testEnsureTasksHaveIds(taskIdTestDir);
+
+const parsedA = matter(fs.readFileSync(path.join(taskIdTestDir, 'task-unassigned-a.md'), 'utf-8'));
+const parsedB = matter(fs.readFileSync(path.join(taskIdTestDir, 'task-unassigned-b.md'), 'utf-8'));
+assert.strictEqual(parsedA.data.id, 4, 'Oldest unassigned task should be assigned maxId + 1 (4)');
+assert.strictEqual(parsedB.data.id, 5, 'Next unassigned task should be assigned maxId + 2 (5)');
+
+console.log('✓ Automatic sequential task IDs (GitHub-style #1, #2...) parsing, auto-assignment, and persistence tests passed');
+
 // Cleanup
 fs.rmSync(testVault, { recursive: true });
 if (fs.existsSync(sharedCloudVault)) fs.rmSync(sharedCloudVault, { recursive: true });
 if (fs.existsSync(computerASettingsFile)) fs.rmSync(computerASettingsFile);
 if (fs.existsSync(computerBSettingsFile)) fs.rmSync(computerBSettingsFile);
 console.log('✓ All verification tests passed successfully!');
+
 
 
 

@@ -15,6 +15,7 @@ import { WeeklyView } from '../views/WeeklyView';
 import { MonthlyView } from '../views/MonthlyView';
 import { YearlyView } from '../views/YearlyView';
 import { KanbanView } from '../views/KanbanView';
+import { TaskView } from '../views/TaskView';
 import { SettingsModal } from '../modals/SettingsModal';
 import { TaskModal } from '../modals/TaskModal';
 import { ManageRoutinesModal } from '../modals/ManageRoutinesModal';
@@ -75,6 +76,7 @@ export const AppLayout: React.FC = () => {
         {currentView === 'monthly' && <MonthlyView />}
         {currentView === 'yearly' && <YearlyView />}
         {currentView === 'tasks' && <KanbanView />}
+        {currentView === 'task' && <TaskView />}
       </AppShell.Main>
 
       {/* Global Modals */}
