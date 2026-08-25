@@ -343,8 +343,8 @@ export const TaskView: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 12, overflow: 'hidden' }}>
       {/* Sub-Header: Back Button, Title, Fast Selectors & Layout Switcher */}
       <Group justify="space-between" align="center" wrap="wrap" gap="sm">
-        {/* Left Side: Back button + Task ID + Task Title */}
-        <Group gap="sm" style={{ flex: 1, minWidth: 320 }} wrap="nowrap">
+        {/* Left Side: Back button + Task ID */}
+        <Group gap="xs" wrap="nowrap">
           <Tooltip label={t('tasks.backToTasks', 'Back')} withArrow>
             <Button
               variant="default"
@@ -390,26 +390,6 @@ export const TaskView: React.FC = () => {
               </Badge>
             </Tooltip>
           )}
-
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <TextInput
-              value={title}
-              onChange={(e) => {
-                setTitle(e.currentTarget.value);
-                setIsDirty(true);
-              }}
-              placeholder={t('tasks.titlePlaceholder')}
-              size="sm"
-              radius="md"
-              styles={{
-                input: {
-                  fontWeight: 700,
-                  fontSize: 16,
-                  height: 36,
-                },
-              }}
-            />
-          </div>
         </Group>
 
         {/* Right Side: Quick Status/Priority Badges, Layout Switcher & Actions */}
@@ -514,28 +494,97 @@ export const TaskView: React.FC = () => {
       {/* Main Area: Full-space Editor / Viewer + Right-side Properties Panel */}
       <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: 12, overflow: 'hidden' }}>
         {/* Left / Main Workspace: Markdown Editor / Viewer */}
-        <div style={{ flex: 1, minWidth: 0, height: '100%' }}>
-          {taskEditorLayoutMode === 'live' && (
-            <div style={{ height: '100%' }}>
-              <MarkdownEditor
-                isLivePreview={true}
-                content={content}
-                onChange={handleContentChange}
-                onSave={handleSave}
-                isSaving={isSaving}
-                isDirty={isDirty}
-                showTemplates={false}
-                placeholder={t('tasks.descriptionPlaceholder')}
-                tasksStats={checklistStats}
-                onExportClick={() => setIsExportModalOpen(true)}
-                onDeleteClick={() => setIsDeleteModalOpen(true)}
+        <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* Document Title Header */}
+          <div style={{ padding: '0 2px' }}>
+            {taskEditorLayoutMode === 'preview' ? (
+              <Text
+                fw={800}
+                style={{
+                  fontSize: 22,
+                  lineHeight: 1.3,
+                  letterSpacing: '-0.02em',
+                  fontFamily: 'var(--font-display)',
+                  padding: '2px 4px',
+                  color: isDark ? 'var(--mantine-color-white)' : 'var(--mantine-color-dark-9)',
+                }}
+              >
+                {title || t('tasks.untitledTask', 'Untitled Task')}
+              </Text>
+            ) : (
+              <TextInput
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.currentTarget.value);
+                  setIsDirty(true);
+                }}
+                placeholder={t('tasks.titlePlaceholder', 'Task Title')}
+                variant="unstyled"
+                styles={{
+                  input: {
+                    fontSize: 22,
+                    fontWeight: 800,
+                    lineHeight: 1.3,
+                    letterSpacing: '-0.02em',
+                    fontFamily: 'var(--font-display)',
+                    padding: '2px 4px',
+                    height: 'auto',
+                    color: isDark ? 'var(--mantine-color-white)' : 'var(--mantine-color-dark-9)',
+                  },
+                }}
               />
-            </div>
-          )}
+            )}
+          </div>
 
-          {taskEditorLayoutMode === 'split' && (
-            <Grid style={{ height: '100%' }} gutter="md">
-              <Grid.Col span={{ base: 12, md: 6 }} style={{ height: '100%' }}>
+          {/* Editor / Viewer based on layout mode */}
+          <div style={{ flex: 1, minHeight: 0 }}>
+            {taskEditorLayoutMode === 'live' && (
+              <div style={{ height: '100%' }}>
+                <MarkdownEditor
+                  isLivePreview={true}
+                  content={content}
+                  onChange={handleContentChange}
+                  onSave={handleSave}
+                  isSaving={isSaving}
+                  isDirty={isDirty}
+                  showTemplates={false}
+                  placeholder={t('tasks.descriptionPlaceholder')}
+                  tasksStats={checklistStats}
+                  onExportClick={() => setIsExportModalOpen(true)}
+                  onDeleteClick={() => setIsDeleteModalOpen(true)}
+                />
+              </div>
+            )}
+
+            {taskEditorLayoutMode === 'split' && (
+              <Grid style={{ height: '100%' }} gutter="md">
+                <Grid.Col span={{ base: 12, md: 6 }} style={{ height: '100%' }}>
+                  <MarkdownEditor
+                    isLivePreview={false}
+                    content={content}
+                    onChange={handleContentChange}
+                    onSave={handleSave}
+                    isSaving={isSaving}
+                    isDirty={isDirty}
+                    showTemplates={false}
+                    placeholder={t('tasks.descriptionPlaceholder')}
+                    tasksStats={checklistStats}
+                    onExportClick={() => setIsExportModalOpen(true)}
+                    onDeleteClick={() => setIsDeleteModalOpen(true)}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 6 }} style={{ height: '100%' }}>
+                  <MarkdownViewer
+                    content={content || '_No description provided_'}
+                    allowToggleTasks={true}
+                    onToggleTask={handleToggleTaskInContent}
+                  />
+                </Grid.Col>
+              </Grid>
+            )}
+
+            {taskEditorLayoutMode === 'edit' && (
+              <div style={{ height: '100%' }}>
                 <MarkdownEditor
                   isLivePreview={false}
                   content={content}
@@ -549,44 +598,19 @@ export const TaskView: React.FC = () => {
                   onExportClick={() => setIsExportModalOpen(true)}
                   onDeleteClick={() => setIsDeleteModalOpen(true)}
                 />
-              </Grid.Col>
-              <Grid.Col span={{ base: 12, md: 6 }} style={{ height: '100%' }}>
+              </div>
+            )}
+
+            {taskEditorLayoutMode === 'preview' && (
+              <div style={{ height: '100%' }}>
                 <MarkdownViewer
                   content={content || '_No description provided_'}
                   allowToggleTasks={true}
                   onToggleTask={handleToggleTaskInContent}
                 />
-              </Grid.Col>
-            </Grid>
-          )}
-
-          {taskEditorLayoutMode === 'edit' && (
-            <div style={{ height: '100%' }}>
-              <MarkdownEditor
-                isLivePreview={false}
-                content={content}
-                onChange={handleContentChange}
-                onSave={handleSave}
-                isSaving={isSaving}
-                isDirty={isDirty}
-                showTemplates={false}
-                placeholder={t('tasks.descriptionPlaceholder')}
-                tasksStats={checklistStats}
-                onExportClick={() => setIsExportModalOpen(true)}
-                onDeleteClick={() => setIsDeleteModalOpen(true)}
-              />
-            </div>
-          )}
-
-          {taskEditorLayoutMode === 'preview' && (
-            <div style={{ height: '100%' }}>
-              <MarkdownViewer
-                content={content || '_No description provided_'}
-                allowToggleTasks={true}
-                onToggleTask={handleToggleTaskInContent}
-              />
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right Side: Collapsible Task Properties Panel */}
