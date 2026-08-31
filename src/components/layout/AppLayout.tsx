@@ -54,21 +54,22 @@ export const AppLayout: React.FC = () => {
       padding="md"
       style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
     >
-      <AppShell.Header>
+      <AppShell.Header className="app-header">
         <AppHeader />
       </AppShell.Header>
 
-      <AppShell.Navbar>
+      <AppShell.Navbar className="app-sidebar-navbar">
         <AppSidebar />
       </AppShell.Navbar>
 
       <AppShell.Main
+        className="app-main-content"
         style={{
           height: 'calc(100vh - 54px)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          backgroundColor: 'var(--mantine-color-body)',
+          backgroundColor: 'var(--app-main-bg)',
         }}
       >
         {currentView === 'daily' && <DailyView />}

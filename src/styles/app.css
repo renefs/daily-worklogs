@@ -5,9 +5,60 @@
 @import './liveEditor.css';
 
 :root {
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-display: 'Outfit', 'Inter', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+  --font-serif: 'Tiempos Headline', 'Charter', 'Bitstream Charter', 'Sitka Text', 'Cambria', 'Georgia', serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, Consolas, monospace;
+
+  /* Claude Warm Canvas Palette (Light Mode) */
+  --app-sidebar-bg: #f9f8f6;
+  --app-sidebar-border: #eae6df;
+  --app-sidebar-hover: #eeebe3;
+  --app-sidebar-active: #e6e2d8;
+  --app-sidebar-text: #262522;
+  --app-sidebar-text-dimmed: #7d7a72;
+
+  --app-main-bg: #ffffff;
+  --app-header-bg: #fdfdfc;
+  --app-header-border: #eae6df;
+  --app-card-bg: #ffffff;
+  --app-card-border: #eae6df;
+  --app-subtle-bg: #f5f4ef;
+  --app-subtle-border: #e6e3da;
+
+  --app-text-primary: #1f1e1b;
+  --app-text-secondary: #6e6b63;
+
+  /* Mantine Theme Surface Overrides (Light Mode) */
+  --mantine-color-body: #ffffff;
+  --mantine-color-default-border: #eae6df;
+  --mantine-color-default-hover: #f5f4ef;
+}
+
+[data-mantine-color-scheme="dark"] {
+  /* Claude Warm Canvas Palette (Dark Mode) */
+  --app-sidebar-bg: #181715;
+  --app-sidebar-border: #2d2b27;
+  --app-sidebar-hover: #23221f;
+  --app-sidebar-active: #2f2d29;
+  --app-sidebar-text: #ece7de;
+  --app-sidebar-text-dimmed: #9c978e;
+
+  --app-main-bg: #22211f;
+  --app-header-bg: #1d1c1a;
+  --app-header-border: #2d2b27;
+  --app-card-bg: #282724;
+  --app-card-border: #36342f;
+  --app-subtle-bg: #1f1e1c;
+  --app-subtle-border: #2d2b27;
+
+  --app-text-primary: #ede8df;
+  --app-text-secondary: #9c978e;
+
+  /* Mantine Theme Surface Overrides (Dark Mode) */
+  --mantine-color-body: #22211f;
+  --mantine-color-default-border: #2d2b27;
+  --mantine-color-default-hover: #2a2926;
 }
 
 body {
@@ -15,10 +66,27 @@ body {
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
-  background-color: var(--mantine-color-body);
+  background-color: var(--app-main-bg);
   color: var(--mantine-color-text);
   margin: 0;
   padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Claude Layout Surfaces */
+.app-sidebar-navbar {
+  background-color: var(--app-sidebar-bg) !important;
+  border-right: 1px solid var(--app-sidebar-border) !important;
+}
+
+.app-main-content {
+  background-color: var(--app-main-bg) !important;
+}
+
+.app-header {
+  background-color: var(--app-header-bg) !important;
+  border-bottom: 1px solid var(--app-header-border) !important;
 }
 
 /* Allow text selection in editor, viewer, and readable text */
@@ -170,43 +238,43 @@ textarea {
   font-weight: 600;
 }
 
-/* Syntax Highlighting CSS Variables (Light mode default) */
+/* Syntax Highlighting CSS Variables (Warm Claude Light Mode) */
 :root {
-  --cm-hl-keyword: #cf222e;
-  --cm-hl-name: #0550ae;
-  --cm-hl-function: #8250df;
-  --cm-hl-constant: #0550ae;
-  --cm-hl-definition: #24292f;
-  --cm-hl-type: #953800;
-  --cm-hl-operator: #0a3069;
-  --cm-hl-comment: #6e7781;
-  --cm-hl-link: #0969da;
-  --cm-hl-heading: #0550ae;
-  --cm-hl-atom: #cf222e;
-  --cm-hl-string: #0a7b45;
-  --cm-hl-invalid: #82071e;
-  --codeblock-bg: #f6f8fa;
-  --codeblock-header-bg: #eaeef2;
-  --codeblock-border: #d0d7de;
+  --cm-hl-keyword: #ba3828;
+  --cm-hl-name: #225b8c;
+  --cm-hl-function: #7b4eb2;
+  --cm-hl-constant: #225b8c;
+  --cm-hl-definition: #262522;
+  --cm-hl-type: #9c4b18;
+  --cm-hl-operator: #284c78;
+  --cm-hl-comment: #7d7a72;
+  --cm-hl-link: #d97757;
+  --cm-hl-heading: #1f1e1b;
+  --cm-hl-atom: #ba3828;
+  --cm-hl-string: #2b774a;
+  --cm-hl-invalid: #a62020;
+  --codeblock-bg: #f5f4ef;
+  --codeblock-header-bg: #eceae3;
+  --codeblock-border: #dedbd2;
 }
 
 [data-mantine-color-scheme="dark"] {
-  --cm-hl-keyword: #ff7b72;
-  --cm-hl-name: #79c0ff;
-  --cm-hl-function: #d2a8ff;
-  --cm-hl-constant: #79c0ff;
-  --cm-hl-definition: #c9d1d9;
-  --cm-hl-type: #ffa657;
-  --cm-hl-operator: #a5d6ff;
-  --cm-hl-comment: #8b949e;
-  --cm-hl-link: #58a6ff;
-  --cm-hl-heading: #79c0ff;
-  --cm-hl-atom: #ff7b72;
-  --cm-hl-string: #7ee787;
-  --cm-hl-invalid: #f85149;
-  --codeblock-bg: #161b22;
-  --codeblock-header-bg: #0d1117;
-  --codeblock-border: #30363d;
+  --cm-hl-keyword: #e57e6d;
+  --cm-hl-name: #7db6e8;
+  --cm-hl-function: #c499ee;
+  --cm-hl-constant: #7db6e8;
+  --cm-hl-definition: #ece7de;
+  --cm-hl-type: #f09f67;
+  --cm-hl-operator: #97c2ec;
+  --cm-hl-comment: #949086;
+  --cm-hl-link: #da7756;
+  --cm-hl-heading: #ece7de;
+  --cm-hl-atom: #e57e6d;
+  --cm-hl-string: #7ec48e;
+  --cm-hl-invalid: #f2685d;
+  --codeblock-bg: #1c1b19;
+  --codeblock-header-bg: #161513;
+  --codeblock-border: #2e2c28;
 }
 
 .markdown-body pre {
@@ -217,21 +285,21 @@ textarea {
   font-size: 13.5px;
 }
 
-/* Code Block Container in Preview */
+/* Code Block Container in Preview (Claude Artifacts Aesthetic) */
 .markdown-codeblock-container {
   margin: 1.2rem 0;
   border-radius: 8px;
   border: 1px solid var(--codeblock-border);
   background-color: var(--codeblock-bg);
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .markdown-codeblock-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 10px;
+  padding: 5px 12px;
   background-color: var(--codeblock-header-bg);
   border-bottom: 1px solid var(--codeblock-border);
 }
@@ -243,7 +311,7 @@ textarea {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.05em;
-  color: var(--mantine-primary-color-filled, #4f46e5);
+  color: var(--mantine-primary-color-filled, #da7756);
 }
 
 .markdown-codeblock-copy-btn {
@@ -251,7 +319,7 @@ textarea {
 }
 
 .markdown-codeblock-copy-btn:hover {
-  transform: scale(1.1);
+  transform: scale(1.08);
 }
 
 .markdown-codeblock-pre {
@@ -268,34 +336,25 @@ textarea {
 .markdown-body code:not(pre code) {
   font-family: var(--font-mono);
   font-size: 0.88em;
-  background-color: var(--mantine-color-default-hover, rgba(125, 125, 125, 0.12));
-  border: 1px solid var(--mantine-color-default-border, rgba(125, 125, 125, 0.2));
+  background-color: var(--app-subtle-bg, rgba(125, 125, 125, 0.1));
+  border: 1px solid var(--app-subtle-border, rgba(125, 125, 125, 0.15));
   padding: 2px 6px;
   border-radius: 4px;
-  color: var(--mantine-primary-color-filled);
+  color: var(--mantine-primary-color-filled, #da7756);
   font-weight: 500;
 }
 
 /* Highlight.js Syntax Highlighting Tokens */
 .hljs {
-  color: #24292f;
+  color: var(--app-text-primary);
   background: transparent;
-}
-
-[data-mantine-color-scheme="dark"] .hljs {
-  color: #c9d1d9;
 }
 
 .hljs-keyword,
 .hljs-selector-tag,
 .hljs-subst {
-  color: #cf222e;
+  color: var(--cm-hl-keyword);
   font-weight: 600;
-}
-[data-mantine-color-scheme="dark"] .hljs-keyword,
-[data-mantine-color-scheme="dark"] .hljs-selector-tag,
-[data-mantine-color-scheme="dark"] .hljs-subst {
-  color: #ff7b72;
 }
 
 .hljs-string,
@@ -307,89 +366,50 @@ textarea {
 .hljs-template-variable,
 .hljs-type,
 .hljs-addition {
-  color: #0a7b45;
-}
-[data-mantine-color-scheme="dark"] .hljs-string,
-[data-mantine-color-scheme="dark"] .hljs-title.class_,
-[data-mantine-color-scheme="dark"] .hljs-section,
-[data-mantine-color-scheme="dark"] .hljs-attribute,
-[data-mantine-color-scheme="dark"] .hljs-literal,
-[data-mantine-color-scheme="dark"] .hljs-template-tag,
-[data-mantine-color-scheme="dark"] .hljs-template-variable,
-[data-mantine-color-scheme="dark"] .hljs-type,
-[data-mantine-color-scheme="dark"] .hljs-addition {
-  color: #7ee787;
+  color: var(--cm-hl-string);
 }
 
 .hljs-comment,
 .hljs-quote,
 .hljs-deletion,
 .hljs-meta {
-  color: #6e7781;
+  color: var(--cm-hl-comment);
   font-style: italic;
-}
-[data-mantine-color-scheme="dark"] .hljs-comment,
-[data-mantine-color-scheme="dark"] .hljs-quote,
-[data-mantine-color-scheme="dark"] .hljs-deletion,
-[data-mantine-color-scheme="dark"] .hljs-meta {
-  color: #8b949e;
 }
 
 .hljs-number,
 .hljs-regexp,
 .hljs-link {
-  color: #953800;
-}
-[data-mantine-color-scheme="dark"] .hljs-number,
-[data-mantine-color-scheme="dark"] .hljs-regexp,
-[data-mantine-color-scheme="dark"] .hljs-link {
-  color: #ffa657;
+  color: var(--cm-hl-type);
 }
 
 .hljs-variable,
 .hljs-template-variable,
 .hljs-attr {
-  color: #0550ae;
-}
-[data-mantine-color-scheme="dark"] .hljs-variable,
-[data-mantine-color-scheme="dark"] .hljs-template-variable,
-[data-mantine-color-scheme="dark"] .hljs-attr {
-  color: #79c0ff;
+  color: var(--cm-hl-name);
 }
 
 .hljs-title,
 .hljs-title.function_ {
-  color: #8250df;
+  color: var(--cm-hl-function);
   font-weight: 600;
-}
-[data-mantine-color-scheme="dark"] .hljs-title,
-[data-mantine-color-scheme="dark"] .hljs-title.function_ {
-  color: #d2a8ff;
 }
 
 .hljs-built_in,
 .hljs-symbol,
 .hljs-bullet {
-  color: #0550ae;
-}
-[data-mantine-color-scheme="dark"] .hljs-built_in,
-[data-mantine-color-scheme="dark"] .hljs-symbol,
-[data-mantine-color-scheme="dark"] .hljs-bullet {
-  color: #79c0ff;
+  color: var(--cm-hl-name);
 }
 
 .hljs-params {
-  color: #24292f;
-}
-[data-mantine-color-scheme="dark"] .hljs-params {
-  color: #c9d1d9;
+  color: var(--app-text-primary);
 }
 
 /* Glassmorphism utility */
 .glass-panel {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  background-color: rgba(var(--mantine-color-body), 0.85);
+  background-color: rgba(var(--app-main-bg), 0.85);
 }
 
 /* Electron App Titlebar drag region for macOS */
@@ -403,18 +423,55 @@ textarea {
 
 /* Nav Segmented Control Styling */
 .nav-segmented-control {
-  background-color: var(--mantine-color-default-hover) !important;
-  border: 1px solid var(--mantine-color-default-border) !important;
+  background-color: var(--app-subtle-bg) !important;
+  border: 1px solid var(--app-header-border) !important;
   padding: 3px !important;
 }
 
 .nav-segmented-control button {
   padding: 4px 10px !important;
   transition: all 0.15s ease !important;
+  color: var(--app-text-secondary) !important;
 }
 
 .nav-segmented-control button[data-active="true"] {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+  background-color: var(--app-card-bg) !important;
+  color: var(--app-text-primary) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Claude Sidebar Specific Elements */
+.sidebar-note-btn {
+  border-radius: 8px !important;
+  padding: 7px 10px !important;
+  width: 100% !important;
+  transition: all 0.12s ease !important;
+}
+
+.sidebar-note-btn:hover {
+  background-color: var(--app-sidebar-hover) !important;
+}
+
+.sidebar-note-btn[data-active="true"] {
+  background-color: var(--app-sidebar-active) !important;
+}
+
+.sidebar-datepicker-container {
+  background-color: var(--app-card-bg) !important;
+  border: 1px solid var(--app-sidebar-border) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+}
+
+.sidebar-workspace-badge {
+  background-color: var(--app-subtle-bg) !important;
+  border: 1px solid var(--app-sidebar-border) !important;
+  border-radius: 8px !important;
+  transition: background-color 0.15s ease !important;
+}
+
+.sidebar-workspace-badge:hover {
+  background-color: var(--app-sidebar-hover) !important;
 }
 
 /* Kanban Board Styling */
@@ -423,12 +480,14 @@ textarea {
   cursor: grab;
   position: relative;
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease !important;
+  background-color: var(--app-card-bg) !important;
+  border-color: var(--app-card-border) !important;
 }
 
 .kanban-task-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
-  border-color: var(--mantine-primary-color-light-hover) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06) !important;
+  border-color: var(--mantine-primary-color-filled) !important;
 }
 
 .kanban-task-card:active {

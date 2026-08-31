@@ -40,7 +40,8 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
         display: 'flex',
         flexDirection: 'column',
         borderRadius: 8,
-        backgroundColor: 'var(--mantine-color-body)',
+        backgroundColor: 'var(--app-card-bg)',
+        borderColor: 'var(--app-card-border)',
       }}
     >
       <ScrollArea style={{ flex: 1 }} type="auto" offsetScrollbars>

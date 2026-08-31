@@ -48,6 +48,7 @@ import { WeekStartDay } from '../../types';
 import { DATE_FORMAT_PRESETS, formatTemplateDate } from '../../utils/dateTemplate';
 
 const THEME_COLORS = [
+  'claude',
   'indigo',
   'teal',
   'blue',

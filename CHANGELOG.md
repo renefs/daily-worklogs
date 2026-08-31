@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-01
+
+### Added
+- **Claude Theme & Aesthetic**: Modern warm clay/terracotta theme palette (`#da7756`) with refined warm backgrounds, typography, and card borders.
+- **Claude Artifacts-Inspired Code Blocks**: Redesigned Markdown preview code containers with language headers, copy action, and syntax highlighting tokens.
+- **Refined App Shell & Sidebar**: Polished sidebar layout with custom workspace badge, updated navigation segment controls, and active note highlights.
+
 ## [1.2.0] - 2026-08-25
 
 ### Added

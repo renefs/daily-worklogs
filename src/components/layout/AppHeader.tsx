@@ -40,8 +40,8 @@ export const AppHeader: React.FC = () => {
       wrap="nowrap"
       className="app-drag-region"
       style={{
-        borderBottom: '1px solid var(--mantine-color-default-border)',
-        backgroundColor: 'var(--mantine-color-body)',
+        borderBottom: '1px solid var(--app-header-border)',
+        backgroundColor: 'var(--app-header-bg)',
         transition: 'background-color 0.2s ease, border-color 0.2s ease',
       }}
     >

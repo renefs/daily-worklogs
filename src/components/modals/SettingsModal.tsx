@@ -65,6 +65,7 @@ import { AreasProjectsManager } from '../settings/AreasProjectsManager';
 import { DATE_FORMAT_PRESETS, formatTemplateDate } from '../../utils/dateTemplate';
 
 const THEME_COLORS = [
+  'claude',
   'indigo',
   'teal',
   'blue',
@@ -814,18 +815,21 @@ export const SettingsModal: React.FC = () => {
                     {t('settings.themeDescription')}
                   </Text>
                   <Group gap="sm" mt="xs">
-                    {THEME_COLORS.map((color) => (
-                      <ColorSwatch
-                        key={color}
-                        color={`var(--mantine-color-${color}-6)`}
-                        size={32}
-                        radius="md"
-                        style={{ color: '#fff', cursor: 'pointer' }}
-                        onClick={() => handleThemeColorChange(color)}
-                      >
-                        {settings.themeColor === color && <CheckIcon width={14} />}
-                      </ColorSwatch>
-                    ))}
+                    {THEME_COLORS.map((color) => {
+                      const isSelected = (settings.themeColor || 'claude') === color;
+                      return (
+                        <ColorSwatch
+                          key={color}
+                          color={`var(--mantine-color-${color}-6)`}
+                          size={32}
+                          radius="md"
+                          style={{ color: '#fff', cursor: 'pointer' }}
+                          onClick={() => handleThemeColorChange(color)}
+                        >
+                          {isSelected && <CheckIcon width={14} />}
+                        </ColorSwatch>
+                      );
+                    })}
                   </Group>
                 </Stack>
               </Paper>
@@ -1039,7 +1043,7 @@ export const SettingsModal: React.FC = () => {
                       Daily Worklog
                     </Text>
                     <Badge size="lg" variant="gradient" gradient={{ from: 'primary', to: 'indigo', deg: 45 }}>
-                      v{appInfo?.version || '1.2.0'}
+                      v{appInfo?.version || '1.3.0'}
                     </Badge>
                   </Group>
                   <Text size="sm" c="dimmed" style={{ maxWidth: 460 }}>
@@ -1058,7 +1062,7 @@ export const SettingsModal: React.FC = () => {
                     <Stack gap={8}>
                       <Group justify="space-between">
                         <Text size="xs" c="dimmed">{t('settings.appVersion')}:</Text>
-                        <Badge size="sm" variant="filled" color="primary">{appInfo?.version || '1.2.0'}</Badge>
+                        <Badge size="sm" variant="filled" color="primary">{appInfo?.version || '1.3.0'}</Badge>
                       </Group>
                       <Divider />
                       <Group justify="space-between">

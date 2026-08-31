@@ -102,15 +102,19 @@ export const AppSidebar: React.FC = () => {
         size="sm"
         variant={selectedDate === todayStr ? 'light' : 'filled'}
         color="primary"
-        leftSection={<IconPlus size={18} />}
+        leftSection={<IconPlus size={16} />}
         onClick={handleOpenToday}
         radius="md"
+        style={{
+          fontWeight: 600,
+          boxShadow: selectedDate === todayStr ? 'none' : '0 1px 3px rgba(0, 0, 0, 0.08)',
+        }}
       >
         {t('nav.newToday')}
       </Button>
 
       {/* Mini Date Picker */}
-      <Paper withBorder p="xs" radius="md">
+      <Paper p="xs" radius="md" className="sidebar-datepicker-container">
         <DatePicker
           locale={i18n.language === 'es' ? 'es' : 'en'}
           value={dayjs(selectedDate).toDate()}
@@ -161,15 +165,33 @@ export const AppSidebar: React.FC = () => {
       <TextInput
         placeholder={t('nav.search')}
         size="xs"
-        leftSection={<IconSearch size={14} />}
+        leftSection={<IconSearch size={14} style={{ color: 'var(--app-sidebar-text-dimmed)' }} />}
         value={search}
         onChange={(e) => setSearch(e.currentTarget.value)}
         radius="md"
+        styles={{
+          input: {
+            backgroundColor: 'var(--app-subtle-bg)',
+            borderColor: 'var(--app-sidebar-border)',
+            color: 'var(--app-sidebar-text)',
+          },
+        }}
       />
 
       {/* Recent Notes List */}
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-        <Text size="xs" fw={700} c="dimmed" tt="uppercase" mb={6} px={4}>
+        <Text
+          size="xs"
+          fw={700}
+          tt="uppercase"
+          mb={6}
+          px={4}
+          style={{
+            letterSpacing: '0.04em',
+            fontSize: '11px',
+            color: 'var(--app-sidebar-text-dimmed)',
+          }}
+        >
           {t('sidebar.worklogHistory')} ({filteredNotes.length})
         </Text>
 
@@ -195,34 +217,29 @@ export const AppSidebar: React.FC = () => {
                       note,
                     });
                   }}
-                  p="xs"
-                  style={{
-                    borderRadius: 6,
-                    backgroundColor: isSelected
-                      ? 'var(--mantine-primary-color-light)'
-                      : 'transparent',
-                    border: isSelected
-                      ? '1px solid var(--mantine-primary-color-light-hover)'
-                      : '1px solid transparent',
-                    transition: 'all 0.15s ease',
-                    width: '100%',
-                  }}
+                  className="sidebar-note-btn"
+                  data-active={isSelected ? 'true' : undefined}
                 >
                   <Group justify="space-between" wrap="nowrap">
                     <Group gap={8} wrap="nowrap" style={{ minWidth: 0 }}>
                       <IconFileText
                         size={15}
-                        color={
-                          isSelected
+                        style={{
+                          color: isSelected
                             ? 'var(--mantine-primary-color-filled)'
-                            : 'var(--mantine-color-dimmed)'
-                        }
+                            : 'var(--app-sidebar-text-dimmed)',
+                          flexShrink: 0,
+                        }}
                       />
                       <Text
                         size="xs"
                         fw={isSelected ? 600 : 500}
                         truncate
-                        c={isSelected ? 'var(--mantine-primary-color-filled)' : undefined}
+                        style={{
+                          color: isSelected
+                            ? 'var(--mantine-primary-color-filled)'
+                            : 'var(--app-sidebar-text)',
+                        }}
                       >
                         {formattedDate}
                       </Text>
@@ -338,18 +355,29 @@ export const AppSidebar: React.FC = () => {
         </Group>
       </Modal>
 
-      {/* Vault Path Footer Widget */}
+      {/* Vault Path Footer Widget (Claude-style workspace badge) */}
       {settings && (
         <Paper
-          withBorder
           p="xs"
           radius="md"
-          style={{ backgroundColor: 'var(--mantine-color-default-hover)' }}
+          className="sidebar-workspace-badge"
         >
           <Group justify="space-between" wrap="nowrap">
-            <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
-              <IconFolder size={16} />
-              <Text size="xs" truncate style={{ fontFamily: 'monospace', maxWidth: 160 }}>
+            <Group gap={8} wrap="nowrap" style={{ minWidth: 0 }}>
+              <IconFolder
+                size={16}
+                style={{ color: 'var(--mantine-primary-color-filled)', flexShrink: 0 }}
+              />
+              <Text
+                size="xs"
+                fw={600}
+                truncate
+                style={{
+                  maxWidth: 160,
+                  color: 'var(--app-sidebar-text)',
+                  letterSpacing: '-0.01em',
+                }}
+              >
                 {settings.vaultPath.split(/[/\\]/).pop() || 'Vault'}
               </Text>
             </Group>
@@ -358,6 +386,7 @@ export const AppSidebar: React.FC = () => {
                 <ActionIcon
                   size="xs"
                   variant="subtle"
+                  color="gray"
                   onClick={() => {
                     if (window.electronAPI && settings?.vaultPath) {
                       window.electronAPI.openInFileManager(settings.vaultPath);

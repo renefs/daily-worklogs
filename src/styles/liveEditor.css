@@ -32,12 +32,12 @@
 
 /* Revealed markdown delimiter when cursor is adjacent/inside */
 .cm-live-mark-visible {
-  opacity: 0.55;
+  opacity: 0.65;
   font-family: var(--font-mono, 'JetBrains Mono', 'Fira Code', monospace);
   font-size: 0.88em;
   font-weight: 500;
-  color: var(--mantine-primary-color-filled, #4f46e5);
-  background-color: rgba(99, 102, 241, 0.08);
+  color: var(--mantine-primary-color-filled, #da7756);
+  background-color: var(--app-subtle-bg, rgba(218, 119, 86, 0.08));
   border-radius: 3px;
   padding: 0 2px;
   margin: 0 1px;

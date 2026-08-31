@@ -106,7 +106,8 @@ export const DailyRoutinesPanel: React.FC = () => {
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        backgroundColor: 'var(--mantine-color-default-hover)',
+        backgroundColor: 'var(--app-subtle-bg)',
+        borderColor: 'var(--app-subtle-border)',
         overflow: 'hidden',
       }}
     >
@@ -114,8 +115,8 @@ export const DailyRoutinesPanel: React.FC = () => {
       <Box
         p="xs"
         style={{
-          borderBottom: '1px solid var(--mantine-color-default-border)',
-          backgroundColor: 'var(--mantine-color-body)',
+          borderBottom: '1px solid var(--app-subtle-border)',
+          backgroundColor: 'var(--app-card-bg)',
         }}
       >
         <Group justify="space-between" align="center" wrap="nowrap">
@@ -258,8 +259,9 @@ export const DailyRoutinesPanel: React.FC = () => {
                   radius="sm"
                   style={{
                     backgroundColor: isDone
-                      ? 'var(--mantine-color-default-hover)'
-                      : 'var(--mantine-color-body)',
+                      ? 'var(--app-subtle-bg)'
+                      : 'var(--app-card-bg)',
+                    borderColor: 'var(--app-card-border)',
                     opacity: isDone ? 0.75 : 1,
                     transition: 'all 0.15s ease',
                   }}

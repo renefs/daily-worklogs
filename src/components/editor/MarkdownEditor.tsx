@@ -330,7 +330,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         style={{
           borderRadius: '8px 8px 0 0',
           borderBottom: 'none',
-          backgroundColor: isDark ? 'var(--mantine-color-dark-7)' : 'var(--mantine-color-gray-0)',
+          backgroundColor: 'var(--app-subtle-bg)',
+          borderColor: 'var(--app-card-border)',
         }}
       >
         <Group justify="space-between" gap="xs">
@@ -483,9 +484,9 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         style={{
           flex: 1,
           overflow: 'hidden',
-          border: '1px solid var(--mantine-color-default-border)',
+          border: '1px solid var(--app-card-border)',
           borderRadius: '0 0 8px 8px',
-          backgroundColor: isDark ? '#141517' : '#ffffff',
+          backgroundColor: 'var(--app-card-bg)',
           fontSize: `${settings?.editorFontSize || 15}px`,
         }}
       >
