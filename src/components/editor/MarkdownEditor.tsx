@@ -15,6 +15,7 @@ import {
   Button,
   Badge,
   Text,
+  SegmentedControl,
   useComputedColorScheme,
 } from '@mantine/core';
 import {
@@ -34,6 +35,7 @@ import {
   IconTrash,
   IconFileExport,
   IconPhoto,
+  IconDotsVertical,
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
@@ -75,6 +77,8 @@ export interface MarkdownEditorProps {
   onExportClick?: () => void;
   onDeleteClick?: () => void;
   isLivePreview?: boolean;
+  layoutMode?: 'live' | 'split' | 'edit' | 'preview';
+  onLayoutModeChange?: (mode: 'live' | 'split' | 'edit' | 'preview') => void;
   showTemplates?: boolean;
   showDelete?: boolean;
   showExport?: boolean;
@@ -91,6 +95,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   onExportClick,
   onDeleteClick,
   isLivePreview = true,
+  layoutMode,
+  onLayoutModeChange,
   showTemplates = true,
   placeholder,
   tasksStats,
@@ -334,76 +340,77 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           borderColor: 'var(--app-card-border)',
         }}
       >
-        <Group justify="space-between" gap="xs">
-          <Group gap={4}>
+        <Group justify="space-between" gap="xs" wrap="nowrap">
+          {/* Left: Formatting tools */}
+          <Group gap={3} wrap="nowrap" style={{ overflowX: 'auto' }}>
             <Tooltip label={t('editor.bold')} withArrow>
               <ActionIcon variant="subtle" size="sm" onClick={() => insertText('**', '**', 'bold')}>
-                <IconBold size={16} />
+                <IconBold size={15} />
               </ActionIcon>
             </Tooltip>
             <Tooltip label={t('editor.italic')} withArrow>
               <ActionIcon variant="subtle" size="sm" onClick={() => insertText('*', '*', 'italic')}>
-                <IconItalic size={16} />
+                <IconItalic size={15} />
               </ActionIcon>
             </Tooltip>
             <Divider orientation="vertical" />
-            <Tooltip label="Heading 1" withArrow>
+            <Tooltip label="H1" withArrow>
               <ActionIcon variant="subtle" size="sm" onClick={() => insertText('\n# ', '\n')}>
-                <IconH1 size={16} />
+                <IconH1 size={15} />
               </ActionIcon>
             </Tooltip>
-            <Tooltip label="Heading 2" withArrow>
+            <Tooltip label="H2" withArrow>
               <ActionIcon variant="subtle" size="sm" onClick={() => insertText('\n## ', '\n')}>
-                <IconH2 size={16} />
+                <IconH2 size={15} />
               </ActionIcon>
             </Tooltip>
-            <Tooltip label="Heading 3" withArrow>
+            <Tooltip label="H3" withArrow>
               <ActionIcon variant="subtle" size="sm" onClick={() => insertText('\n### ', '\n')}>
-                <IconH3 size={16} />
+                <IconH3 size={15} />
               </ActionIcon>
             </Tooltip>
             <Divider orientation="vertical" />
-            <Tooltip label={t('editor.task')} withArrow>
-              <ActionIcon variant="subtle" size="sm" onClick={() => insertText('\n- [ ] ', '')}>
-                <IconCheckbox size={16} />
-              </ActionIcon>
-            </Tooltip>
             <Tooltip label="Bullet List" withArrow>
               <ActionIcon variant="subtle" size="sm" onClick={() => insertText('\n- ', '')}>
-                <IconList size={16} />
+                <IconList size={15} />
               </ActionIcon>
             </Tooltip>
             <Tooltip label="Numbered List" withArrow>
               <ActionIcon variant="subtle" size="sm" onClick={() => insertText('\n1. ', '')}>
-                <IconListNumbers size={16} />
+                <IconListNumbers size={15} />
+              </ActionIcon>
+            </Tooltip>
+            <Tooltip label={t('editor.task')} withArrow>
+              <ActionIcon variant="subtle" size="sm" onClick={() => insertText('\n- [ ] ', '')}>
+                <IconCheckbox size={15} />
               </ActionIcon>
             </Tooltip>
             <Divider orientation="vertical" />
             <Tooltip label={t('editor.code')} withArrow>
               <ActionIcon variant="subtle" size="sm" onClick={() => insertText('```\n', '\n```\n')}>
-                <IconCode size={16} />
+                <IconCode size={15} />
               </ActionIcon>
             </Tooltip>
             <Tooltip label={t('editor.table')} withArrow>
               <ActionIcon variant="subtle" size="sm" onClick={insertTable}>
-                <IconTable size={16} />
+                <IconTable size={15} />
               </ActionIcon>
             </Tooltip>
             <Tooltip label={t('editor.insertImage') || 'Insert Image'} withArrow>
               <ActionIcon variant="subtle" size="sm" onClick={handleInsertImage}>
-                <IconPhoto size={16} />
+                <IconPhoto size={15} />
               </ActionIcon>
             </Tooltip>
 
-            {/* Template Selector (only if enabled) */}
+            {/* Template Selector */}
             {showTemplates && settings?.templates && settings.templates.length > 0 && (
               <Menu shadow="md" width={220}>
                 <Menu.Target>
                   <Button
                     variant="subtle"
                     size="compact-xs"
-                    leftSection={<IconTemplate size={14} />}
-                    style={{ marginLeft: 4 }}
+                    leftSection={<IconTemplate size={13} />}
+                    style={{ marginLeft: 2 }}
                   >
                     {t('editor.chooseTemplate')}
                   </Button>
@@ -420,55 +427,80 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             )}
           </Group>
 
-          {/* Right Action Icons & Save Status */}
-          <Group gap="xs">
-            {isLivePreview && (
-              <Badge color="violet" variant="light" size="sm">
-                {t('editor.live')}
-              </Badge>
+          {/* Right: Layout Switcher + Discrete Autosave + 3-dots Menu */}
+          <Group gap={8} wrap="nowrap">
+            {layoutMode && onLayoutModeChange && (
+              <SegmentedControl
+                value={layoutMode}
+                onChange={(val: string) => onLayoutModeChange(val as any)}
+                size="xs"
+                radius="md"
+                className="nav-segmented-control"
+                transitionDuration={180}
+                data={[
+                  { label: t('editor.live'), value: 'live' },
+                  { label: t('editor.split'), value: 'split' },
+                  { label: t('editor.write'), value: 'edit' },
+                  { label: t('editor.preview'), value: 'preview' },
+                ]}
+              />
             )}
 
-            {effectiveIsDirty ? (
-              <Badge color="yellow" variant="light" size="sm">
+            {/* Discrete Save Status */}
+            {effectiveIsSaving ? (
+              <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+                {t('editor.saving')}
+              </Text>
+            ) : effectiveIsDirty ? (
+              <Badge color="yellow" variant="light" size="xs">
                 {t('editor.unsaved')}
               </Badge>
-            ) : effectiveIsSaving ? (
-              <Badge color="blue" variant="light" size="sm">
-                {t('editor.saving')}
-              </Badge>
             ) : (
-              <Badge color="green" variant="subtle" size="sm" leftSection={<IconCheck size={12} />}>
-                {t('editor.saved')}
-              </Badge>
+              <Group gap={4} wrap="nowrap" style={{ color: 'var(--mantine-color-teal-filled)' }}>
+                <IconCheck size={14} stroke={2.2} />
+                <Text size="xs" c="teal.7" fw={500} style={{ whiteSpace: 'nowrap' }}>
+                  {t('editor.saved')}
+                </Text>
+              </Group>
             )}
 
-            <Tooltip label={t('common.save')} withArrow>
-              <ActionIcon
-                variant={effectiveIsDirty ? 'filled' : 'light'}
-                color="primary"
-                size="sm"
-                onClick={effectiveOnSave}
-                loading={effectiveIsSaving}
-              >
-                <IconDeviceFloppy size={16} />
-              </ActionIcon>
-            </Tooltip>
-
-            {onExportClick && (
-              <Tooltip label={t('editor.exportNote')} withArrow>
-                <ActionIcon variant="subtle" size="sm" onClick={onExportClick}>
-                  <IconFileExport size={16} />
+            {/* 3-dots actions menu */}
+            <Menu position="bottom-end" shadow="md" withinPortal>
+              <Menu.Target>
+                <ActionIcon variant="subtle" size="sm" color="gray">
+                  <IconDotsVertical size={15} />
                 </ActionIcon>
-              </Tooltip>
-            )}
-
-            {onDeleteClick && (isControlled || activeNote?.exists) && (
-              <Tooltip label={t('common.delete')} withArrow>
-                <ActionIcon variant="subtle" color="red" size="sm" onClick={onDeleteClick}>
-                  <IconTrash size={16} />
-                </ActionIcon>
-              </Tooltip>
-            )}
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item
+                  leftSection={<IconDeviceFloppy size={14} />}
+                  onClick={effectiveOnSave}
+                  disabled={!effectiveIsDirty}
+                >
+                  {t('common.save')}
+                </Menu.Item>
+                {onExportClick && (
+                  <Menu.Item
+                    leftSection={<IconFileExport size={14} />}
+                    onClick={onExportClick}
+                  >
+                    {t('editor.exportNote')}
+                  </Menu.Item>
+                )}
+                {onDeleteClick && (isControlled || activeNote?.exists) && (
+                  <>
+                    <Menu.Divider />
+                    <Menu.Item
+                      color="red"
+                      leftSection={<IconTrash size={14} />}
+                      onClick={onDeleteClick}
+                    >
+                      {t('common.delete')}
+                    </Menu.Item>
+                  </>
+                )}
+              </Menu.Dropdown>
+            </Menu>
           </Group>
         </Group>
       </Paper>
@@ -499,8 +531,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           onChange={(val) => effectiveOnChange(val)}
           placeholder={placeholder}
           basicSetup={{
-            lineNumbers: true,
-            foldGutter: true,
+            lineNumbers: layoutMode === 'edit',
+            foldGutter: layoutMode === 'edit',
             dropCursor: true,
             allowMultipleSelections: true,
             indentOnInput: true,

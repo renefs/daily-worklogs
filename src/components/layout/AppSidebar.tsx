@@ -13,6 +13,7 @@ import {
   Tooltip,
   Menu,
   Modal,
+  Collapse,
 } from '@mantine/core';
 import { DatePicker } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
@@ -24,6 +25,15 @@ import {
   IconFolderOpen,
   IconTrash,
   IconEdit,
+  IconChevronRight,
+  IconChevronDown,
+  IconCalendarEvent,
+  IconCalendarWeek,
+  IconCalendarMonth,
+  IconCalendarStats,
+  IconLayoutKanban,
+  IconChevronsLeft,
+  IconChevronsRight,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
@@ -40,28 +50,62 @@ export const AppSidebar: React.FC = () => {
     y: number;
     note: DailyNoteMeta;
   } | null>(null);
+  const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
+  const [visibleMonthsCount, setVisibleMonthsCount] = useState(3);
 
   const {
+    currentView,
     selectedDate,
     setSelectedDate,
     setCurrentView,
     notesList,
     settings,
     deleteActiveNote,
+    isSidebarCollapsed,
+    toggleSidebarCollapse,
   } = useAppStore();
 
   const todayStr = dayjs().format('YYYY-MM-DD');
+  const todayNoteExists = useMemo(() => {
+    return notesList.some((n) => n.date === todayStr);
+  }, [notesList, todayStr]);
 
   // Set of dates that have notes
   const notesDateSet = useMemo(() => {
-    return new Set(notesList.map((n) => n.date));
+    return new Set((notesList || []).filter((n) => n && n.date).map((n) => n.date));
   }, [notesList]);
 
   // Filtered notes list
   const filteredNotes = useMemo(() => {
-    if (!search.trim()) return notesList;
-    return notesList.filter((n) => n.date.includes(search.trim()));
+    const list = notesList || [];
+    if (!search.trim()) return list;
+    return list.filter((n) => n && n.date && n.date.includes(search.trim()));
   }, [notesList, search]);
+
+  // Group notes by month (YYYY-MM)
+  const groupedNotes = useMemo(() => {
+    const groups: { monthKey: string; monthTitle: string; notes: DailyNoteMeta[] }[] = [];
+    const map = new Map<string, DailyNoteMeta[]>();
+
+    (filteredNotes || []).forEach((note) => {
+      if (!note || !note.date || typeof note.date !== 'string') return;
+      const monthKey = note.date.substring(0, 7); // YYYY-MM
+      if (!map.has(monthKey)) {
+        map.set(monthKey, []);
+      }
+      map.get(monthKey)!.push(note);
+    });
+
+    Array.from(map.entries()).forEach(([monthKey, notes]) => {
+      const d = dayjs(`${monthKey}-01`);
+      const monthTitle = capitalizeFirstLetter(
+        d.locale(i18n.language === 'es' ? 'es' : 'en').format('MMMM [de] YYYY')
+      );
+      groups.push({ monthKey, monthTitle, notes });
+    });
+
+    return groups;
+  }, [filteredNotes, i18n.language]);
 
   const handleSelectDate = (dateStr: string) => {
     setSelectedDate(dateStr);
@@ -86,6 +130,153 @@ export const AppSidebar: React.FC = () => {
     setNoteToDelete(null);
   };
 
+  const toggleMonth = (monthKey: string) => {
+    setExpandedMonths((prev) => ({
+      ...prev,
+      [monthKey]: prev[monthKey] === undefined ? false : !prev[monthKey],
+    }));
+  };
+
+  // Render Collapsed Slim Rail (58px)
+  if (isSidebarCollapsed) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          height: '100%',
+          padding: '12px 6px',
+          justifyContent: 'space-between',
+          backgroundColor: 'var(--app-sidebar-bg)',
+        }}
+      >
+        <Stack gap={8} align="center" style={{ width: '100%' }}>
+          {/* Expand sidebar button */}
+          <Tooltip label={t('nav.expandSidebar', 'Expand sidebar')} position="right">
+            <ActionIcon
+              variant="subtle"
+              size="md"
+              radius="md"
+              onClick={() => toggleSidebarCollapse(false)}
+            >
+              <IconChevronsRight size={18} />
+            </ActionIcon>
+          </Tooltip>
+
+          {/* Quick Create Today */}
+          <Tooltip label={t('nav.newToday')} position="right">
+            <ActionIcon
+              variant={todayNoteExists ? 'light' : 'filled'}
+              color="primary"
+              size="md"
+              radius="md"
+              onClick={handleOpenToday}
+            >
+              <IconPlus size={16} />
+            </ActionIcon>
+          </Tooltip>
+
+          <div style={{ width: '80%', height: 1, backgroundColor: 'var(--app-sidebar-border)', margin: '4px 0' }} />
+
+          {/* Quick view navigation icons */}
+          <Tooltip label={t('nav.daily')} position="right">
+            <ActionIcon
+              variant={currentView === 'daily' ? 'filled' : 'subtle'}
+              color={currentView === 'daily' ? 'primary' : 'gray'}
+              size="md"
+              radius="md"
+              onClick={() => setCurrentView('daily')}
+            >
+              <IconCalendarEvent size={18} />
+            </ActionIcon>
+          </Tooltip>
+
+          <Tooltip label={t('nav.weekly')} position="right">
+            <ActionIcon
+              variant={currentView === 'weekly' ? 'filled' : 'subtle'}
+              color={currentView === 'weekly' ? 'primary' : 'gray'}
+              size="md"
+              radius="md"
+              onClick={() => setCurrentView('weekly')}
+            >
+              <IconCalendarWeek size={18} />
+            </ActionIcon>
+          </Tooltip>
+
+          <Tooltip label={t('nav.monthly')} position="right">
+            <ActionIcon
+              variant={currentView === 'monthly' ? 'filled' : 'subtle'}
+              color={currentView === 'monthly' ? 'primary' : 'gray'}
+              size="md"
+              radius="md"
+              onClick={() => setCurrentView('monthly')}
+            >
+              <IconCalendarMonth size={18} />
+            </ActionIcon>
+          </Tooltip>
+
+          <Tooltip label={t('nav.yearly')} position="right">
+            <ActionIcon
+              variant={currentView === 'yearly' ? 'filled' : 'subtle'}
+              color={currentView === 'yearly' ? 'primary' : 'gray'}
+              size="md"
+              radius="md"
+              onClick={() => setCurrentView('yearly')}
+            >
+              <IconCalendarStats size={18} />
+            </ActionIcon>
+          </Tooltip>
+
+          <Tooltip label={t('nav.tasks')} position="right">
+            <ActionIcon
+              variant={currentView === 'tasks' || currentView === 'task' ? 'filled' : 'subtle'}
+              color={currentView === 'tasks' || currentView === 'task' ? 'primary' : 'gray'}
+              size="md"
+              radius="md"
+              onClick={() => setCurrentView('tasks')}
+            >
+              <IconLayoutKanban size={18} />
+            </ActionIcon>
+          </Tooltip>
+        </Stack>
+
+        {/* Bottom Rail Actions */}
+        <Stack gap={8} align="center">
+          {settings && (
+            <Tooltip label={settings.vaultPath.split(/[/\\]/).pop() || 'Vault'} position="right">
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                size="md"
+                radius="md"
+                onClick={() => {
+                  if (window.electronAPI && settings?.vaultPath) {
+                    window.electronAPI.openInFileManager(settings.vaultPath);
+                  }
+                }}
+              >
+                <IconFolder size={17} />
+              </ActionIcon>
+            </Tooltip>
+          )}
+
+          <Tooltip label={t('nav.expandSidebar', 'Expand sidebar')} position="right">
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              size="sm"
+              onClick={() => toggleSidebarCollapse(false)}
+            >
+              <IconChevronsRight size={15} />
+            </ActionIcon>
+          </Tooltip>
+        </Stack>
+      </div>
+    );
+  }
+
+  // Render Full Sidebar (280px)
   return (
     <div
       style={{
@@ -93,25 +284,40 @@ export const AppSidebar: React.FC = () => {
         flexDirection: 'column',
         height: '100%',
         padding: '12px',
-        gap: '12px',
+        gap: '10px',
       }}
     >
-      {/* Action Button: Create Today's Note */}
-      <Button
-        fullWidth
-        size="sm"
-        variant={selectedDate === todayStr ? 'light' : 'filled'}
-        color="primary"
-        leftSection={<IconPlus size={16} />}
-        onClick={handleOpenToday}
-        radius="md"
-        style={{
-          fontWeight: 600,
-          boxShadow: selectedDate === todayStr ? 'none' : '0 1px 3px rgba(0, 0, 0, 0.08)',
-        }}
-      >
-        {t('nav.newToday')}
-      </Button>
+      {/* Top Action Row: Create Today's Note + Collapse Button */}
+      <Group justify="space-between" gap="xs" wrap="nowrap">
+        <Button
+          fullWidth
+          size="xs"
+          variant={todayNoteExists ? 'light' : 'filled'}
+          color="primary"
+          leftSection={<IconPlus size={15} />}
+          onClick={handleOpenToday}
+          radius="md"
+          style={{
+            fontWeight: 600,
+            boxShadow: todayNoteExists ? 'none' : '0 1px 3px rgba(0, 0, 0, 0.08)',
+          }}
+        >
+          {t('nav.newToday')}
+        </Button>
+
+        <Tooltip label={t('nav.collapseSidebar', 'Collapse sidebar')} withArrow>
+          <ActionIcon
+            variant="subtle"
+            size="md"
+            radius="md"
+            color="gray"
+            onClick={() => toggleSidebarCollapse(true)}
+            aria-label="Collapse sidebar"
+          >
+            <IconChevronsLeft size={16} />
+          </ActionIcon>
+        </Tooltip>
+      </Group>
 
       {/* Mini Date Picker */}
       <Paper p="xs" radius="md" className="sidebar-datepicker-container">
@@ -127,6 +333,7 @@ export const AppSidebar: React.FC = () => {
             const dateStr = dayjs(date).format('YYYY-MM-DD');
             const hasNote = notesDateSet.has(dateStr);
             const isSelected = dateStr === selectedDate;
+            const isToday = dateStr === todayStr;
 
             return (
               <div
@@ -137,7 +344,7 @@ export const AppSidebar: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontWeight: hasNote ? 700 : 'normal',
+                  fontWeight: hasNote ? 700 : isToday ? 600 : 'normal',
                 }}
               >
                 <span>{date.getDate()}</span>
@@ -178,7 +385,7 @@ export const AppSidebar: React.FC = () => {
         }}
       />
 
-      {/* Recent Notes List */}
+      {/* Recent Notes List grouped by month */}
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <Text
           size="xs"
@@ -196,67 +403,113 @@ export const AppSidebar: React.FC = () => {
         </Text>
 
         <ScrollArea style={{ flex: 1 }} type="auto" offsetScrollbars>
-          <Stack gap={3}>
-            {filteredNotes.map((note) => {
-              const isSelected = note.date === selectedDate;
-              const formattedDate = capitalizeFirstLetter(
-                dayjs(note.date)
-                  .locale(i18n.language === 'es' ? 'es' : 'en')
-                  .format(i18n.language === 'es' ? 'ddd, D MMM, YYYY' : 'ddd, MMM D, YYYY')
-              );
+          <Stack gap={6}>
+            {groupedNotes.slice(0, visibleMonthsCount).map((group) => {
+              const isMonthExpanded = expandedMonths[group.monthKey] !== false; // default open
 
               return (
-                <UnstyledButton
-                  key={note.date}
-                  onClick={() => handleSelectDate(note.date)}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    setContextMenu({
-                      x: e.clientX,
-                      y: e.clientY,
-                      note,
-                    });
-                  }}
-                  className="sidebar-note-btn"
-                  data-active={isSelected ? 'true' : undefined}
-                >
-                  <Group justify="space-between" wrap="nowrap">
-                    <Group gap={8} wrap="nowrap" style={{ minWidth: 0 }}>
-                      <IconFileText
-                        size={15}
-                        style={{
-                          color: isSelected
-                            ? 'var(--mantine-primary-color-filled)'
-                            : 'var(--app-sidebar-text-dimmed)',
-                          flexShrink: 0,
-                        }}
-                      />
-                      <Text
-                        size="xs"
-                        fw={isSelected ? 600 : 500}
-                        truncate
-                        style={{
-                          color: isSelected
-                            ? 'var(--mantine-primary-color-filled)'
-                            : 'var(--app-sidebar-text)',
-                        }}
-                      >
-                        {formattedDate}
-                      </Text>
-                    </Group>
-                    {note.date === todayStr && (
-                      <Badge size="xs" variant="dot" color="primary">
-                        {t('nav.today')}
-                      </Badge>
-                    )}
-                  </Group>
-                </UnstyledButton>
+                <div key={group.monthKey} style={{ marginBottom: 4 }}>
+                  {/* Month Accordion Header */}
+                  <UnstyledButton
+                    onClick={() => toggleMonth(group.monthKey)}
+                    style={{
+                      width: '100%',
+                      padding: '4px 6px',
+                      borderRadius: 6,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      color: 'var(--app-sidebar-text-dimmed)',
+                    }}
+                  >
+                    {isMonthExpanded ? <IconChevronDown size={13} /> : <IconChevronRight size={13} />}
+                    <Text size="xs" fw={600} style={{ color: 'inherit', textTransform: 'capitalize' }}>
+                      {group.monthTitle}
+                    </Text>
+                  </UnstyledButton>
+
+                  {/* Notes in Month */}
+                  <Collapse in={isMonthExpanded}>
+                    <Stack gap={2} mt={2} pl={8}>
+                      {group.notes.map((note) => {
+                        const isSelected = note.date === selectedDate;
+                        const formattedDate = capitalizeFirstLetter(
+                          dayjs(note.date)
+                            .locale(i18n.language === 'es' ? 'es' : 'en')
+                            .format(i18n.language === 'es' ? 'ddd, D [de] MMM [de] YYYY' : 'ddd, MMM D, YYYY')
+                        );
+
+                        return (
+                          <UnstyledButton
+                            key={note.date}
+                            onClick={() => handleSelectDate(note.date)}
+                            onContextMenu={(e) => {
+                              e.preventDefault();
+                              setContextMenu({
+                                x: e.clientX,
+                                y: e.clientY,
+                                note,
+                              });
+                            }}
+                            className="sidebar-note-btn"
+                            data-active={isSelected ? 'true' : undefined}
+                          >
+                            <Group justify="space-between" wrap="nowrap">
+                              <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
+                                <IconFileText
+                                  size={14}
+                                  style={{
+                                    color: isSelected
+                                      ? 'var(--mantine-primary-color-filled)'
+                                      : 'var(--app-sidebar-text-dimmed)',
+                                    flexShrink: 0,
+                                  }}
+                                />
+                                <Text
+                                  size="xs"
+                                  fw={isSelected ? 600 : 450}
+                                  truncate
+                                  style={{
+                                    color: isSelected
+                                      ? 'var(--mantine-primary-color-filled)'
+                                      : 'var(--app-sidebar-text)',
+                                    fontSize: 12,
+                                  }}
+                                >
+                                  {formattedDate}
+                                </Text>
+                              </Group>
+                              {note.date === todayStr && (
+                                <Badge size="xs" variant="dot" color="primary">
+                                  {t('nav.today')}
+                                </Badge>
+                              )}
+                            </Group>
+                          </UnstyledButton>
+                        );
+                      })}
+                    </Stack>
+                  </Collapse>
+                </div>
               );
             })}
 
+            {/* Show more button if there are more months */}
+            {groupedNotes.length > visibleMonthsCount && (
+              <Button
+                variant="subtle"
+                size="compact-xs"
+                color="gray"
+                onClick={() => setVisibleMonthsCount((prev) => prev + 3)}
+                style={{ fontSize: 11, alignSelf: 'flex-start', marginLeft: 6 }}
+              >
+                {t('dashboard.showMore', 'Show more...')}
+              </Button>
+            )}
+
             {filteredNotes.length === 0 && (
               <Text size="xs" c="dimmed" ta="center" py="md">
-                No notes found
+                {t('reports.noNotesFound', 'No notes found')}
               </Text>
             )}
           </Stack>
@@ -355,12 +608,18 @@ export const AppSidebar: React.FC = () => {
         </Group>
       </Modal>
 
-      {/* Vault Path Footer Widget (Claude-style workspace badge) */}
+      {/* Vault Path Footer Widget */}
       {settings && (
         <Paper
           p="xs"
           radius="md"
           className="sidebar-workspace-badge"
+          onClick={() => {
+            if (window.electronAPI && settings?.vaultPath) {
+              window.electronAPI.openInFileManager(settings.vaultPath);
+            }
+          }}
+          style={{ cursor: 'pointer' }}
         >
           <Group justify="space-between" wrap="nowrap">
             <Group gap={8} wrap="nowrap" style={{ minWidth: 0 }}>
@@ -373,39 +632,19 @@ export const AppSidebar: React.FC = () => {
                 fw={600}
                 truncate
                 style={{
-                  maxWidth: 160,
+                  maxWidth: 180,
                   color: 'var(--app-sidebar-text)',
                   letterSpacing: '-0.01em',
                 }}
               >
-                {settings.vaultPath.split(/[/\\]/).pop() || 'Vault'}
+                {settings.vaultPath.split(/[/\\]/).pop() || 'DailyWorklog'}
               </Text>
             </Group>
-            <Group gap={4}>
-              <Tooltip label={t('settings.openInFinder')} withArrow>
-                <ActionIcon
-                  size="xs"
-                  variant="subtle"
-                  color="gray"
-                  onClick={() => {
-                    if (window.electronAPI && settings?.vaultPath) {
-                      window.electronAPI.openInFileManager(settings.vaultPath);
-                    } else {
-                      notifications.show({
-                        title: t('settings.openInFinder'),
-                        message: 'Native File Manager is available in the Electron desktop application window.',
-                        color: 'blue',
-                      });
-                    }
-                  }}
-                >
-                  <IconFolderOpen size={14} />
-                </ActionIcon>
-              </Tooltip>
-            </Group>
+            <IconChevronRight size={14} style={{ color: 'var(--app-sidebar-text-dimmed)' }} />
           </Group>
         </Paper>
       )}
     </div>
   );
 };
+

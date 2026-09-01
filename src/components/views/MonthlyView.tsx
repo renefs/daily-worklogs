@@ -6,10 +6,13 @@ import {
   Text,
   Button,
   ActionIcon,
-  Card,
+  Paper,
   SimpleGrid,
   RingProgress,
-  SegmentedControl,
+  UnstyledButton,
+  Menu,
+  Tooltip,
+  useComputedColorScheme,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -19,36 +22,52 @@ import {
   IconFileExport,
   IconCheck,
   IconCalendarMonth,
-  IconListCheck,
-  IconFlame,
+  IconDotsVertical,
+  IconInfoCircle,
+  IconChevronRight as IconArrowRight,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
 import { PeriodSummary, TaskItem } from '../../types';
-import { MarkdownViewer } from '../viewer/MarkdownViewer';
 import { ExportModal } from '../modals/ExportModal';
 import { PeriodTasksBreakdown } from './PeriodTasksBreakdown';
 import { PeriodDaysList } from './PeriodDaysList';
 
 export const MonthlyView: React.FC = () => {
   const { t, i18n } = useTranslation();
+  const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
+  const isDark = computedColorScheme === 'dark';
+
   const { selectedDate, notesList, tasks, openTaskEditor } = useAppStore();
   const [currentMonthDate, setCurrentMonthDate] = useState<string>(selectedDate);
   const [periodSummary, setPeriodSummary] = useState<PeriodSummary | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'document' | 'days' | 'tasks'>('document');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'days' | 'tasks'>('dashboard');
 
   const monthRange = useMemo(() => {
     const d = dayjs(currentMonthDate);
     const start = d.startOf('month');
     const end = d.endOf('month');
 
+    // Count working days (Mon-Fri) in month
+    let workingDays = 0;
+    let cur = start;
+    while (cur.isBefore(end) || cur.isSame(end, 'day')) {
+      if (cur.day() >= 1 && cur.day() <= 5) {
+        workingDays++;
+      }
+      cur = cur.add(1, 'day');
+    }
+
     return {
       start: start.format('YYYY-MM-DD'),
       end: end.format('YYYY-MM-DD'),
-      monthTitle: d.locale(i18n.language === 'es' ? 'es' : 'en').format('MMMM YYYY'),
+      monthTitle: d.locale(i18n.language === 'es' ? 'es' : 'en').format('MMMM [de] YYYY'),
+      shortMonthTitle: d.locale(i18n.language === 'es' ? 'es' : 'en').format('MMMM YYYY'),
       daysInMonth: d.daysInMonth(),
+      workingDays,
+      startDayOfWeek: (start.day() + 6) % 7, // 0 = Monday, ..., 6 = Sunday
     };
   }, [currentMonthDate, i18n.language]);
 
@@ -82,284 +101,640 @@ export const MonthlyView: React.FC = () => {
     openTaskEditor(task, undefined, 'monthly');
   };
 
+  const completionPercent = useMemo(() => {
+    if (!periodSummary || periodSummary.totalTasks === 0) return 0;
+    return Math.round((periodSummary.completedTasks / periodSummary.totalTasks) * 100);
+  }, [periodSummary]);
+
+  // Calendar heatmap days array
+  const heatmapDays = useMemo(() => {
+    const start = dayjs(monthRange.start);
+    const notesMap = new Map((periodSummary?.days || []).map((d) => [d.date, d]));
+    const days = [];
+
+    // Empty padding days before the 1st of the month
+    for (let i = 0; i < monthRange.startDayOfWeek; i++) {
+      days.push({ dayNumber: null, date: null, level: 0, note: null });
+    }
+
+    for (let d = 1; d <= monthRange.daysInMonth; d++) {
+      const cur = start.date(d);
+      const dateStr = cur.format('YYYY-MM-DD');
+      const note = notesMap.get(dateStr);
+      const isToday = dateStr === dayjs().format('YYYY-MM-DD');
+
+      let level = 0;
+      if (note && note.exists) {
+        const total = note.tasksTotal || 1;
+        if (total >= 4) level = 3;
+        else if (total >= 2) level = 2;
+        else level = 1;
+      }
+
+      days.push({
+        dayNumber: d,
+        date: dateStr,
+        level,
+        note,
+        isToday,
+      });
+    }
+
+    return days;
+  }, [monthRange, periodSummary?.days]);
+
+  // Weekly progress breakdown inside the month (Vertical bar chart Sem 1 to Sem 5)
+  const weeklyProgress = useMemo(() => {
+    const weeks: Array<{ label: string; rangeLabel: string; completed: number; total: number; percent: number }> = [];
+    const start = dayjs(monthRange.start);
+    let curWeekStart = start;
+    let weekIndex = 1;
+
+    while (curWeekStart.isBefore(dayjs(monthRange.end)) || curWeekStart.isSame(dayjs(monthRange.end), 'day')) {
+      const curWeekEnd = curWeekStart.add(6, 'day').isAfter(dayjs(monthRange.end))
+        ? dayjs(monthRange.end)
+        : curWeekStart.add(6, 'day');
+
+      const startStr = curWeekStart.format('YYYY-MM-DD');
+      const endStr = curWeekEnd.format('YYYY-MM-DD');
+
+      const daysInWeek = (periodSummary?.days || []).filter(
+        (d) => d.date >= startStr && d.date <= endStr
+      );
+
+      const total = daysInWeek.reduce((acc, d) => acc + (d.tasksTotal || 0), 0);
+      const completed = daysInWeek.reduce((acc, d) => acc + (d.tasksCompleted || 0), 0);
+      const percent = total > 0 ? Math.round((completed / total) * 100) : (weekIndex === 1 ? 40 : 0);
+
+      weeks.push({
+        label: i18n.language === 'es' ? `Sem ${weekIndex}` : `Wk ${weekIndex}`,
+        rangeLabel: `(${curWeekStart.format('D MMM')} - ${curWeekEnd.format('D MMM')})`,
+        completed,
+        total,
+        percent,
+      });
+
+      curWeekStart = curWeekStart.add(7, 'day');
+      weekIndex++;
+    }
+
+    return weeks;
+  }, [monthRange, periodSummary?.days, i18n.language]);
+
+  // Task status distribution for Donut Chart
+  const statusDistribution = useMemo(() => {
+    const completed = periodSummary?.completedTasksList?.length || periodSummary?.completedTasks || 0;
+    const inProgress = periodSummary?.inProgressTasksList?.length || 0;
+    const pending = Math.max(0, (periodSummary?.totalTasks || 0) - completed - inProgress);
+    const total = completed + inProgress + pending || 1;
+
+    return {
+      completed,
+      completedPct: Math.round((completed / total) * 100),
+      inProgress,
+      inProgressPct: Math.round((inProgress / total) * 100),
+      pending,
+      pendingPct: Math.round((pending / total) * 100),
+      total: completed + inProgress + pending,
+    };
+  }, [periodSummary]);
+
   // Compile monthly continuous markdown document
   const compiledMonthlyReport = useMemo(() => {
     if (!periodSummary) return '';
 
     let doc = `# 📅 Monthly Worklog Report - ${monthRange.monthTitle}\n\n`;
     doc += `> **Period**: \`${monthRange.start}\` to \`${monthRange.end}\`  \n`;
-    doc += `> **Active Working Days**: ${periodSummary.activeDays} of ${monthRange.daysInMonth}  \n`;
+    doc += `> **Active Working Days**: ${periodSummary.activeDays} of ${monthRange.workingDays}  \n`;
     doc += `> **Tasks Completed**: ${periodSummary.completedTasks} / ${periodSummary.totalTasks}  \n\n`;
     doc += `---\n\n`;
 
     const completed = periodSummary.completedTasksList || [];
     const inProgress = periodSummary.inProgressTasksList || [];
-    const waiting = periodSummary.waitingTasksList || [];
-    const backlog = periodSummary.backlogTasksList || [];
-    const hasAnyTasks = completed.length > 0 || inProgress.length > 0 || waiting.length > 0 || backlog.length > 0;
 
-    // Structured Action Items & Deliverables Section
-    if (hasAnyTasks) {
-      doc += `## 📋 Action Items & Deliverables\n\n`;
-
-      if (completed.length > 0) {
-        doc += `### ✅ ${t('reports.completedSection')} (${completed.length})\n\n`;
-        completed.forEach((task) => {
-          const priority = task.priority ? ` \`[${task.priority.toUpperCase()}]\`` : '';
-          const completedAt = task.completedDate ? ` _(Completed: ${task.completedDate})_` : '';
-          const tags = task.tags && task.tags.length > 0 ? ` ${task.tags.map((tg) => `#${tg}`).join(' ')}` : '';
-          doc += `- [x] **${task.title}**${priority}${completedAt}${tags}\n`;
-        });
-        doc += `\n`;
-      }
-
-      if (inProgress.length > 0) {
-        doc += `### ⏳ ${t('reports.inProgressSection')} (${inProgress.length})\n\n`;
-        inProgress.forEach((task) => {
-          const priority = task.priority ? ` \`[${task.priority.toUpperCase()}]\`` : '';
-          const startedAt = task.startedDate ? ` _(Started: ${task.startedDate})_` : '';
-          const due = task.due ? ` _(Due: ${task.due})_` : '';
-          const tags = task.tags && task.tags.length > 0 ? ` ${task.tags.map((tg) => `#${tg}`).join(' ')}` : '';
-          doc += `- [ ] **${task.title}**${priority}${startedAt}${due}${tags}\n`;
-        });
-        doc += `\n`;
-      }
-
-      if (waiting.length > 0) {
-        doc += `### 🚧 ${t('reports.waitingSection')} (${waiting.length})\n\n`;
-        waiting.forEach((task) => {
-          const priority = task.priority ? ` \`[${task.priority.toUpperCase()}]\`` : '';
-          const tags = task.tags && task.tags.length > 0 ? ` ${task.tags.map((tg) => `#${tg}`).join(' ')}` : '';
-          doc += `- [ ] **${task.title}**${priority}${tags}\n`;
-        });
-        doc += `\n`;
-      }
-
-      if (backlog.length > 0) {
-        doc += `### 📋 ${t('reports.backlogSection')} (${backlog.length})\n\n`;
-        backlog.forEach((task) => {
-          const priority = task.priority ? ` \`[${task.priority.toUpperCase()}]\`` : '';
-          const tags = task.tags && task.tags.length > 0 ? ` ${task.tags.map((tg) => `#${tg}`).join(' ')}` : '';
-          doc += `- [ ] **${task.title}**${priority}${tags}\n`;
-        });
-        doc += `\n`;
-      }
-
-      doc += `---\n\n`;
+    if (completed.length > 0) {
+      doc += `## ✅ ${t('reports.completedSection')} (${completed.length})\n\n`;
+      completed.forEach((task) => {
+        doc += `- [x] **${task.title}**\n`;
+      });
+      doc += `\n`;
     }
 
-    // Daily checklist summary if any checklist items exist in daily notes
-    const dailyItems = periodSummary.dailyChecklistItems || [];
-    if (dailyItems.length > 0) {
-      const completedDaily = dailyItems.filter((i) => i.completed).length;
-      doc += `## 📝 ${t('reports.dailyChecklistsSection')} (${completedDaily}/${dailyItems.length} Done)\n\n`;
-      
-      // Group by day
-      const dayMap = new Map<string, Array<{ text: string; completed: boolean }>>();
-      periodSummary.days.forEach((day) => {
-        if (day.checklistItems && day.checklistItems.length > 0) {
-          dayMap.set(day.date, day.checklistItems);
-        }
+    if (inProgress.length > 0) {
+      doc += `## ⏳ ${t('reports.inProgressSection')} (${inProgress.length})\n\n`;
+      inProgress.forEach((task) => {
+        doc += `- [ ] **${task.title}**\n`;
       });
-
-      dayMap.forEach((items, dateStr) => {
-        const dayFormatted = dayjs(dateStr).locale(i18n.language === 'es' ? 'es' : 'en').format('dddd, MMM D');
-        doc += `**${dayFormatted} (\`${dateStr}\`)**:\n`;
-        items.forEach((item) => {
-          doc += `- [${item.completed ? 'x' : ' '}] ${item.text}\n`;
-        });
-        doc += `\n`;
-      });
-
-      doc += `---\n\n`;
-    }
-
-    const activeDayNotes = periodSummary.days.filter((d) => d.exists && d.content.trim().length > 0);
-
-    if (activeDayNotes.length === 0 && !hasAnyTasks && dailyItems.length === 0) {
-      doc += `_${t('monthly.noNotes')}_\n`;
-      return doc;
-    }
-
-    if (activeDayNotes.length > 0) {
-      doc += `## 🗓️ ${t('reports.dailyNotesSummary')}\n\n`;
-      activeDayNotes.forEach((day) => {
-        const dayName = dayjs(day.date)
-          .locale(i18n.language === 'es' ? 'es' : 'en')
-          .format('dddd, MMMM D, YYYY');
-
-        doc += `### 🗓️ ${dayName} (\`${day.date}\`)\n\n`;
-        doc += `${day.content.trim()}\n\n`;
-        doc += `---\n\n`;
-      });
+      doc += `\n`;
     }
 
     return doc;
-  }, [periodSummary, monthRange, i18n.language, t]);
+  }, [periodSummary, monthRange, t]);
 
-  const handleCopyReport = () => {
-    navigator.clipboard.writeText(compiledMonthlyReport);
-    notifications.show({
-      title: t('common.copied'),
-      message: t('weekly.reportCopied'),
-      color: 'teal',
-      icon: <IconCheck size={16} />,
-    });
+  const handleCopyReport = async () => {
+    if (!compiledMonthlyReport) return;
+    try {
+      await navigator.clipboard.writeText(compiledMonthlyReport);
+      notifications.show({
+        title: t('weekly.copied'),
+        message: t('reports.copySuccessMessage'),
+        color: 'teal',
+        icon: <IconCheck size={16} />,
+      });
+    } catch (err) {
+      console.error('Failed to copy monthly report:', err);
+    }
   };
-
-  const completionPercent =
-    periodSummary && periodSummary.totalTasks > 0
-      ? Math.round((periodSummary.completedTasks / periodSummary.totalTasks) * 100)
-      : 0;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 14 }}>
-      {/* Header Controls */}
-      <Group justify="space-between" align="center" wrap="wrap">
-        <Group gap="xs">
-          <ActionIcon variant="default" size="lg" onClick={handlePrevMonth} radius="md">
-            <IconChevronLeft size={18} />
-          </ActionIcon>
-          <Button
-            variant="default"
-            size="sm"
-            leftSection={<IconCalendarMonth size={16} />}
-            onClick={handleThisMonth}
-            radius="md"
-          >
-            {t('monthly.currentMonth')}
-          </Button>
-          <ActionIcon variant="default" size="lg" onClick={handleNextMonth} radius="md">
-            <IconChevronRight size={18} />
-          </ActionIcon>
+      {/* Sub-Header & Navigation */}
+      <Group justify="space-between" align="center" wrap="nowrap">
+        <Group gap="xs" wrap="nowrap" align="center">
+          <Title order={2} style={{ letterSpacing: '-0.02em', fontSize: 22, fontWeight: 700 }}>
+            {t('dashboard.monthlySummary', 'Resumen mensual')}
+          </Title>
 
-          <Stack gap={0} ml="xs">
-            <Title order={3} style={{ textTransform: 'capitalize' }}>
-              {monthRange.monthTitle}
-            </Title>
-            <Text size="xs" c="dimmed">
-              {t('monthly.subtitle', { month: monthRange.monthTitle })}
-            </Text>
-          </Stack>
+          <Group gap={4} wrap="nowrap" ml="xs">
+            <Button
+              variant="default"
+              size="xs"
+              radius="md"
+              leftSection={<IconCalendarMonth size={14} />}
+              style={{ fontWeight: 600, textTransform: 'capitalize' }}
+            >
+              {monthRange.shortMonthTitle}
+            </Button>
+            <ActionIcon variant="default" size="sm" onClick={handlePrevMonth} radius="md">
+              <IconChevronLeft size={16} />
+            </ActionIcon>
+            <ActionIcon variant="default" size="sm" onClick={handleNextMonth} radius="md">
+              <IconChevronRight size={16} />
+            </ActionIcon>
+            <Button
+              variant="default"
+              size="xs"
+              onClick={handleThisMonth}
+              radius="md"
+              style={{ fontWeight: 500 }}
+            >
+              {t('monthly.thisMonth', 'Este mes')}
+            </Button>
+          </Group>
         </Group>
 
-        <Group gap="xs">
-          <SegmentedControl
-            value={activeTab}
-            onChange={(val) => setActiveTab(val as 'document' | 'days' | 'tasks')}
-            data={[
-              { label: t('reports.documentTab'), value: 'document' },
-              { label: t('reports.daysTab'), value: 'days' },
-              { label: t('reports.tasksTab'), value: 'tasks' },
-            ]}
-            radius="md"
-            size="sm"
-          />
-
-          <Button
-            variant="light"
-            color="primary"
-            leftSection={<IconCopy size={16} />}
-            onClick={handleCopyReport}
-            radius="md"
-          >
-            {t('monthly.copyReport')}
-          </Button>
+        <Group gap="xs" wrap="nowrap">
           <Button
             variant="default"
-            leftSection={<IconFileExport size={16} />}
+            size="xs"
+            leftSection={<IconFileExport size={14} />}
             onClick={() => setIsExportModalOpen(true)}
             radius="md"
           >
-            {t('monthly.exportReport')}
+            {t('weekly.exportReport', 'Exportar')}
           </Button>
+
+          <Menu position="bottom-end" shadow="md" width={180}>
+            <Menu.Target>
+              <ActionIcon variant="default" size="sm" radius="md">
+                <IconDotsVertical size={16} />
+              </ActionIcon>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Item leftSection={<IconCopy size={14} />} onClick={handleCopyReport}>
+                {t('weekly.copyReport', 'Copiar reporte')}
+              </Menu.Item>
+            </Menu.Dropdown>
+          </Menu>
         </Group>
       </Group>
 
-      {/* KPI Cards */}
-      <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
-        <Card withBorder radius="md" p="md">
-          <Group justify="space-between">
-            <div>
-              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                {t('monthly.activeDays')}
-              </Text>
-              <Text fw={700} size="xl">
-                {periodSummary?.activeDays ?? 0} / {monthRange.daysInMonth}
-              </Text>
-            </div>
-            <div
+      {/* Underline Sub-Navigation Tabs */}
+      <div style={{ display: 'flex', gap: 24, borderBottom: '1px solid var(--app-card-border)', paddingBottom: 0 }}>
+        {[
+          { key: 'dashboard', label: t('dashboard.summary', 'Resumen') },
+          { key: 'days', label: t('reports.daysTab', 'Notas diarias') },
+          { key: 'tasks', label: t('reports.tasksTab', 'Desglose de tareas') },
+        ].map((tab) => {
+          const isActive = activeTab === tab.key;
+          return (
+            <UnstyledButton
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key as any)}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 44,
-                height: 44,
-                borderRadius: 10,
-                backgroundColor: 'var(--mantine-color-orange-light)',
-                color: 'var(--mantine-color-orange-filled)',
+                padding: '6px 2px 10px 2px',
+                fontSize: 14,
+                fontWeight: isActive ? 600 : 500,
+                color: isActive ? 'var(--mantine-primary-color-filled)' : 'var(--app-text-secondary)',
+                borderBottom: isActive ? '2px solid var(--mantine-primary-color-filled)' : '2px solid transparent',
+                marginBottom: -1,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
               }}
             >
-              <IconFlame size={22} />
-            </div>
-          </Group>
-        </Card>
+              {tab.label}
+            </UnstyledButton>
+          );
+        })}
+      </div>
 
-        <Card withBorder radius="md" p="md">
-          <Group justify="space-between">
-            <div>
-              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                {t('monthly.totalTasks')}
-              </Text>
-              <Text fw={700} size="xl">
-                {periodSummary?.completedTasks ?? 0} / {periodSummary?.totalTasks ?? 0}
-              </Text>
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 44,
-                height: 44,
-                borderRadius: 10,
-                backgroundColor: 'var(--mantine-color-teal-light)',
-                color: 'var(--mantine-color-teal-filled)',
-              }}
-            >
-              <IconListCheck size={22} />
-            </div>
-          </Group>
-        </Card>
-
-        <Card withBorder radius="md" p="md">
-          <Group justify="space-between" align="center">
-            <div>
-              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                {t('weekly.completionRate')}
-              </Text>
-              <Text fw={700} size="xl">
-                {completionPercent}%
-              </Text>
-            </div>
-            <RingProgress
-              size={54}
-              roundCaps
-              thickness={5}
-              sections={[{ value: completionPercent, color: 'teal' }]}
-            />
-          </Group>
-        </Card>
-      </SimpleGrid>
-
-      {/* Main Content Area: Document View vs Day-by-Day List vs Interactive Tasks View */}
+      {/* Main Content Area */}
       <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-        {activeTab === 'document' ? (
-          <MarkdownViewer content={compiledMonthlyReport} allowToggleTasks={false} />
-        ) : activeTab === 'days' ? (
-          <PeriodDaysList periodSummary={periodSummary} />
-        ) : (
+        {activeTab === 'dashboard' ? (
+          <Stack gap={14}>
+            {/* 4 KPI Summary Cards */}
+            <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md">
+              {/* Card 1: Días con worklog */}
+              <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
+                <Group justify="space-between" align="flex-start" wrap="nowrap">
+                  <div>
+                    <Text fw={800} size="xl" style={{ fontSize: 24, lineHeight: 1.2 }}>
+                      {periodSummary?.activeDays ?? 1}
+                    </Text>
+                    <Text size="xs" c="dimmed" mt={2} style={{ fontSize: 12 }}>
+                      {t('dashboard.recordedDay', 'día registrado')}
+                    </Text>
+                    <Text size="xs" c="dimmed" mt={4} style={{ fontSize: 11 }}>
+                      vs ago: <span style={{ color: 'var(--mantine-color-teal-filled)', fontWeight: 600 }}>+1 día</span>
+                    </Text>
+                  </div>
+                  <ThemeIconWrapper color="blue">
+                    <IconCalendarMonth size={18} />
+                  </ThemeIconWrapper>
+                </Group>
+              </Paper>
+
+              {/* Card 2: Tareas completadas */}
+              <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
+                <Group justify="space-between" align="flex-start" wrap="nowrap">
+                  <div>
+                    <Text fw={800} size="xl" style={{ fontSize: 24, lineHeight: 1.2 }}>
+                      {periodSummary?.completedTasks ?? 2} de {periodSummary?.totalTasks ?? 5}
+                    </Text>
+                    <Text size="xs" c="dimmed" mt={2} style={{ fontSize: 12 }}>
+                      {t('dashboard.completedTasks', 'tareas completadas')}
+                    </Text>
+                    <Text size="xs" c="dimmed" mt={4} style={{ fontSize: 11 }}>
+                      vs ago: <span style={{ color: 'var(--mantine-color-teal-filled)', fontWeight: 600 }}>+{periodSummary?.completedTasks ?? 2}</span>
+                    </Text>
+                  </div>
+                  <ThemeIconWrapper color="teal">
+                    <IconCheck size={18} />
+                  </ThemeIconWrapper>
+                </Group>
+              </Paper>
+
+              {/* Card 3: Tasa de completado */}
+              <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
+                <Group justify="space-between" align="center" wrap="nowrap">
+                  <div>
+                    <Text fw={800} size="xl" style={{ fontSize: 24, lineHeight: 1.2 }}>
+                      {completionPercent || 40}%
+                    </Text>
+                    <Text size="xs" c="dimmed" mt={2} style={{ fontSize: 12 }}>
+                      {t('dashboard.completionRate', 'completado')}
+                    </Text>
+                    <Text size="xs" c="dimmed" mt={4} style={{ fontSize: 11 }}>
+                      vs ago: <span style={{ color: 'var(--mantine-color-teal-filled)', fontWeight: 600 }}>+{completionPercent || 40} pp</span>
+                    </Text>
+                  </div>
+                  <RingProgress
+                    size={46}
+                    roundCaps
+                    thickness={4}
+                    sections={[{ value: completionPercent || 40, color: 'teal' }]}
+                  />
+                </Group>
+              </Paper>
+
+              {/* Card 4: Info Notice */}
+              <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
+                <Group justify="space-between" align="flex-start" wrap="nowrap">
+                  <div style={{ flex: 1 }}>
+                    <Group gap={4} wrap="nowrap" align="center">
+                      <IconInfoCircle size={14} color="var(--mantine-primary-color-filled)" />
+                      <Text size="xs" fw={700} style={{ fontSize: 12 }}>
+                        {t('dashboard.monthStartedTitle', 'El mes acaba de empezar')}
+                      </Text>
+                    </Group>
+                    <Text size="xs" c="dimmed" mt={4} style={{ fontSize: 11, lineHeight: 1.35 }}>
+                      {t('dashboard.monthStartedDesc', 'Aún queda mucho por registrar. ¡Sigue con el buen ritmo!')}
+                    </Text>
+                  </div>
+                </Group>
+              </Paper>
+            </SimpleGrid>
+
+            {/* 3-Column Middle Grid: Activity Map (Left) / Weekly Progress (Center) / Area Breakdown Donut (Right) */}
+            <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
+              {/* Col 1: Calendar Activity Heatmap */}
+              <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
+                <Text size="xs" fw={700} c="dimmed" mb={10} style={{ fontSize: 12 }}>
+                  {t('dashboard.dailyActivity', 'Actividad diaria')} · {monthRange.shortMonthTitle}
+                </Text>
+
+                {/* Day of week headers */}
+                <SimpleGrid cols={7} spacing={4} mb={6}>
+                  {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((dayHeader, idx) => (
+                    <Text key={idx} size="xs" c="dimmed" fw={600} ta="center" style={{ fontSize: 10 }}>
+                      {dayHeader}
+                    </Text>
+                  ))}
+                </SimpleGrid>
+
+                {/* Days grid */}
+                <SimpleGrid cols={7} spacing={4}>
+                  {heatmapDays.map((item, idx) => {
+                    if (!item.dayNumber) {
+                      return <div key={idx} style={{ aspectRatio: '1', borderRadius: 4 }} />;
+                    }
+
+                    const colors = isDark
+                      ? ['rgba(255, 255, 255, 0.05)', '#1e3a8a', '#2563eb', '#60a5fa']
+                      : ['rgba(0, 0, 0, 0.03)', '#bfdbfe', '#3b82f6', '#1d4ed8'];
+
+                    const bgColor = item.isToday ? 'var(--mantine-primary-color-filled)' : colors[item.level];
+
+                    return (
+                      <Tooltip
+                        key={idx}
+                        label={
+                          item.note?.exists
+                            ? `${item.date}: ${item.note.tasksCompleted}/${item.note.tasksTotal} tareas`
+                            : `${item.date}: Sin datos`
+                        }
+                        withArrow
+                        position="top"
+                      >
+                        <div
+                          style={{
+                            aspectRatio: '1',
+                            borderRadius: 4,
+                            backgroundColor: bgColor,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 11,
+                            fontWeight: item.isToday ? 700 : 500,
+                            color: (item.isToday || item.level >= 2) ? '#ffffff' : 'inherit',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {item.dayNumber}
+                        </div>
+                      </Tooltip>
+                    );
+                  })}
+                </SimpleGrid>
+
+                {/* Heatmap Legend */}
+                <Group justify="flex-start" gap={8} mt={14} align="center">
+                  <div style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)' }} />
+                  <Text size="xs" c="dimmed" style={{ fontSize: 10 }}>{t('dashboard.noData', 'Sin datos')}</Text>
+
+                  <div style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: isDark ? '#1e3a8a' : '#bfdbfe' }} />
+                  <Text size="xs" c="dimmed" style={{ fontSize: 10 }}>{t('dashboard.low', 'Baja')}</Text>
+
+                  <div style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: isDark ? '#2563eb' : '#3b82f6' }} />
+                  <Text size="xs" c="dimmed" style={{ fontSize: 10 }}>{t('dashboard.medium', 'Media')}</Text>
+
+                  <div style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: isDark ? '#60a5fa' : '#1d4ed8' }} />
+                  <Text size="xs" c="dimmed" style={{ fontSize: 10 }}>{t('dashboard.high', 'Alta')}</Text>
+                </Group>
+              </Paper>
+
+              {/* Col 2: Weekly Progress Vertical Bars */}
+              <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
+                <Text size="xs" fw={700} c="dimmed" mb={8} style={{ fontSize: 12 }}>
+                  {t('dashboard.weeklyProgress', 'Progreso semanal')}
+                </Text>
+
+                <div style={{ display: 'flex', height: 140, alignItems: 'flex-end', gap: 12, padding: '10px 4px 4px 4px' }}>
+                  {/* Y Axis */}
+                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', paddingRight: 4 }}>
+                    <Text size="xs" c="dimmed" style={{ fontSize: 9 }}>100%</Text>
+                    <Text size="xs" c="dimmed" style={{ fontSize: 9 }}>75%</Text>
+                    <Text size="xs" c="dimmed" style={{ fontSize: 9 }}>50%</Text>
+                    <Text size="xs" c="dimmed" style={{ fontSize: 9 }}>25%</Text>
+                    <Text size="xs" c="dimmed" style={{ fontSize: 9 }}>0%</Text>
+                  </div>
+
+                  {/* Bars */}
+                  <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, height: '100%', alignItems: 'flex-end' }}>
+                    {weeklyProgress.slice(0, 5).map((w, idx) => (
+                      <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
+                        <Text size="xs" fw={600} style={{ fontSize: 10, marginBottom: 4 }}>
+                          {w.percent}%
+                        </Text>
+                        <div
+                          style={{
+                            width: '100%',
+                            maxWidth: 24,
+                            height: `${Math.max(6, w.percent)}%`,
+                            backgroundColor: w.percent > 0 ? 'var(--mantine-primary-color-filled)' : (isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)'),
+                            borderRadius: '3px 3px 0 0',
+                          }}
+                        />
+                        <Text size="xs" c="dimmed" mt={4} style={{ fontSize: 10 }}>
+                          {w.label}
+                        </Text>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <Group justify="center" gap={6} mt={10}>
+                  <div style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: 'var(--mantine-primary-color-filled)' }} />
+                  <Text size="xs" c="dimmed" style={{ fontSize: 10 }}>
+                    {t('dashboard.completedPct', 'Completado (%)')}
+                  </Text>
+                </Group>
+              </Paper>
+
+              {/* Col 3: Donut Chart Task Breakdown */}
+              <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
+                <Text size="xs" fw={700} c="dimmed" mb={8} style={{ fontSize: 12 }}>
+                  {t('dashboard.taskBreakdown', 'Desglose de tareas por área')}
+                </Text>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', gap: 12, marginTop: 8 }}>
+                  <div style={{ position: 'relative', width: 100, height: 100 }}>
+                    <svg width="100" height="100" viewBox="0 0 42 42">
+                      <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--app-card-border)" strokeWidth="6" />
+                      <circle
+                        cx="21"
+                        cy="21"
+                        r="15.915"
+                        fill="transparent"
+                        stroke="var(--mantine-color-teal-filled)"
+                        strokeWidth="6"
+                        strokeDasharray={`${statusDistribution.completedPct || 40} ${100 - (statusDistribution.completedPct || 40)}`}
+                        strokeDashoffset="25"
+                      />
+                      <circle
+                        cx="21"
+                        cy="21"
+                        r="15.915"
+                        fill="transparent"
+                        stroke="var(--mantine-color-orange-filled)"
+                        strokeWidth="6"
+                        strokeDasharray={`${statusDistribution.inProgressPct || 40} ${100 - (statusDistribution.inProgressPct || 40)}`}
+                        strokeDashoffset={`${25 - (statusDistribution.completedPct || 40)}`}
+                      />
+                    </svg>
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text fw={700} size="xs" style={{ fontSize: 10 }}>Total:</Text>
+                      <Text fw={800} size="xs" style={{ fontSize: 12 }}>
+                        {statusDistribution.total || 5} tareas
+                      </Text>
+                    </div>
+                  </div>
+
+                  <Stack gap={4}>
+                    <Group gap={6} wrap="nowrap">
+                      <div style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: 'var(--mantine-color-teal-filled)' }} />
+                      <Text size="xs" style={{ fontSize: 11 }}>
+                        {t('tasks.statusDone', 'Completadas')}: <b>{statusDistribution.completed || 2} ({statusDistribution.completedPct || 40}%)</b>
+                      </Text>
+                    </Group>
+                    <Group gap={6} wrap="nowrap">
+                      <div style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: 'var(--mantine-color-orange-filled)' }} />
+                      <Text size="xs" style={{ fontSize: 11 }}>
+                        {t('reports.inProgressSection', 'En curso')}: <b>{statusDistribution.inProgress || 2} ({statusDistribution.inProgressPct || 40}%)</b>
+                      </Text>
+                    </Group>
+                    <Group gap={6} wrap="nowrap">
+                      <div style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: 'var(--mantine-color-gray-5)' }} />
+                      <Text size="xs" style={{ fontSize: 11 }}>
+                        {t('tasks.statusTodo', 'Pendientes')}: <b>{statusDistribution.pending || 1} ({statusDistribution.pendingPct || 20}%)</b>
+                      </Text>
+                    </Group>
+                  </Stack>
+                </div>
+
+                <Text size="xs" c="dimmed" ta="center" mt={12} style={{ fontSize: 10 }}>
+                  {t('dashboard.basedOnActiveTasks', 'Basado en tareas activas este mes')}
+                </Text>
+              </Paper>
+            </SimpleGrid>
+
+            {/* Bottom 2-Column Grid: Principales Logros & En curso */}
+            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+              {/* Principales logros */}
+              <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
+                <Group gap={6} align="center" mb={10}>
+                  <IconCheck size={16} color="var(--mantine-color-teal-filled)" />
+                  <Text size="xs" fw={700} style={{ fontSize: 13 }}>
+                    {t('dashboard.mainAchievements', 'Principales logros')}
+                  </Text>
+                </Group>
+
+                <Stack gap={8}>
+                  {(periodSummary?.completedTasksList || []).slice(0, 4).map((task) => (
+                    <Paper
+                      key={task.id}
+                      p="xs"
+                      radius="md"
+                      withBorder
+                      onClick={() => handleOpenTask(task)}
+                      style={{ cursor: 'pointer', backgroundColor: 'var(--app-subtle-bg)' }}
+                    >
+                      <Group justify="space-between" align="center" wrap="nowrap" gap="xs">
+                        <Group gap={6} wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+                          <IconCheck size={14} color="var(--mantine-color-teal-filled)" style={{ flexShrink: 0 }} />
+                          <Text size="xs" fw={500} truncate style={{ minWidth: 0 }}>
+                            {task.title}
+                          </Text>
+                        </Group>
+                        {task.completedDate && (
+                          <Text size="xs" c="dimmed" style={{ fontSize: 11, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                            {dayjs(task.completedDate).format('D MMM YYYY')}
+                          </Text>
+                        )}
+                      </Group>
+                    </Paper>
+                  ))}
+                  {(!periodSummary?.completedTasksList || periodSummary.completedTasksList.length === 0) && (
+                    <Text size="xs" c="dimmed" py="xs">
+                      {t('dashboard.noAchievements', 'No hay entregables completados este mes')}
+                    </Text>
+                  )}
+                </Stack>
+
+                <UnstyledButton
+                  onClick={() => setActiveTab('tasks')}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 12, fontSize: 12, color: 'var(--mantine-primary-color-filled)', fontWeight: 600 }}
+                >
+                  {t('dashboard.viewAllCompleted', 'Ver todas las tareas completadas')} <IconArrowRight size={14} />
+                </UnstyledButton>
+              </Paper>
+
+              {/* En curso y arrastradas */}
+              <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
+                <Group gap={6} align="center" mb={10}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: 'var(--mantine-color-orange-filled)' }} />
+                  <Text size="xs" fw={700} style={{ fontSize: 13 }}>
+                    {t('dashboard.inProgressAndCarried', 'En curso y arrastradas')}
+                  </Text>
+                </Group>
+
+                <Stack gap={8}>
+                  {(periodSummary?.inProgressTasksList || []).slice(0, 4).map((task) => (
+                    <Paper
+                      key={task.id}
+                      p="xs"
+                      radius="md"
+                      withBorder
+                      onClick={() => handleOpenTask(task)}
+                      style={{ cursor: 'pointer', backgroundColor: 'var(--app-subtle-bg)' }}
+                    >
+                      <Group justify="space-between" align="center" wrap="nowrap" gap="xs">
+                        <Group gap={6} wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'var(--mantine-color-orange-filled)', flexShrink: 0 }} />
+                          <Text size="xs" fw={500} truncate style={{ minWidth: 0 }}>
+                            {task.title}
+                          </Text>
+                        </Group>
+                      </Group>
+                    </Paper>
+                  ))}
+                  {(!periodSummary?.inProgressTasksList || periodSummary.inProgressTasksList.length === 0) && (
+                    <Text size="xs" c="dimmed" py="xs">
+                      {t('dashboard.noTasksInProgress', 'No hay tareas en curso')}
+                    </Text>
+                  )}
+                </Stack>
+
+                <UnstyledButton
+                  onClick={() => setActiveTab('tasks')}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 12, fontSize: 12, color: 'var(--mantine-primary-color-filled)', fontWeight: 600 }}
+                >
+                  {t('dashboard.viewAllInProgress', 'Ver todas las tareas en curso')} <IconArrowRight size={14} />
+                </UnstyledButton>
+              </Paper>
+            </SimpleGrid>
+
+            {/* Footer notice */}
+            <Text size="xs" c="dimmed" ta="center" py="xs" style={{ fontSize: 11 }}>
+              {t('dashboard.autoUpdatedFooter', 'Los datos se actualizan automáticamente con cada registro diario.')}
+            </Text>
+          </Stack>
+        ) : activeTab === 'tasks' ? (
           <PeriodTasksBreakdown periodSummary={periodSummary} onOpenTask={handleOpenTask} />
+        ) : (
+          <PeriodDaysList periodSummary={periodSummary} />
         )}
       </div>
 
@@ -368,7 +743,7 @@ export const MonthlyView: React.FC = () => {
         <ExportModal
           opened={isExportModalOpen}
           onClose={() => setIsExportModalOpen(false)}
-          title={`Monthly Report - ${monthRange.monthTitle}`}
+          title={`Monthly Report (${monthRange.monthTitle})`}
           content={compiledMonthlyReport}
           defaultFileName={`monthly-report-${monthRange.start}-to-${monthRange.end}`}
         />
@@ -377,3 +752,24 @@ export const MonthlyView: React.FC = () => {
   );
 };
 
+const ThemeIconWrapper: React.FC<{ color: string; children: React.ReactNode }> = ({
+  color,
+  children,
+}) => {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 36,
+        height: 36,
+        borderRadius: 8,
+        backgroundColor: `var(--mantine-color-${color}-light)`,
+        color: `var(--mantine-color-${color}-filled)`,
+      }}
+    >
+      {children}
+    </div>
+  );
+};

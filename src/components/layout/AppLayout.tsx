@@ -23,7 +23,7 @@ import { OnboardingWizardModal } from '../modals/OnboardingWizardModal';
 
 export const AppLayout: React.FC = () => {
   const { t } = useTranslation();
-  const { currentView, isLoading, openSettings } = useAppStore();
+  const { currentView, isLoading, openSettings, isSidebarCollapsed } = useAppStore();
 
   useEffect(() => {
     if (window.electronAPI?.onOpenSettings) {
@@ -47,10 +47,12 @@ export const AppLayout: React.FC = () => {
     );
   }
 
+  const sidebarWidth = isSidebarCollapsed ? 58 : 280;
+
   return (
     <AppShell
       header={{ height: 54 }}
-      navbar={{ width: 280, breakpoint: 'sm' }}
+      navbar={{ width: sidebarWidth, breakpoint: 'sm' }}
       padding="md"
       style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
     >

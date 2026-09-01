@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-01
+
+### Added
+- **Modernized Visual Design System**: Comprehensive UI redesign across all views with improved hierarchy, streamlined controls, and cohesive spacing.
+- **Top Navigation Pill Header**: Redesigned header with `Worklog: [Día] [Semana] [Mes] [Año]` and `[Tareas]` pill buttons with active outline styling.
+- **Underline Sub-Navigation Tabs**: Clean underline tabs (`[Resumen]`, `[Notas diarias]`, `[Desglose de tareas]`) for period overview views.
+- **Monthly Dashboard Overhaul**: Integrated Mon–Sun heatmap calendar grid, 5-week vertical progress bar chart, status distribution donut chart, and key achievements feed.
+- **Weekly Dashboard Overhaul**: 7-day activity visual strip with registered status indicators, project completion progress bars, and in-progress tasks breakdown with start & due dates.
+- **Yearly Analytics Dashboard Overhaul**: 12-month activity bar chart, Area distribution donut chart, and priority breakdown.
+- **Enhanced Kanban Task Cards**: Priority left accent borders, folder badges, task ID and relative date badges, tag overflow counters, and empty column states.
+
 ## [1.3.0] - 2026-09-01
 
 ### Added

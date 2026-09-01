@@ -20,6 +20,7 @@ interface AppState {
   settingsActiveTab: string;
   isLoading: boolean;
   isOnboardingOpen: boolean;
+  isSidebarCollapsed: boolean;
 
   // Tasks state
   tasks: TaskItem[];
@@ -62,6 +63,7 @@ interface AppState {
   openOnboarding: () => void;
   closeOnboarding: () => void;
   completeOnboarding: (partial?: Partial<AppSettings>) => Promise<void>;
+  toggleSidebarCollapse: (collapsed?: boolean) => void;
 
   // Tag actions
   refreshTagsList: () => Promise<void>;
@@ -128,6 +130,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   settingsActiveTab: 'general',
   isLoading: true,
   isOnboardingOpen: false,
+  isSidebarCollapsed: false,
 
   tasks: [],
   activeTask: null,
@@ -213,6 +216,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     };
     await get().updateSettings(nextSettings);
     set({ isOnboardingOpen: false });
+  },
+
+  toggleSidebarCollapse: (collapsed?: boolean) => {
+    set((state) => ({
+      isSidebarCollapsed: collapsed !== undefined ? collapsed : !state.isSidebarCollapsed,
+    }));
   },
 
   loadSettings: async () => {

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   Group,
-  SegmentedControl,
   Button,
   ActionIcon,
   Modal,
@@ -9,15 +8,11 @@ import {
   Badge,
   Grid,
   Tooltip,
+  SegmentedControl,
 } from '@mantine/core';
 import {
   IconChevronLeft,
   IconChevronRight,
-  IconColumns,
-  IconEye,
-  IconCalendarEvent,
-  IconWriting,
-  IconCode,
   IconChecklist,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
@@ -47,7 +42,7 @@ export const DailyView: React.FC = () => {
   const dayObj = dayjs(selectedDate);
   const isToday = selectedDate === dayjs().format('YYYY-MM-DD');
 
-  // Format date display based on current locale (e.g. "Thursday, August 20, 2026" / "Jueves, 20 de agosto de 2026")
+  // Format date display based on current locale (e.g. "Martes, 1 de septiembre de 2026")
   const formattedDateTitle = formatLocalizedDateTitle(selectedDate, i18n.language);
 
   const currentDayOfWeek = dayObj.day();
@@ -81,112 +76,62 @@ export const DailyView: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 12 }}>
-      {/* Daily View Sub-Header */}
-      <Group justify="space-between" align="center" wrap="wrap">
-        <Group gap="xs">
-          <ActionIcon variant="default" size="lg" onClick={handlePrevDay} radius="md">
-            <IconChevronLeft size={18} />
+      {/* Daily View Single-Row Sub-Header */}
+      <Group justify="space-between" align="center" wrap="nowrap">
+        <Group gap="xs" wrap="nowrap">
+          <ActionIcon variant="default" size="sm" onClick={handlePrevDay} radius="md">
+            <IconChevronLeft size={16} />
           </ActionIcon>
 
           <Button
             variant={isToday ? 'light' : 'default'}
-            size="sm"
-            leftSection={<IconCalendarEvent size={16} />}
+            size="xs"
             onClick={handleToday}
             radius="md"
+            style={{ fontWeight: 600 }}
           >
             {t('nav.today')}
           </Button>
 
-          <ActionIcon variant="default" size="lg" onClick={handleNextDay} radius="md">
-            <IconChevronRight size={18} />
+          <ActionIcon variant="default" size="sm" onClick={handleNextDay} radius="md">
+            <IconChevronRight size={16} />
           </ActionIcon>
 
-          <Group gap="xs" ml="xs">
-            <Text fw={700} size="lg">
+          <Group gap="xs" ml={6} wrap="nowrap">
+            <Text fw={700} size="md" style={{ letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
               {formattedDateTitle}
             </Text>
             {isToday && (
-              <Badge color="primary" variant="light" size="md">
+              <Badge color="primary" variant="light" size="sm">
                 {t('nav.today')}
               </Badge>
             )}
           </Group>
         </Group>
 
-        <Group gap="xs">
-          {/* Note Layout Switcher: Live, Split, Write, Preview */}
-          <SegmentedControl
-            value={layoutMode}
-            onChange={(val) => setLayoutMode(val as any)}
+        {/* Right Side: Daily Routines Counter */}
+        <Tooltip label={t('routines.togglePanel')}>
+          <Button
+            variant={showRoutinesPanel ? 'light' : 'default'}
+            color={isAllDone ? 'teal' : 'primary'}
             size="xs"
             radius="md"
-            transitionDuration={180}
-            className="nav-segmented-control"
-            data={[
-              {
-                value: 'live',
-                label: (
-                  <Group gap={6} justify="center" wrap="nowrap" style={{ padding: '2px 4px', whiteSpace: 'nowrap' }}>
-                    <IconWriting size={15} stroke={1.8} />
-                    <span style={{ fontWeight: 500, fontSize: 13 }}>{t('editor.live')}</span>
-                  </Group>
-                ),
-              },
-              {
-                value: 'split',
-                label: (
-                  <Group gap={6} justify="center" wrap="nowrap" style={{ padding: '2px 4px', whiteSpace: 'nowrap' }}>
-                    <IconColumns size={15} stroke={1.8} />
-                    <span style={{ fontWeight: 500, fontSize: 13 }}>{t('editor.split')}</span>
-                  </Group>
-                ),
-              },
-              {
-                value: 'edit',
-                label: (
-                  <Group gap={6} justify="center" wrap="nowrap" style={{ padding: '2px 4px', whiteSpace: 'nowrap' }}>
-                    <IconCode size={15} stroke={1.8} />
-                    <span style={{ fontWeight: 500, fontSize: 13 }}>{t('editor.write')}</span>
-                  </Group>
-                ),
-              },
-              {
-                value: 'preview',
-                label: (
-                  <Group gap={6} justify="center" wrap="nowrap" style={{ padding: '2px 4px', whiteSpace: 'nowrap' }}>
-                    <IconEye size={15} stroke={1.8} />
-                    <span style={{ fontSize: 13, fontWeight: 500 }}>{t('editor.preview')}</span>
-                  </Group>
-                ),
-              },
-            ]}
-          />
-
-          {/* Daily Routines Toggle Button (Right-aligned above Routines Panel) */}
-          <Tooltip label={t('routines.togglePanel')}>
-            <Button
-              variant={showRoutinesPanel ? 'light' : 'default'}
-              color={isAllDone ? 'teal' : 'primary'}
-              size="xs"
-              radius="md"
-              leftSection={<IconChecklist size={15} />}
-              onClick={toggleDailyRoutinesPanel}
-            >
-              {t('routines.panelTitle')}
-              {totalActiveRoutines > 0 && (
-                <Badge
-                  size="xs"
-                  variant={isAllDone ? 'filled' : 'light'}
-                  color={isAllDone ? 'teal' : 'blue'}
-                  ml={6}
-                >
-                  {completedRoutinesCount}/{totalActiveRoutines}
-                </Badge>
-              )}
-            </Button>
-          </Tooltip>
-        </Group>
+            leftSection={<IconChecklist size={15} />}
+            onClick={toggleDailyRoutinesPanel}
+          >
+            {t('routines.panelTitle')}
+            {totalActiveRoutines > 0 && (
+              <Badge
+                size="xs"
+                variant={isAllDone ? 'filled' : 'light'}
+                color={isAllDone ? 'teal' : 'blue'}
+                ml={6}
+              >
+                {completedRoutinesCount}/{totalActiveRoutines}
+              </Badge>
+            )}
+          </Button>
+        </Tooltip>
       </Group>
 
       {/* Main Body: Editor / Viewer Container + Right Side Routines Panel */}
@@ -197,6 +142,8 @@ export const DailyView: React.FC = () => {
             <div style={{ height: '100%' }}>
               <MarkdownEditor
                 isLivePreview={true}
+                layoutMode={layoutMode}
+                onLayoutModeChange={setLayoutMode}
                 onExportClick={() => setIsExportModalOpen(true)}
                 onDeleteClick={() => setIsDeleteModalOpen(true)}
               />
@@ -208,6 +155,8 @@ export const DailyView: React.FC = () => {
               <Grid.Col span={{ base: 12, md: 6 }} style={{ height: '100%' }}>
                 <MarkdownEditor
                   isLivePreview={false}
+                  layoutMode={layoutMode}
+                  onLayoutModeChange={setLayoutMode}
                   onExportClick={() => setIsExportModalOpen(true)}
                   onDeleteClick={() => setIsDeleteModalOpen(true)}
                 />
@@ -222,6 +171,8 @@ export const DailyView: React.FC = () => {
             <div style={{ height: '100%' }}>
               <MarkdownEditor
                 isLivePreview={false}
+                layoutMode={layoutMode}
+                onLayoutModeChange={setLayoutMode}
                 onExportClick={() => setIsExportModalOpen(true)}
                 onDeleteClick={() => setIsDeleteModalOpen(true)}
               />
@@ -229,8 +180,51 @@ export const DailyView: React.FC = () => {
           )}
 
           {layoutMode === 'preview' && (
-            <div style={{ height: '100%' }}>
-              <MarkdownViewer allowToggleTasks={true} />
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <div
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px 8px 0 0',
+                  border: '1px solid var(--app-card-border)',
+                  borderBottom: 'none',
+                  backgroundColor: 'var(--app-subtle-bg)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <Text size="xs" fw={600} c="dimmed">
+                  {t('editor.preview')}
+                </Text>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <SegmentedControl
+                    value={layoutMode}
+                    onChange={(val: string) => setLayoutMode(val as any)}
+                    size="xs"
+                    radius="md"
+                    className="nav-segmented-control"
+                    data={[
+                      { label: t('editor.live'), value: 'live' },
+                      { label: t('editor.split'), value: 'split' },
+                      { label: t('editor.write'), value: 'edit' },
+                      { label: t('editor.preview'), value: 'preview' },
+                    ]}
+                  />
+                </div>
+              </div>
+              <div
+                style={{
+                  flex: 1,
+                  minHeight: 0,
+                  overflow: 'auto',
+                  border: '1px solid var(--app-card-border)',
+                  borderRadius: '0 0 8px 8px',
+                  padding: 16,
+                  backgroundColor: 'var(--app-card-bg)',
+                }}
+              >
+                <MarkdownViewer allowToggleTasks={true} />
+              </div>
             </div>
           )}
         </div>
@@ -279,4 +273,5 @@ export const DailyView: React.FC = () => {
     </div>
   );
 };
+
 
