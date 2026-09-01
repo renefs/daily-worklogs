@@ -123,12 +123,20 @@ textarea {
   height: 100% !important;
   font-family: var(--font-mono) !important;
   border-radius: 8px;
+  background-color: var(--app-card-bg) !important;
+}
+
+.cm-editor .cm-gutters {
+  background-color: var(--app-subtle-bg) !important;
+  border-right: 1px solid var(--app-card-border) !important;
+  color: var(--app-sidebar-text-dimmed) !important;
 }
 
 .cm-scroller {
   padding: 12px 0;
   font-family: var(--font-mono) !important;
   line-height: 1.6 !important;
+  background-color: transparent !important;
 }
 
 .cm-content {

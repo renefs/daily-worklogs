@@ -1043,7 +1043,7 @@ export const SettingsModal: React.FC = () => {
                       Daily Worklog
                     </Text>
                     <Badge size="lg" variant="gradient" gradient={{ from: 'primary', to: 'indigo', deg: 45 }}>
-                      v{appInfo?.version || '1.5.0'}
+                      v{appInfo?.version || '1.6.0'}
                     </Badge>
                   </Group>
                   <Text size="sm" c="dimmed" style={{ maxWidth: 460 }}>
@@ -1062,7 +1062,7 @@ export const SettingsModal: React.FC = () => {
                     <Stack gap={8}>
                       <Group justify="space-between">
                         <Text size="xs" c="dimmed">{t('settings.appVersion')}:</Text>
-                        <Badge size="sm" variant="filled" color="primary">{appInfo?.version || '1.5.0'}</Badge>
+                        <Badge size="sm" variant="filled" color="primary">{appInfo?.version || '1.6.0'}</Badge>
                       </Group>
                       <Divider />
                       <Group justify="space-between">

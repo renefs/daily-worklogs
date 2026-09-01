@@ -52,7 +52,7 @@ export const AppLayout: React.FC = () => {
 
   return (
     <AppShell
-      header={{ height: 44 }}
+      header={{ height: 48 }}
       navbar={{ width: sidebarWidth, breakpoint: 'sm' }}
       padding="md"
       style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
@@ -68,7 +68,7 @@ export const AppLayout: React.FC = () => {
       <AppShell.Main
         className="app-main-content"
         style={{
-          height: 'calc(100vh - 44px)',
+          height: 'calc(100vh - 48px)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',

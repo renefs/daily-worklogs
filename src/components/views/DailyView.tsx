@@ -107,7 +107,7 @@ export const DailyView: React.FC = () => {
               whiteSpace: 'nowrap',
             }}
           >
-            {formattedDateTitle}
+            {isToday ? t('daily.todaysWorklog', "Today's worklog") : formattedDateTitle}
           </Text>
         </Group>
 

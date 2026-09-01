@@ -35,8 +35,9 @@ export const AppHeader: React.FC = () => {
   return (
     <Group
       h="100%"
-      px="md"
-      pl={isMac ? 78 : 'md'}
+      px="sm"
+      pl={isMac ? 80 : 'sm'}
+      align="center"
       justify="space-between"
       wrap="nowrap"
       className="app-drag-region"
@@ -47,7 +48,7 @@ export const AppHeader: React.FC = () => {
       }}
     >
       {/* App Branding */}
-      <Group gap="xs" wrap="nowrap" className="app-no-drag" style={{ flexShrink: 0 }}>
+      <Group gap={8} wrap="nowrap" align="center" className="app-no-drag" style={{ flexShrink: 0 }}>
         <div
           style={{
             display: 'flex',
@@ -58,7 +59,7 @@ export const AppHeader: React.FC = () => {
             borderRadius: 6,
             backgroundColor: 'var(--mantine-primary-color-filled)',
             color: '#fff',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.15)',
+            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.15)',
           }}
         >
           <IconBook2 size={15} stroke={2.2} />
@@ -70,13 +71,14 @@ export const AppHeader: React.FC = () => {
             fontFamily: 'var(--font-display)',
             letterSpacing: '-0.02em',
             whiteSpace: 'nowrap',
+            fontSize: 13.5,
           }}
         >
           Worklog
         </Text>
       </Group>
 
-      {/* Center View Selector: Cleaner Segmented Time Navigation + Visually Separated Tasks */}
+      {/* Center View Selector: Compact Segmented Time Navigation + Visually Separated Tasks */}
       <div
         className="app-no-drag"
         style={{
@@ -84,7 +86,7 @@ export const AppHeader: React.FC = () => {
           alignItems: 'center',
           justifyContent: 'center',
           flexShrink: 0,
-          gap: 10,
+          gap: 8,
         }}
       >
         <SegmentedControl
@@ -108,7 +110,7 @@ export const AppHeader: React.FC = () => {
         <div
           style={{
             width: 1,
-            height: 18,
+            height: 16,
             backgroundColor: 'var(--app-header-border)',
             margin: '0 2px',
           }}
@@ -122,10 +124,10 @@ export const AppHeader: React.FC = () => {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 6,
-            padding: '4px 10px',
+            gap: 5,
+            padding: '3px 8px',
             borderRadius: 6,
-            fontSize: 13,
+            fontSize: 12,
             fontWeight: isTasksActive ? 600 : 500,
             color: isTasksActive ? 'var(--mantine-primary-color-filled)' : 'var(--app-text-secondary)',
             backgroundColor: isTasksActive ? 'var(--mantine-primary-color-light)' : 'transparent',
@@ -135,13 +137,13 @@ export const AppHeader: React.FC = () => {
             userSelect: 'none',
           }}
         >
-          <IconCheckbox size={15} stroke={isTasksActive ? 2.2 : 1.8} />
+          <IconCheckbox size={14} stroke={isTasksActive ? 2.2 : 1.8} />
           <span>{t('nav.tasks')}</span>
         </UnstyledButton>
       </div>
 
-      {/* Right Controls: Settings */}
-      <Group gap={8} wrap="nowrap" className="app-no-drag" style={{ flexShrink: 0 }}>
+      {/* Right Controls: Settings with muted styling */}
+      <Group gap={6} wrap="nowrap" align="center" className="app-no-drag" style={{ flexShrink: 0 }}>
         <Tooltip label={t('settings.title')} withArrow position="bottom">
           <ActionIcon
             variant="subtle"
@@ -150,6 +152,7 @@ export const AppHeader: React.FC = () => {
             color="gray"
             onClick={() => setIsSettingsOpen(true)}
             aria-label="Open settings"
+            style={{ color: 'var(--app-sidebar-text-dimmed)' }}
           >
             <IconSettings size={16} stroke={1.8} />
           </ActionIcon>

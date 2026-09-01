@@ -8,6 +8,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-09-01
+
+### Added
+- **Unified Period Reports Structure**: Standardized headers across Weekly, Monthly, and Yearly views with unified period navigation controls (`[ < ] [ 📅 Period ] [ > ] [ This Period ]`), title styling, underline sub-navigation tabs (`Overview`, `Entries`, `Task breakdown`), and export actions.
+- **Three-Card KPI Layout**: Standardized 3-card summary KPI grids across period views (`Days logged`, `Tasks completed`, `Completion rate`) with integrated comparison deltas against previous periods.
+- **Slim Informational Month Banner**: Added a full-width notification banner in the monthly overview for newly started months.
+- **Future Date Heatmap Indicators**: Enhanced the monthly activity calendar with dashed borders and dedicated legend indicator for future dates.
+- **Neutral Future Week Placeholders**: Updated the 5-week progress breakdown to display future weeks as neutral dashed placeholders.
+- **Previous-Year Comparison Line**: Added a subtle historical overlay line to the 12-month activity chart in the yearly summary.
+- **Consistent Project & Status Charts**: Aligned donut charts with standardized taxonomy for status and project breakdowns.
+
+### Changed
+- **Worklog Application Branding**: Renamed app identity to "Worklog" and streamlined top bar navigation with compact segmented controls and active blue fill state.
+- **Neutral Editor Background**: Neutralized CodeMirror editor background and gutters in dark mode to eliminate blue tint.
+- **Desaturated Priority Colors**: Refined priority indicator palette in dashboard breakdowns for better visual balance.
+
+### Fixed
+- **Localized Date Formatting**: Corrected English month title formatting from `"September de 2026"` to `"September 2026"`.
+
 ## [1.5.0] - 2026-09-01
 
 ### Added

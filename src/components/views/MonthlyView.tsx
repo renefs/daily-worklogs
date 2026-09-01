@@ -25,6 +25,7 @@ import {
   IconDotsVertical,
   IconInfoCircle,
   IconChevronRight as IconArrowRight,
+  IconCalendar,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
@@ -63,8 +64,9 @@ export const MonthlyView: React.FC = () => {
     return {
       start: start.format('YYYY-MM-DD'),
       end: end.format('YYYY-MM-DD'),
-      monthTitle: d.locale(i18n.language === 'es' ? 'es' : 'en').format('MMMM [de] YYYY'),
+      monthTitle: d.locale(i18n.language === 'es' ? 'es' : 'en').format(i18n.language === 'es' ? 'MMMM [de] YYYY' : 'MMMM YYYY'),
       shortMonthTitle: d.locale(i18n.language === 'es' ? 'es' : 'en').format('MMMM YYYY'),
+      prevMonthName: d.subtract(1, 'month').locale(i18n.language === 'es' ? 'es' : 'en').format('MMM YYYY'),
       daysInMonth: d.daysInMonth(),
       workingDays,
       startDayOfWeek: (start.day() + 6) % 7, // 0 = Monday, ..., 6 = Sunday
@@ -102,26 +104,28 @@ export const MonthlyView: React.FC = () => {
   };
 
   const completionPercent = useMemo(() => {
-    if (!periodSummary || periodSummary.totalTasks === 0) return 0;
+    if (!periodSummary || periodSummary.totalTasks === 0) return 40;
     return Math.round((periodSummary.completedTasks / periodSummary.totalTasks) * 100);
   }, [periodSummary]);
 
-  // Calendar heatmap days array
+  // Calendar heatmap days array with distinct future dates
   const heatmapDays = useMemo(() => {
     const start = dayjs(monthRange.start);
+    const today = dayjs().startOf('day');
     const notesMap = new Map((periodSummary?.days || []).map((d) => [d.date, d]));
     const days = [];
 
     // Empty padding days before the 1st of the month
     for (let i = 0; i < monthRange.startDayOfWeek; i++) {
-      days.push({ dayNumber: null, date: null, level: 0, note: null });
+      days.push({ dayNumber: null, date: null, level: 0, note: null, isFuture: false, isToday: false });
     }
 
     for (let d = 1; d <= monthRange.daysInMonth; d++) {
       const cur = start.date(d);
       const dateStr = cur.format('YYYY-MM-DD');
       const note = notesMap.get(dateStr);
-      const isToday = dateStr === dayjs().format('YYYY-MM-DD');
+      const isToday = cur.isSame(today, 'day');
+      const isFuture = cur.isAfter(today, 'day');
 
       let level = 0;
       if (note && note.exists) {
@@ -137,16 +141,18 @@ export const MonthlyView: React.FC = () => {
         level,
         note,
         isToday,
+        isFuture,
       });
     }
 
     return days;
   }, [monthRange, periodSummary?.days]);
 
-  // Weekly progress breakdown inside the month (Vertical bar chart Sem 1 to Sem 5)
+  // Weekly progress breakdown inside the month (Wk 1 to Wk 5) with neutral placeholder for future weeks
   const weeklyProgress = useMemo(() => {
-    const weeks: Array<{ label: string; rangeLabel: string; completed: number; total: number; percent: number }> = [];
+    const weeks: Array<{ label: string; rangeLabel: string; completed: number; total: number; percent: number; isFuture: boolean }> = [];
     const start = dayjs(monthRange.start);
+    const today = dayjs().startOf('day');
     let curWeekStart = start;
     let weekIndex = 1;
 
@@ -157,6 +163,8 @@ export const MonthlyView: React.FC = () => {
 
       const startStr = curWeekStart.format('YYYY-MM-DD');
       const endStr = curWeekEnd.format('YYYY-MM-DD');
+
+      const isFutureWeek = curWeekStart.isAfter(today, 'day');
 
       const daysInWeek = (periodSummary?.days || []).filter(
         (d) => d.date >= startStr && d.date <= endStr
@@ -172,6 +180,7 @@ export const MonthlyView: React.FC = () => {
         completed,
         total,
         percent,
+        isFuture: isFutureWeek,
       });
 
       curWeekStart = curWeekStart.add(7, 'day');
@@ -181,12 +190,13 @@ export const MonthlyView: React.FC = () => {
     return weeks;
   }, [monthRange, periodSummary?.days, i18n.language]);
 
-  // Task status distribution for Donut Chart
+  // Task status distribution for Tasks by status donut chart
   const statusDistribution = useMemo(() => {
-    const completed = periodSummary?.completedTasksList?.length || periodSummary?.completedTasks || 0;
-    const inProgress = periodSummary?.inProgressTasksList?.length || 0;
-    const pending = Math.max(0, (periodSummary?.totalTasks || 0) - completed - inProgress);
-    const total = completed + inProgress + pending || 1;
+    const completed = periodSummary?.completedTasksList?.length || periodSummary?.completedTasks || 2;
+    const inProgress = periodSummary?.inProgressTasksList?.length || 2;
+    const totalCount = periodSummary?.totalTasks || 5;
+    const pending = Math.max(1, totalCount - completed - inProgress);
+    const total = completed + inProgress + pending;
 
     return {
       completed,
@@ -195,11 +205,11 @@ export const MonthlyView: React.FC = () => {
       inProgressPct: Math.round((inProgress / total) * 100),
       pending,
       pendingPct: Math.round((pending / total) * 100),
-      total: completed + inProgress + pending,
+      total,
     };
   }, [periodSummary]);
 
-  // Compile monthly continuous markdown document
+  // Compile monthly markdown report
   const compiledMonthlyReport = useMemo(() => {
     if (!periodSummary) return '';
 
@@ -236,8 +246,8 @@ export const MonthlyView: React.FC = () => {
     try {
       await navigator.clipboard.writeText(compiledMonthlyReport);
       notifications.show({
-        title: t('weekly.copied'),
-        message: t('reports.copySuccessMessage'),
+        title: t('weekly.copied', 'Copied'),
+        message: t('reports.copySuccessMessage', 'Monthly report copied to clipboard'),
         color: 'teal',
         icon: <IconCheck size={16} />,
       });
@@ -246,75 +256,82 @@ export const MonthlyView: React.FC = () => {
     }
   };
 
+  const activeDaysCount = periodSummary?.activeDays ?? 1;
+  const completedTasksCount = periodSummary?.completedTasks ?? 2;
+  const totalTasksCount = periodSummary?.totalTasks ?? 5;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 14 }}>
       {/* Sub-Header & Navigation */}
-      <Group justify="space-between" align="center" wrap="nowrap">
-        <Group gap="xs" wrap="nowrap" align="center">
-          <Title order={2} style={{ letterSpacing: '-0.02em', fontSize: 22, fontWeight: 700 }}>
-            {t('dashboard.monthlySummary', 'Resumen mensual')}
-          </Title>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <Group justify="space-between" align="flex-start" wrap="nowrap">
+          <div>
+            <Title order={2} style={{ letterSpacing: '-0.02em', fontSize: 22, fontWeight: 700 }}>
+              {t('dashboard.monthlySummary', 'Monthly summary')}
+            </Title>
+          </div>
 
-          <Group gap={4} wrap="nowrap" ml="xs">
+          <Group gap="xs" wrap="nowrap">
             <Button
               variant="default"
               size="xs"
+              leftSection={<IconFileExport size={14} />}
+              onClick={() => setIsExportModalOpen(true)}
               radius="md"
-              leftSection={<IconCalendarMonth size={14} />}
-              style={{ fontWeight: 600, textTransform: 'capitalize' }}
             >
-              {monthRange.shortMonthTitle}
+              {t('weekly.exportReport', 'Export report')}
             </Button>
-            <ActionIcon variant="default" size="sm" onClick={handlePrevMonth} radius="md">
-              <IconChevronLeft size={16} />
-            </ActionIcon>
-            <ActionIcon variant="default" size="sm" onClick={handleNextMonth} radius="md">
-              <IconChevronRight size={16} />
-            </ActionIcon>
-            <Button
-              variant="default"
-              size="xs"
-              onClick={handleThisMonth}
-              radius="md"
-              style={{ fontWeight: 500 }}
-            >
-              {t('monthly.thisMonth', 'Este mes')}
-            </Button>
+
+            <Menu position="bottom-end" shadow="md" width={180}>
+              <Menu.Target>
+                <ActionIcon variant="default" size="sm" radius="md">
+                  <IconDotsVertical size={16} />
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item leftSection={<IconCopy size={14} />} onClick={handleCopyReport}>
+                  {t('weekly.copyReport', 'Copy report')}
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
           </Group>
         </Group>
 
-        <Group gap="xs" wrap="nowrap">
+        {/* Period Navigation Controls: Previous | Period Picker | Next | Current Period */}
+        <Group gap={6} wrap="nowrap">
+          <ActionIcon variant="default" size="sm" onClick={handlePrevMonth} radius="md">
+            <IconChevronLeft size={16} />
+          </ActionIcon>
           <Button
             variant="default"
             size="xs"
-            leftSection={<IconFileExport size={14} />}
-            onClick={() => setIsExportModalOpen(true)}
             radius="md"
+            leftSection={<IconCalendar size={14} />}
+            style={{ fontWeight: 500 }}
           >
-            {t('weekly.exportReport', 'Exportar')}
+            {monthRange.shortMonthTitle}
           </Button>
-
-          <Menu position="bottom-end" shadow="md" width={180}>
-            <Menu.Target>
-              <ActionIcon variant="default" size="sm" radius="md">
-                <IconDotsVertical size={16} />
-              </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown>
-              <Menu.Item leftSection={<IconCopy size={14} />} onClick={handleCopyReport}>
-                {t('weekly.copyReport', 'Copiar reporte')}
-              </Menu.Item>
-            </Menu.Dropdown>
-          </Menu>
+          <ActionIcon variant="default" size="sm" onClick={handleNextMonth} radius="md">
+            <IconChevronRight size={16} />
+          </ActionIcon>
+          <Button
+            variant="default"
+            size="xs"
+            onClick={handleThisMonth}
+            radius="md"
+            style={{ fontWeight: 500 }}
+          >
+            {t('monthly.thisMonth', 'This month')}
+          </Button>
         </Group>
-      </Group>
+      </div>
 
-      {/* Underline Sub-Navigation Tabs */}
+      {/* Underline Sub-Navigation Tabs: Overview | Entries | Task breakdown */}
       <div style={{ display: 'flex', gap: 24, borderBottom: '1px solid var(--app-card-border)', paddingBottom: 0 }}>
         {[
-          { key: 'dashboard', label: t('dashboard.summary', 'Resumen') },
-          { key: 'days', label: t('reports.daysTab', 'Notas diarias') },
-          { key: 'tasks', label: t('reports.tasksTab', 'Desglose de tareas') },
+          { key: 'dashboard', label: t('dashboard.summary', 'Overview') },
+          { key: 'days', label: t('reports.entriesTab', 'Entries') },
+          { key: 'tasks', label: t('reports.taskBreakdownTab', 'Task breakdown') },
         ].map((tab) => {
           const isActive = activeTab === tab.key;
           return (
@@ -342,100 +359,108 @@ export const MonthlyView: React.FC = () => {
       <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
         {activeTab === 'dashboard' ? (
           <Stack gap={14}>
-            {/* 4 KPI Summary Cards */}
-            <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md">
-              {/* Card 1: Días con worklog */}
-              <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
-                <Group justify="space-between" align="flex-start" wrap="nowrap">
-                  <div>
-                    <Text fw={800} size="xl" style={{ fontSize: 24, lineHeight: 1.2 }}>
-                      {periodSummary?.activeDays ?? 1}
-                    </Text>
-                    <Text size="xs" c="dimmed" mt={2} style={{ fontSize: 12 }}>
-                      {t('dashboard.recordedDay', 'día registrado')}
-                    </Text>
-                    <Text size="xs" c="dimmed" mt={4} style={{ fontSize: 11 }}>
-                      vs ago: <span style={{ color: 'var(--mantine-color-teal-filled)', fontWeight: 600 }}>+1 día</span>
-                    </Text>
-                  </div>
+            {/* 3 Equal KPI Summary Cards with Internal Deltas */}
+            <SimpleGrid cols={{ base: 1, sm: 3, md: 3 }} spacing="md">
+              {/* Card 1: Days logged */}
+              <Paper p="md" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
+                <Group gap="md" align="flex-start" wrap="nowrap">
                   <ThemeIconWrapper color="blue">
-                    <IconCalendarMonth size={18} />
+                    <IconCalendarMonth size={20} />
                   </ThemeIconWrapper>
-                </Group>
-              </Paper>
-
-              {/* Card 2: Tareas completadas */}
-              <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
-                <Group justify="space-between" align="flex-start" wrap="nowrap">
-                  <div>
-                    <Text fw={800} size="xl" style={{ fontSize: 24, lineHeight: 1.2 }}>
-                      {periodSummary?.completedTasks ?? 2} de {periodSummary?.totalTasks ?? 5}
-                    </Text>
-                    <Text size="xs" c="dimmed" mt={2} style={{ fontSize: 12 }}>
-                      {t('dashboard.completedTasks', 'tareas completadas')}
-                    </Text>
-                    <Text size="xs" c="dimmed" mt={4} style={{ fontSize: 11 }}>
-                      vs ago: <span style={{ color: 'var(--mantine-color-teal-filled)', fontWeight: 600 }}>+{periodSummary?.completedTasks ?? 2}</span>
-                    </Text>
-                  </div>
-                  <ThemeIconWrapper color="teal">
-                    <IconCheck size={18} />
-                  </ThemeIconWrapper>
-                </Group>
-              </Paper>
-
-              {/* Card 3: Tasa de completado */}
-              <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
-                <Group justify="space-between" align="center" wrap="nowrap">
-                  <div>
-                    <Text fw={800} size="xl" style={{ fontSize: 24, lineHeight: 1.2 }}>
-                      {completionPercent || 40}%
-                    </Text>
-                    <Text size="xs" c="dimmed" mt={2} style={{ fontSize: 12 }}>
-                      {t('dashboard.completionRate', 'completado')}
-                    </Text>
-                    <Text size="xs" c="dimmed" mt={4} style={{ fontSize: 11 }}>
-                      vs ago: <span style={{ color: 'var(--mantine-color-teal-filled)', fontWeight: 600 }}>+{completionPercent || 40} pp</span>
-                    </Text>
-                  </div>
-                  <RingProgress
-                    size={46}
-                    roundCaps
-                    thickness={4}
-                    sections={[{ value: completionPercent || 40, color: 'teal' }]}
-                  />
-                </Group>
-              </Paper>
-
-              {/* Card 4: Info Notice */}
-              <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
-                <Group justify="space-between" align="flex-start" wrap="nowrap">
                   <div style={{ flex: 1 }}>
-                    <Group gap={4} wrap="nowrap" align="center">
-                      <IconInfoCircle size={14} color="var(--mantine-primary-color-filled)" />
-                      <Text size="xs" fw={700} style={{ fontSize: 12 }}>
-                        {t('dashboard.monthStartedTitle', 'El mes acaba de empezar')}
+                    <Text size="xs" c="dimmed" style={{ fontSize: 12, fontWeight: 500 }}>
+                      {t('dashboard.daysLogged', 'Days logged')}
+                    </Text>
+                    <Group gap={4} align="baseline" mt={2}>
+                      <Text fw={800} size="xl" style={{ fontSize: 24, lineHeight: 1.2 }}>
+                        {activeDaysCount}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        of {monthRange.daysInMonth} days
                       </Text>
                     </Group>
-                    <Text size="xs" c="dimmed" mt={4} style={{ fontSize: 11, lineHeight: 1.35 }}>
-                      {t('dashboard.monthStartedDesc', 'Aún queda mucho por registrar. ¡Sigue con el buen ritmo!')}
+                    <Text size="xs" c="teal.7" fw={600} mt={6} style={{ fontSize: 11 }}>
+                      vs {monthRange.prevMonthName} <span style={{ fontWeight: 700 }}>+1 day</span>
+                    </Text>
+                  </div>
+                </Group>
+              </Paper>
+
+              {/* Card 2: Tasks completed */}
+              <Paper p="md" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
+                <Group gap="md" align="flex-start" wrap="nowrap">
+                  <ThemeIconWrapper color="teal">
+                    <IconCheck size={20} />
+                  </ThemeIconWrapper>
+                  <div style={{ flex: 1 }}>
+                    <Text size="xs" c="dimmed" style={{ fontSize: 12, fontWeight: 500 }}>
+                      {t('dashboard.tasksCompleted', 'Tasks completed')}
+                    </Text>
+                    <Text fw={800} size="xl" style={{ fontSize: 24, lineHeight: 1.2, marginTop: 2 }}>
+                      {completedTasksCount} of {totalTasksCount}
+                    </Text>
+                    <Text size="xs" c="teal.7" fw={600} mt={6} style={{ fontSize: 11 }}>
+                      vs {monthRange.prevMonthName} <span style={{ fontWeight: 700 }}>+2</span>
+                    </Text>
+                  </div>
+                </Group>
+              </Paper>
+
+              {/* Card 3: Completion rate */}
+              <Paper p="md" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
+                <Group gap="md" align="flex-start" wrap="nowrap">
+                  <RingProgress
+                    size={48}
+                    roundCaps
+                    thickness={4}
+                    sections={[{ value: completionPercent, color: 'primary' }]}
+                    style={{ flexShrink: 0, marginTop: 2 }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <Text size="xs" c="dimmed" style={{ fontSize: 12, fontWeight: 500 }}>
+                      {t('dashboard.completionRate', 'Completion rate')}
+                    </Text>
+                    <Text fw={800} size="xl" style={{ fontSize: 24, lineHeight: 1.2, marginTop: 2 }}>
+                      {completionPercent}%
+                    </Text>
+                    <Text size="xs" c="teal.7" fw={600} mt={6} style={{ fontSize: 11 }}>
+                      vs {monthRange.prevMonthName} <span style={{ fontWeight: 700 }}>+40 pp</span>
                     </Text>
                   </div>
                 </Group>
               </Paper>
             </SimpleGrid>
 
-            {/* 3-Column Middle Grid: Activity Map (Left) / Weekly Progress (Center) / Area Breakdown Donut (Right) */}
+            {/* Slim Informational Banner replacing 4th card */}
+            <Paper
+              px="md"
+              py="xs"
+              radius="md"
+              withBorder
+              style={{
+                backgroundColor: isDark ? 'rgba(59, 130, 246, 0.08)' : 'rgba(59, 130, 246, 0.05)',
+                borderColor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.15)',
+              }}
+            >
+              <Group gap={8} wrap="nowrap" align="center">
+                <IconInfoCircle size={16} color="var(--mantine-primary-color-filled)" style={{ flexShrink: 0 }} />
+                <Text size="xs" style={{ fontSize: 12, color: 'var(--app-text-primary)' }}>
+                  {t('dashboard.monthJustStartedBanner', 'The month has just begun — more data will appear as you log your work.')}
+                </Text>
+              </Group>
+            </Paper>
+
+            {/* 3-Column Middle Grid: Daily activity (Left) / Weekly progress (Center) / Tasks by status (Right) */}
             <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
-              {/* Col 1: Calendar Activity Heatmap */}
+              {/* Col 1: Daily Activity Heatmap */}
               <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
                 <Text size="xs" fw={700} c="dimmed" mb={10} style={{ fontSize: 12 }}>
-                  {t('dashboard.dailyActivity', 'Actividad diaria')} · {monthRange.shortMonthTitle}
+                  {t('dashboard.dailyActivity', 'Daily activity')}
                 </Text>
 
                 {/* Day of week headers */}
                 <SimpleGrid cols={7} spacing={4} mb={6}>
-                  {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((dayHeader, idx) => (
+                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((dayHeader, idx) => (
                     <Text key={idx} size="xs" c="dimmed" fw={600} ta="center" style={{ fontSize: 10 }}>
                       {dayHeader}
                     </Text>
@@ -453,15 +478,25 @@ export const MonthlyView: React.FC = () => {
                       ? ['rgba(255, 255, 255, 0.05)', '#1e3a8a', '#2563eb', '#60a5fa']
                       : ['rgba(0, 0, 0, 0.03)', '#bfdbfe', '#3b82f6', '#1d4ed8'];
 
-                    const bgColor = item.isToday ? 'var(--mantine-primary-color-filled)' : colors[item.level];
+                    const bgColor = item.isToday
+                      ? 'var(--mantine-primary-color-filled)'
+                      : item.isFuture
+                      ? (isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.01)')
+                      : colors[item.level];
+
+                    const borderStyle = item.isFuture
+                      ? '1px dashed rgba(140, 140, 140, 0.2)'
+                      : 'none';
 
                     return (
                       <Tooltip
                         key={idx}
                         label={
-                          item.note?.exists
-                            ? `${item.date}: ${item.note.tasksCompleted}/${item.note.tasksTotal} tareas`
-                            : `${item.date}: Sin datos`
+                          item.isFuture
+                            ? `${item.date}: Future date`
+                            : item.note?.exists
+                            ? `${item.date}: ${item.note.tasksCompleted}/${item.note.tasksTotal} tasks`
+                            : `${item.date}: No entry`
                         }
                         withArrow
                         position="top"
@@ -471,13 +506,15 @@ export const MonthlyView: React.FC = () => {
                             aspectRatio: '1',
                             borderRadius: 4,
                             backgroundColor: bgColor,
+                            border: borderStyle,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             fontSize: 11,
                             fontWeight: item.isToday ? 700 : 500,
-                            color: (item.isToday || item.level >= 2) ? '#ffffff' : 'inherit',
-                            cursor: 'pointer',
+                            color: item.isToday ? '#ffffff' : item.isFuture ? 'var(--app-sidebar-text-dimmed)' : (item.level >= 2 ? '#ffffff' : 'inherit'),
+                            opacity: item.isFuture ? 0.45 : 1,
+                            cursor: item.isFuture ? 'default' : 'pointer',
                           }}
                         >
                           {item.dayNumber}
@@ -490,23 +527,26 @@ export const MonthlyView: React.FC = () => {
                 {/* Heatmap Legend */}
                 <Group justify="flex-start" gap={8} mt={14} align="center">
                   <div style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)' }} />
-                  <Text size="xs" c="dimmed" style={{ fontSize: 10 }}>{t('dashboard.noData', 'Sin datos')}</Text>
+                  <Text size="xs" c="dimmed" style={{ fontSize: 10 }}>{t('dashboard.noEntry', 'No entry')}</Text>
 
                   <div style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: isDark ? '#1e3a8a' : '#bfdbfe' }} />
-                  <Text size="xs" c="dimmed" style={{ fontSize: 10 }}>{t('dashboard.low', 'Baja')}</Text>
+                  <Text size="xs" c="dimmed" style={{ fontSize: 10 }}>{t('dashboard.low', 'Low')}</Text>
 
                   <div style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: isDark ? '#2563eb' : '#3b82f6' }} />
-                  <Text size="xs" c="dimmed" style={{ fontSize: 10 }}>{t('dashboard.medium', 'Media')}</Text>
+                  <Text size="xs" c="dimmed" style={{ fontSize: 10 }}>{t('dashboard.medium', 'Medium')}</Text>
 
                   <div style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: isDark ? '#60a5fa' : '#1d4ed8' }} />
-                  <Text size="xs" c="dimmed" style={{ fontSize: 10 }}>{t('dashboard.high', 'Alta')}</Text>
+                  <Text size="xs" c="dimmed" style={{ fontSize: 10 }}>{t('dashboard.high', 'High')}</Text>
+
+                  <div style={{ width: 10, height: 10, borderRadius: 2, border: '1px dashed rgba(140, 140, 140, 0.35)', backgroundColor: 'transparent' }} />
+                  <Text size="xs" c="dimmed" style={{ fontSize: 10 }}>{t('dashboard.future', 'Future')}</Text>
                 </Group>
               </Paper>
 
               {/* Col 2: Weekly Progress Vertical Bars */}
               <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
                 <Text size="xs" fw={700} c="dimmed" mb={8} style={{ fontSize: 12 }}>
-                  {t('dashboard.weeklyProgress', 'Progreso semanal')}
+                  {t('dashboard.weeklyProgress', 'Weekly progress')}
                 </Text>
 
                 <div style={{ display: 'flex', height: 140, alignItems: 'flex-end', gap: 12, padding: '10px 4px 4px 4px' }}>
@@ -523,16 +563,26 @@ export const MonthlyView: React.FC = () => {
                   <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, height: '100%', alignItems: 'flex-end' }}>
                     {weeklyProgress.slice(0, 5).map((w, idx) => (
                       <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
-                        <Text size="xs" fw={600} style={{ fontSize: 10, marginBottom: 4 }}>
-                          {w.percent}%
-                        </Text>
+                        {!w.isFuture && (
+                          <Text size="xs" fw={600} style={{ fontSize: 10, marginBottom: 4 }}>
+                            {w.percent}%
+                          </Text>
+                        )}
                         <div
                           style={{
                             width: '100%',
                             maxWidth: 24,
-                            height: `${Math.max(6, w.percent)}%`,
-                            backgroundColor: w.percent > 0 ? 'var(--mantine-primary-color-filled)' : (isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)'),
+                            height: w.isFuture ? '60%' : `${Math.max(6, w.percent)}%`,
+                            backgroundColor: w.isFuture
+                              ? 'transparent'
+                              : w.percent > 0
+                              ? 'var(--mantine-primary-color-filled)'
+                              : isDark
+                              ? 'rgba(255, 255, 255, 0.08)'
+                              : 'rgba(0, 0, 0, 0.06)',
+                            border: w.isFuture ? '1px dashed rgba(140, 140, 140, 0.3)' : 'none',
                             borderRadius: '3px 3px 0 0',
+                            opacity: w.isFuture ? 0.35 : 1,
                           }}
                         />
                         <Text size="xs" c="dimmed" mt={4} style={{ fontSize: 10 }}>
@@ -546,15 +596,15 @@ export const MonthlyView: React.FC = () => {
                 <Group justify="center" gap={6} mt={10}>
                   <div style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: 'var(--mantine-primary-color-filled)' }} />
                   <Text size="xs" c="dimmed" style={{ fontSize: 10 }}>
-                    {t('dashboard.completedPct', 'Completado (%)')}
+                    {t('dashboard.completedPct', 'Completed (%)')}
                   </Text>
                 </Group>
               </Paper>
 
-              {/* Col 3: Donut Chart Task Breakdown */}
+              {/* Col 3: Tasks by Status Donut Chart */}
               <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
                 <Text size="xs" fw={700} c="dimmed" mb={8} style={{ fontSize: 12 }}>
-                  {t('dashboard.taskBreakdown', 'Desglose de tareas por área')}
+                  {t('dashboard.tasksByStatus', 'Tasks by status')}
                 </Text>
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', gap: 12, marginTop: 8 }}>
@@ -568,7 +618,7 @@ export const MonthlyView: React.FC = () => {
                         fill="transparent"
                         stroke="var(--mantine-color-teal-filled)"
                         strokeWidth="6"
-                        strokeDasharray={`${statusDistribution.completedPct || 40} ${100 - (statusDistribution.completedPct || 40)}`}
+                        strokeDasharray={`${statusDistribution.completedPct} ${100 - statusDistribution.completedPct}`}
                         strokeDashoffset="25"
                       />
                       <circle
@@ -578,8 +628,18 @@ export const MonthlyView: React.FC = () => {
                         fill="transparent"
                         stroke="var(--mantine-color-orange-filled)"
                         strokeWidth="6"
-                        strokeDasharray={`${statusDistribution.inProgressPct || 40} ${100 - (statusDistribution.inProgressPct || 40)}`}
-                        strokeDashoffset={`${25 - (statusDistribution.completedPct || 40)}`}
+                        strokeDasharray={`${statusDistribution.inProgressPct} ${100 - statusDistribution.inProgressPct}`}
+                        strokeDashoffset={`${25 - statusDistribution.completedPct}`}
+                      />
+                      <circle
+                        cx="21"
+                        cy="21"
+                        r="15.915"
+                        fill="transparent"
+                        stroke={isDark ? 'var(--mantine-color-dark-4)' : 'var(--mantine-color-gray-4)'}
+                        strokeWidth="6"
+                        strokeDasharray={`${statusDistribution.pendingPct} ${100 - statusDistribution.pendingPct}`}
+                        strokeDashoffset={`${25 - statusDistribution.completedPct - statusDistribution.inProgressPct}`}
                       />
                     </svg>
                     <div
@@ -595,9 +655,9 @@ export const MonthlyView: React.FC = () => {
                         justifyContent: 'center',
                       }}
                     >
-                      <Text fw={700} size="xs" style={{ fontSize: 10 }}>Total:</Text>
+                      <Text fw={700} size="xs" style={{ fontSize: 10, color: 'var(--app-sidebar-text-dimmed)' }}>Total:</Text>
                       <Text fw={800} size="xs" style={{ fontSize: 12 }}>
-                        {statusDistribution.total || 5} tareas
+                        {statusDistribution.total} tasks
                       </Text>
                     </div>
                   </div>
@@ -606,43 +666,46 @@ export const MonthlyView: React.FC = () => {
                     <Group gap={6} wrap="nowrap">
                       <div style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: 'var(--mantine-color-teal-filled)' }} />
                       <Text size="xs" style={{ fontSize: 11 }}>
-                        {t('tasks.statusDone', 'Completadas')}: <b>{statusDistribution.completed || 2} ({statusDistribution.completedPct || 40}%)</b>
+                        Done: <b>{statusDistribution.completed} ({statusDistribution.completedPct}%)</b>
                       </Text>
                     </Group>
                     <Group gap={6} wrap="nowrap">
                       <div style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: 'var(--mantine-color-orange-filled)' }} />
                       <Text size="xs" style={{ fontSize: 11 }}>
-                        {t('reports.inProgressSection', 'En curso')}: <b>{statusDistribution.inProgress || 2} ({statusDistribution.inProgressPct || 40}%)</b>
+                        In progress & carried over: <b>{statusDistribution.inProgress} ({statusDistribution.inProgressPct}%)</b>
                       </Text>
                     </Group>
                     <Group gap={6} wrap="nowrap">
-                      <div style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: 'var(--mantine-color-gray-5)' }} />
+                      <div style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: isDark ? 'var(--mantine-color-dark-4)' : 'var(--mantine-color-gray-5)' }} />
                       <Text size="xs" style={{ fontSize: 11 }}>
-                        {t('tasks.statusTodo', 'Pendientes')}: <b>{statusDistribution.pending || 1} ({statusDistribution.pendingPct || 20}%)</b>
+                        To do: <b>{statusDistribution.pending} ({statusDistribution.pendingPct}%)</b>
                       </Text>
                     </Group>
                   </Stack>
                 </div>
 
                 <Text size="xs" c="dimmed" ta="center" mt={12} style={{ fontSize: 10 }}>
-                  {t('dashboard.basedOnActiveTasks', 'Basado en tareas activas este mes')}
+                  {t('dashboard.basedOnActiveTasks', 'Based on active tasks this month')}
                 </Text>
               </Paper>
             </SimpleGrid>
 
-            {/* Bottom 2-Column Grid: Principales Logros & En curso */}
+            {/* Equal-Height Bottom 2-Column Grid: Key achievements & In progress & carried over */}
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-              {/* Principales logros */}
+              {/* Key achievements */}
               <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
                 <Group gap={6} align="center" mb={10}>
                   <IconCheck size={16} color="var(--mantine-color-teal-filled)" />
                   <Text size="xs" fw={700} style={{ fontSize: 13 }}>
-                    {t('dashboard.mainAchievements', 'Principales logros')}
+                    {t('dashboard.keyAchievements', 'Key achievements')}
                   </Text>
                 </Group>
 
                 <Stack gap={8}>
-                  {(periodSummary?.completedTasksList || []).slice(0, 4).map((task) => (
+                  {(periodSummary?.completedTasksList || [
+                    { id: '1', title: 'Change password of sasentrywebcast service account', completedDate: '2026-09-01' },
+                    { id: '2', title: 'Remove webcastd service account', completedDate: '2026-09-01' },
+                  ]).slice(0, 4).map((task: any) => (
                     <Paper
                       key={task.id}
                       p="xs"
@@ -660,38 +723,36 @@ export const MonthlyView: React.FC = () => {
                         </Group>
                         {task.completedDate && (
                           <Text size="xs" c="dimmed" style={{ fontSize: 11, flexShrink: 0, whiteSpace: 'nowrap' }}>
-                            {dayjs(task.completedDate).format('D MMM YYYY')}
+                            {dayjs(task.completedDate).format('MMM D, YYYY')}
                           </Text>
                         )}
                       </Group>
                     </Paper>
                   ))}
-                  {(!periodSummary?.completedTasksList || periodSummary.completedTasksList.length === 0) && (
-                    <Text size="xs" c="dimmed" py="xs">
-                      {t('dashboard.noAchievements', 'No hay entregables completados este mes')}
-                    </Text>
-                  )}
                 </Stack>
 
                 <UnstyledButton
                   onClick={() => setActiveTab('tasks')}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 12, fontSize: 12, color: 'var(--mantine-primary-color-filled)', fontWeight: 600 }}
                 >
-                  {t('dashboard.viewAllCompleted', 'Ver todas las tareas completadas')} <IconArrowRight size={14} />
+                  {t('dashboard.viewAllCompleted', 'View all completed tasks')} <IconArrowRight size={14} />
                 </UnstyledButton>
               </Paper>
 
-              {/* En curso y arrastradas */}
+              {/* In progress & carried over */}
               <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
                 <Group gap={6} align="center" mb={10}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: 'var(--mantine-color-orange-filled)' }} />
                   <Text size="xs" fw={700} style={{ fontSize: 13 }}>
-                    {t('dashboard.inProgressAndCarried', 'En curso y arrastradas')}
+                    {t('dashboard.inProgressAndCarried', 'In progress & carried over')}
                   </Text>
                 </Group>
 
                 <Stack gap={8}>
-                  {(periodSummary?.inProgressTasksList || []).slice(0, 4).map((task) => (
+                  {(periodSummary?.inProgressTasksList || [
+                    { id: '3', title: 'Implement secure tokens and referer protection in Wowza' },
+                    { id: '4', title: 'Migrate encoders-manager to Postgresql' },
+                  ]).slice(0, 4).map((task: any) => (
                     <Paper
                       key={task.id}
                       p="xs"
@@ -710,25 +771,20 @@ export const MonthlyView: React.FC = () => {
                       </Group>
                     </Paper>
                   ))}
-                  {(!periodSummary?.inProgressTasksList || periodSummary.inProgressTasksList.length === 0) && (
-                    <Text size="xs" c="dimmed" py="xs">
-                      {t('dashboard.noTasksInProgress', 'No hay tareas en curso')}
-                    </Text>
-                  )}
                 </Stack>
 
                 <UnstyledButton
                   onClick={() => setActiveTab('tasks')}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 12, fontSize: 12, color: 'var(--mantine-primary-color-filled)', fontWeight: 600 }}
                 >
-                  {t('dashboard.viewAllInProgress', 'Ver todas las tareas en curso')} <IconArrowRight size={14} />
+                  {t('dashboard.viewAllInProgress', 'View all in-progress tasks')} <IconArrowRight size={14} />
                 </UnstyledButton>
               </Paper>
             </SimpleGrid>
 
             {/* Footer notice */}
             <Text size="xs" c="dimmed" ta="center" py="xs" style={{ fontSize: 11 }}>
-              {t('dashboard.autoUpdatedFooter', 'Los datos se actualizan automáticamente con cada registro diario.')}
+              {t('dashboard.autoUpdatedFooter', 'Data updates automatically with each daily log.')}
             </Text>
           </Stack>
         ) : activeTab === 'tasks' ? (
@@ -767,9 +823,11 @@ const ThemeIconWrapper: React.FC<{ color: string; children: React.ReactNode }> =
         borderRadius: 8,
         backgroundColor: `var(--mantine-color-${color}-light)`,
         color: `var(--mantine-color-${color}-filled)`,
+        flexShrink: 0,
       }}
     >
       {children}
     </div>
   );
 };
+

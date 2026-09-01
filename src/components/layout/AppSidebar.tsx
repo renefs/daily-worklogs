@@ -99,7 +99,7 @@ export const AppSidebar: React.FC = () => {
     Array.from(map.entries()).forEach(([monthKey, notes]) => {
       const d = dayjs(`${monthKey}-01`);
       const monthTitle = capitalizeFirstLetter(
-        d.locale(i18n.language === 'es' ? 'es' : 'en').format('MMMM [de] YYYY')
+        d.locale(i18n.language === 'es' ? 'es' : 'en').format(i18n.language === 'es' ? 'MMMM [de] YYYY' : 'MMMM YYYY')
       );
       groups.push({ monthKey, monthTitle, notes });
     });
@@ -638,7 +638,7 @@ export const AppSidebar: React.FC = () => {
                   letterSpacing: '-0.01em',
                 }}
               >
-                {settings.vaultPath.split(/[/\\]/).pop() || 'DailyWorklog'}
+                {settings.vaultPath.split(/[/\\]/).pop() || 'Worklog'}
               </Text>
             </Group>
             <IconChevronRight size={14} style={{ color: 'var(--app-sidebar-text-dimmed)' }} />
