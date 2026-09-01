@@ -5,12 +5,9 @@ import {
   Tooltip,
   Text,
   UnstyledButton,
+  SegmentedControl,
 } from '@mantine/core';
 import {
-  IconCalendarEvent,
-  IconCalendarWeek,
-  IconCalendarMonth,
-  IconCalendarStats,
   IconCheckbox,
   IconSettings,
   IconBook2,
@@ -32,20 +29,14 @@ export const AppHeader: React.FC = () => {
     (window.electronAPI?.platform === 'darwin' ||
       /Macintosh|Mac OS X/i.test(navigator.userAgent));
 
-  const navItems: Array<{ value: AppViewMode; labelKey: string; icon: any }> = [
-    { value: 'daily', labelKey: 'nav.daily', icon: IconCalendarEvent },
-    { value: 'weekly', labelKey: 'nav.weekly', icon: IconCalendarWeek },
-    { value: 'monthly', labelKey: 'nav.monthly', icon: IconCalendarMonth },
-    { value: 'yearly', labelKey: 'nav.yearly', icon: IconCalendarStats },
-  ];
-
   const isTasksActive = currentView === 'tasks' || currentView === 'task';
+  const isTimeViewActive = ['daily', 'weekly', 'monthly', 'yearly'].includes(currentView);
 
   return (
     <Group
       h="100%"
       px="md"
-      pl={isMac ? 82 : 'md'}
+      pl={isMac ? 78 : 'md'}
       justify="space-between"
       wrap="nowrap"
       className="app-drag-region"
@@ -62,18 +53,18 @@ export const AppHeader: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: 28,
-            height: 28,
-            borderRadius: 7,
+            width: 24,
+            height: 24,
+            borderRadius: 6,
             backgroundColor: 'var(--mantine-primary-color-filled)',
             color: '#fff',
-            boxShadow: '0 2px 5px rgba(0, 0, 0, 0.15)',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.15)',
           }}
         >
-          <IconBook2 size={17} stroke={2.2} />
+          <IconBook2 size={15} stroke={2.2} />
         </div>
         <Text
-          fw={800}
+          fw={700}
           size="sm"
           style={{
             fontFamily: 'var(--font-display)',
@@ -81,61 +72,64 @@ export const AppHeader: React.FC = () => {
             whiteSpace: 'nowrap',
           }}
         >
-          Daily Worklog
+          Worklog
         </Text>
       </Group>
 
-      {/* Center View Selector: Worklog (Día, Semana, Mes, Año) + Tareas */}
-      <div className="app-no-drag" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, gap: 14 }}>
-        <Group gap={6} align="center" wrap="nowrap">
-          <Text size="xs" fw={500} c="dimmed" style={{ letterSpacing: '0.01em', marginRight: 4 }}>
-            {t('nav.worklog', 'Worklog')}:
-          </Text>
+      {/* Center View Selector: Cleaner Segmented Time Navigation + Visually Separated Tasks */}
+      <div
+        className="app-no-drag"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          gap: 10,
+        }}
+      >
+        <SegmentedControl
+          value={isTimeViewActive ? currentView : ''}
+          onChange={(val: string) => {
+            if (val) setCurrentView(val as AppViewMode);
+          }}
+          size="xs"
+          radius="md"
+          className="header-segmented-control"
+          transitionDuration={160}
+          data={[
+            { label: t('nav.daily'), value: 'daily' },
+            { label: t('nav.weekly'), value: 'weekly' },
+            { label: t('nav.monthly'), value: 'monthly' },
+            { label: t('nav.yearly'), value: 'yearly' },
+          ]}
+        />
 
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = currentView === item.value;
-            return (
-              <UnstyledButton
-                key={item.value}
-                onClick={() => setCurrentView(item.value)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '4px 10px',
-                  borderRadius: 8,
-                  fontSize: 13,
-                  fontWeight: isActive ? 600 : 500,
-                  color: isActive ? 'var(--mantine-primary-color-filled)' : 'var(--app-text-secondary)',
-                  backgroundColor: isActive ? 'var(--mantine-primary-color-light)' : 'transparent',
-                  border: isActive ? '1.5px solid var(--mantine-primary-color-filled)' : '1.5px solid transparent',
-                  transition: 'all 0.15s ease',
-                  cursor: 'pointer',
-                  userSelect: 'none',
-                }}
-              >
-                <Icon size={15} stroke={isActive ? 2.2 : 1.8} />
-                <span>{t(item.labelKey)}</span>
-              </UnstyledButton>
-            );
-          })}
-        </Group>
+        {/* Visual separator before Tasks */}
+        <div
+          style={{
+            width: 1,
+            height: 18,
+            backgroundColor: 'var(--app-header-border)',
+            margin: '0 2px',
+          }}
+        />
 
-        {/* Standalone Tasks button */}
+        {/* Visually separated Tasks button */}
         <UnstyledButton
           onClick={() => setCurrentView('tasks')}
+          className="header-tasks-button"
+          data-active={isTasksActive ? 'true' : undefined}
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 6,
-            padding: '4px 12px',
-            borderRadius: 8,
+            padding: '4px 10px',
+            borderRadius: 6,
             fontSize: 13,
             fontWeight: isTasksActive ? 600 : 500,
             color: isTasksActive ? 'var(--mantine-primary-color-filled)' : 'var(--app-text-secondary)',
             backgroundColor: isTasksActive ? 'var(--mantine-primary-color-light)' : 'transparent',
-            border: isTasksActive ? '1.5px solid var(--mantine-primary-color-filled)' : '1.5px solid transparent',
+            border: isTasksActive ? '1px solid var(--mantine-primary-color-filled)' : '1px solid transparent',
             transition: 'all 0.15s ease',
             cursor: 'pointer',
             userSelect: 'none',
@@ -148,16 +142,16 @@ export const AppHeader: React.FC = () => {
 
       {/* Right Controls: Settings */}
       <Group gap={8} wrap="nowrap" className="app-no-drag" style={{ flexShrink: 0 }}>
-        {/* Settings Button */}
         <Tooltip label={t('settings.title')} withArrow position="bottom">
           <ActionIcon
             variant="subtle"
-            size={30}
+            size={28}
             radius="md"
+            color="gray"
             onClick={() => setIsSettingsOpen(true)}
             aria-label="Open settings"
           >
-            <IconSettings size={17} stroke={1.8} />
+            <IconSettings size={16} stroke={1.8} />
           </ActionIcon>
         </Tooltip>
       </Group>

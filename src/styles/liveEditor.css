@@ -52,42 +52,40 @@
 }
 
 .cm-live-h1 {
-  font-size: 1.75em !important;
-  font-weight: 800 !important;
-  padding-top: 14px !important;
-  padding-bottom: 6px !important;
-  border-bottom: 1px solid var(--mantine-color-default-border) !important;
+  font-size: 1.55em !important;
+  font-weight: 700 !important;
+  padding-top: 8px !important;
+  padding-bottom: 4px !important;
   margin-bottom: 6px !important;
   color: var(--mantine-color-text);
 }
 
 .cm-live-h2 {
-  font-size: 1.45em !important;
-  font-weight: 750 !important;
-  padding-top: 12px !important;
-  padding-bottom: 4px !important;
-  border-bottom: 1px solid rgba(125, 125, 125, 0.15) !important;
+  font-size: 1.3em !important;
+  font-weight: 700 !important;
+  padding-top: 8px !important;
+  padding-bottom: 3px !important;
   margin-bottom: 4px !important;
   color: var(--mantine-color-text);
 }
 
 .cm-live-h3 {
-  font-size: 1.25em !important;
-  font-weight: 700 !important;
-  padding-top: 10px !important;
+  font-size: 1.15em !important;
+  font-weight: 650 !important;
+  padding-top: 6px !important;
   padding-bottom: 2px !important;
   color: var(--mantine-color-text);
 }
 
 .cm-live-h4 {
-  font-size: 1.1em !important;
+  font-size: 1.05em !important;
   font-weight: 650 !important;
-  padding-top: 6px !important;
+  padding-top: 4px !important;
   color: var(--mantine-color-text);
 }
 
 .cm-live-h5 {
-  font-size: 1em !important;
+  font-size: 0.95em !important;
   font-weight: 600 !important;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -95,7 +93,7 @@
 }
 
 .cm-live-h6 {
-  font-size: 0.9em !important;
+  font-size: 0.88em !important;
   font-weight: 600 !important;
   text-transform: uppercase;
   color: var(--mantine-color-dimmed);
@@ -124,11 +122,17 @@
 .cm-live-code {
   font-family: var(--font-mono, 'JetBrains Mono', 'Fira Code', monospace) !important;
   font-size: 0.88em !important;
-  padding: 2px 5px !important;
+  padding: 2px 6px !important;
   border-radius: 4px !important;
-  background-color: var(--mantine-color-default-hover, rgba(125, 125, 125, 0.12)) !important;
-  border: 1px solid rgba(125, 125, 125, 0.15) !important;
-  color: var(--mantine-primary-color-filled, #4f46e5) !important;
+  background-color: rgba(59, 130, 246, 0.12) !important;
+  border: 1px solid rgba(59, 130, 246, 0.22) !important;
+  color: #93c5fd !important;
+}
+
+[data-mantine-color-scheme="light"] .cm-live-code {
+  background-color: rgba(37, 99, 235, 0.08) !important;
+  border-color: rgba(37, 99, 235, 0.18) !important;
+  color: #2563eb !important;
 }
 
 /* Blockquotes */

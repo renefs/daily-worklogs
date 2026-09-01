@@ -47,11 +47,12 @@ export const AppLayout: React.FC = () => {
     );
   }
 
-  const sidebarWidth = isSidebarCollapsed ? 58 : 280;
+  const isEffectiveCollapsed = isSidebarCollapsed || currentView === 'task';
+  const sidebarWidth = isEffectiveCollapsed ? 58 : 280;
 
   return (
     <AppShell
-      header={{ height: 54 }}
+      header={{ height: 44 }}
       navbar={{ width: sidebarWidth, breakpoint: 'sm' }}
       padding="md"
       style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
@@ -67,7 +68,7 @@ export const AppLayout: React.FC = () => {
       <AppShell.Main
         className="app-main-content"
         style={{
-          height: 'calc(100vh - 54px)',
+          height: 'calc(100vh - 44px)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',

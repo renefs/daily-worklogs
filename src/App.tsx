@@ -26,7 +26,21 @@ const ColorSchemeSync: React.FC<{ colorScheme?: 'light' | 'dark' | 'auto' }> = (
   return null;
 };
 
-// Claude Terracotta / Clay 10-shade palette (#da7756 base)
+// Modern Blue 10-shade palette (#3b82f6 base)
+const modernBlueColors: MantineColorsTuple = [
+  '#ebf5ff',
+  '#d1e7ff',
+  '#a3ceff',
+  '#70b0ff',
+  '#4791ff',
+  '#3b82f6', // 5: Base primary blue
+  '#2563eb', // 6: Primary filled / hover
+  '#1d4ed8', // 7: Active / text
+  '#1e40af', // 8
+  '#172554', // 9
+];
+
+// Claude Terracotta palette (#da7756 base)
 const claudeColors: MantineColorsTuple = [
   '#fdf6f3',
   '#f8eae2',
@@ -62,8 +76,9 @@ export const App: React.FC = () => {
   const currentLocale = i18n.language === 'es' ? 'es' : 'en';
 
   const theme = useMemo(() => {
-    const primaryColorKey = settings?.themeColor || 'claude';
+    const primaryColorKey = settings?.themeColor || 'blue';
     const customPalettes: Record<string, MantineColorsTuple> = {
+      blue: modernBlueColors,
       claude: claudeColors,
       terracotta: claudeColors,
     };
@@ -71,13 +86,14 @@ export const App: React.FC = () => {
     const primaryShades = (
       customPalettes[primaryColorKey] ||
       DEFAULT_THEME.colors[primaryColorKey] ||
-      claudeColors
+      modernBlueColors
     ) as MantineColorsTuple;
 
     return createTheme({
       primaryColor: 'primary',
       colors: {
         primary: primaryShades,
+        blue: modernBlueColors,
         claude: claudeColors,
         terracotta: claudeColors,
       },

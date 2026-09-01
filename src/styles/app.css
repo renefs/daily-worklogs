@@ -6,59 +6,59 @@
 
 :root {
   --font-sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
   --font-serif: 'Tiempos Headline', 'Charter', 'Bitstream Charter', 'Sitka Text', 'Cambria', 'Georgia', serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, Consolas, monospace;
 
-  /* Claude Warm Canvas Palette (Light Mode) */
-  --app-sidebar-bg: #f9f8f6;
-  --app-sidebar-border: #eae6df;
-  --app-sidebar-hover: #eeebe3;
-  --app-sidebar-active: #e6e2d8;
-  --app-sidebar-text: #262522;
-  --app-sidebar-text-dimmed: #7d7a72;
+  /* Clean Neutral Palette (Light Mode) */
+  --app-sidebar-bg: #f8f9fa;
+  --app-sidebar-border: #e9ecef;
+  --app-sidebar-hover: #f1f3f5;
+  --app-sidebar-active: #e9ecef;
+  --app-sidebar-text: #212529;
+  --app-sidebar-text-dimmed: #6c757d;
 
   --app-main-bg: #ffffff;
-  --app-header-bg: #fdfdfc;
-  --app-header-border: #eae6df;
+  --app-header-bg: #ffffff;
+  --app-header-border: #e9ecef;
   --app-card-bg: #ffffff;
-  --app-card-border: #eae6df;
-  --app-subtle-bg: #f5f4ef;
-  --app-subtle-border: #e6e3da;
+  --app-card-border: #e9ecef;
+  --app-subtle-bg: #f8f9fa;
+  --app-subtle-border: #dee2e6;
 
-  --app-text-primary: #1f1e1b;
-  --app-text-secondary: #6e6b63;
+  --app-text-primary: #212529;
+  --app-text-secondary: #6c757d;
 
   /* Mantine Theme Surface Overrides (Light Mode) */
   --mantine-color-body: #ffffff;
-  --mantine-color-default-border: #eae6df;
-  --mantine-color-default-hover: #f5f4ef;
+  --mantine-color-default-border: #e9ecef;
+  --mantine-color-default-hover: #f8f9fa;
 }
 
 [data-mantine-color-scheme="dark"] {
-  /* Claude Warm Canvas Palette (Dark Mode) */
-  --app-sidebar-bg: #181715;
-  --app-sidebar-border: #2d2b27;
-  --app-sidebar-hover: #23221f;
-  --app-sidebar-active: #2f2d29;
-  --app-sidebar-text: #ece7de;
-  --app-sidebar-text-dimmed: #9c978e;
+  /* Sleek Neutral Dark Palette (Dark Mode) */
+  --app-sidebar-bg: #121214;
+  --app-sidebar-border: #232328;
+  --app-sidebar-hover: #1b1b1f;
+  --app-sidebar-active: #232329;
+  --app-sidebar-text: #ededef;
+  --app-sidebar-text-dimmed: #8e8e98;
 
-  --app-main-bg: #22211f;
-  --app-header-bg: #1d1c1a;
-  --app-header-border: #2d2b27;
-  --app-card-bg: #282724;
-  --app-card-border: #36342f;
-  --app-subtle-bg: #1f1e1c;
-  --app-subtle-border: #2d2b27;
+  --app-main-bg: #18181b;
+  --app-header-bg: #141416;
+  --app-header-border: #232328;
+  --app-card-bg: #1c1c1f;
+  --app-card-border: #28282e;
+  --app-subtle-bg: #202024;
+  --app-subtle-border: #2c2c33;
 
-  --app-text-primary: #ede8df;
-  --app-text-secondary: #9c978e;
+  --app-text-primary: #ededef;
+  --app-text-secondary: #909099;
 
   /* Mantine Theme Surface Overrides (Dark Mode) */
-  --mantine-color-body: #22211f;
-  --mantine-color-default-border: #2d2b27;
-  --mantine-color-default-hover: #2a2926;
+  --mantine-color-body: #18181b;
+  --mantine-color-default-border: #28282e;
+  --mantine-color-default-hover: #222227;
 }
 
 body {
@@ -238,43 +238,43 @@ textarea {
   font-weight: 600;
 }
 
-/* Syntax Highlighting CSS Variables (Warm Claude Light Mode) */
+/* Syntax Highlighting CSS Variables (Clean Modern Light Mode) */
 :root {
-  --cm-hl-keyword: #ba3828;
-  --cm-hl-name: #225b8c;
-  --cm-hl-function: #7b4eb2;
-  --cm-hl-constant: #225b8c;
-  --cm-hl-definition: #262522;
-  --cm-hl-type: #9c4b18;
-  --cm-hl-operator: #284c78;
-  --cm-hl-comment: #7d7a72;
-  --cm-hl-link: #d97757;
-  --cm-hl-heading: #1f1e1b;
-  --cm-hl-atom: #ba3828;
-  --cm-hl-string: #2b774a;
-  --cm-hl-invalid: #a62020;
-  --codeblock-bg: #f5f4ef;
-  --codeblock-header-bg: #eceae3;
-  --codeblock-border: #dedbd2;
+  --cm-hl-keyword: #cf222e;
+  --cm-hl-name: #0550ae;
+  --cm-hl-function: #8250df;
+  --cm-hl-constant: #0550ae;
+  --cm-hl-definition: #24292f;
+  --cm-hl-type: #953800;
+  --cm-hl-operator: #0a3069;
+  --cm-hl-comment: #6e7781;
+  --cm-hl-link: #0969da;
+  --cm-hl-heading: #24292f;
+  --cm-hl-atom: #cf222e;
+  --cm-hl-string: #0a7b45;
+  --cm-hl-invalid: #82071e;
+  --codeblock-bg: #f6f8fa;
+  --codeblock-header-bg: #eaeef2;
+  --codeblock-border: #d0d7de;
 }
 
 [data-mantine-color-scheme="dark"] {
-  --cm-hl-keyword: #e57e6d;
-  --cm-hl-name: #7db6e8;
-  --cm-hl-function: #c499ee;
-  --cm-hl-constant: #7db6e8;
-  --cm-hl-definition: #ece7de;
-  --cm-hl-type: #f09f67;
-  --cm-hl-operator: #97c2ec;
-  --cm-hl-comment: #949086;
-  --cm-hl-link: #da7756;
-  --cm-hl-heading: #ece7de;
-  --cm-hl-atom: #e57e6d;
-  --cm-hl-string: #7ec48e;
-  --cm-hl-invalid: #f2685d;
-  --codeblock-bg: #1c1b19;
-  --codeblock-header-bg: #161513;
-  --codeblock-border: #2e2c28;
+  --cm-hl-keyword: #f472b6;
+  --cm-hl-name: #93c5fd;
+  --cm-hl-function: #c084fc;
+  --cm-hl-constant: #60a5fa;
+  --cm-hl-definition: #ededef;
+  --cm-hl-type: #fb923c;
+  --cm-hl-operator: #93c5fd;
+  --cm-hl-comment: #71717a;
+  --cm-hl-link: #60a5fa;
+  --cm-hl-heading: #ededef;
+  --cm-hl-atom: #f472b6;
+  --cm-hl-string: #4ade80;
+  --cm-hl-invalid: #f87171;
+  --codeblock-bg: #141416;
+  --codeblock-header-bg: #1a1a1e;
+  --codeblock-border: #28282e;
 }
 
 .markdown-body pre {
@@ -336,12 +336,19 @@ textarea {
 .markdown-body code:not(pre code) {
   font-family: var(--font-mono);
   font-size: 0.88em;
-  background-color: var(--app-subtle-bg, rgba(125, 125, 125, 0.1));
-  border: 1px solid var(--app-subtle-border, rgba(125, 125, 125, 0.15));
+  background-color: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.22);
   padding: 2px 6px;
   border-radius: 4px;
-  color: var(--mantine-primary-color-filled, #da7756);
+  color: #93c5fd;
   font-weight: 500;
+}
+
+[data-mantine-color-scheme="light"] .markdown-inline-code,
+[data-mantine-color-scheme="light"] .markdown-body code:not(pre code) {
+  background-color: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.18);
+  color: #2563eb;
 }
 
 /* Highlight.js Syntax Highlighting Tokens */
@@ -421,7 +428,41 @@ textarea {
   -webkit-app-region: no-drag;
 }
 
-/* Nav Segmented Control Styling */
+/* Header & Nav Segmented Control Styling */
+.header-segmented-control {
+  background-color: var(--app-subtle-bg) !important;
+  border: 1px solid var(--app-header-border) !important;
+  padding: 2px !important;
+  border-radius: 8px !important;
+}
+
+.header-segmented-control .mantine-SegmentedControl-control {
+  margin: 0 !important;
+}
+
+.header-segmented-control .mantine-SegmentedControl-indicator {
+  border-radius: 6px !important;
+  background-color: var(--mantine-primary-color-filled) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25) !important;
+}
+
+.header-segmented-control .mantine-SegmentedControl-label {
+  padding: 3px 12px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--app-text-secondary) !important;
+  transition: color 0.15s ease !important;
+}
+
+.header-segmented-control .mantine-SegmentedControl-label[data-active="true"] {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+.header-tasks-button:hover {
+  background-color: var(--app-sidebar-hover) !important;
+}
+
 .nav-segmented-control {
   background-color: var(--app-subtle-bg) !important;
   border: 1px solid var(--app-header-border) !important;
@@ -493,5 +534,144 @@ textarea {
 .kanban-task-card:active {
   cursor: grabbing;
 }
+
+/* ==========================================================================
+   Task View Redesign (Compact Inspector, Unified Header & TOC)
+   ========================================================================== */
+
+.task-view-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.task-header-unified {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 10px 10px 10px;
+  background-color: var(--app-card-bg);
+  border: 1px solid var(--app-card-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.task-metadata-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--app-text-secondary);
+}
+
+.task-metadata-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.task-metadata-separator {
+  color: var(--app-sidebar-text-dimmed);
+  opacity: 0.5;
+  user-select: none;
+}
+
+.task-inspector-panel {
+  width: 320px;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--app-subtle-bg);
+  border: 1px solid var(--app-card-border);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.task-inspector-header {
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--app-card-border);
+  background-color: var(--app-card-bg);
+}
+
+.task-inspector-section {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--app-subtle-border);
+}
+
+.task-inspector-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 8px;
+  border-radius: 6px;
+  transition: background-color 0.12s ease;
+}
+
+.task-inspector-row:hover {
+  background-color: var(--app-sidebar-hover);
+}
+
+.task-inspector-key {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--app-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.task-inspector-val {
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.task-toc-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--app-text-primary);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+}
+
+.task-toc-item:hover {
+  background-color: var(--app-sidebar-hover);
+  color: var(--mantine-primary-color-filled);
+}
+
+.task-toc-item.level-1 {
+  font-weight: 600;
+  padding-left: 8px;
+}
+
+.task-toc-item.level-2 {
+  padding-left: 18px;
+  color: var(--app-text-secondary);
+}
+
+.task-toc-item.level-3 {
+  padding-left: 28px;
+  font-size: 11px;
+  color: var(--app-sidebar-text-dimmed);
+}
+
 
 

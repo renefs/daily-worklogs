@@ -13,7 +13,6 @@ import {
   Divider,
   Menu,
   Button,
-  Badge,
   Text,
   SegmentedControl,
   useComputedColorScheme,
@@ -84,13 +83,13 @@ export interface MarkdownEditorProps {
   showExport?: boolean;
   placeholder?: string;
   tasksStats?: { total: number; completed: number };
+  showStatusAndActions?: boolean;
 }
 
 export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   content,
   onChange,
   onSave,
-  isSaving: customIsSaving,
   isDirty: customIsDirty,
   onExportClick,
   onDeleteClick,
@@ -98,6 +97,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   layoutMode,
   onLayoutModeChange,
   showTemplates = true,
+  showStatusAndActions = true,
   placeholder,
   tasksStats,
 }) => {
@@ -110,7 +110,6 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     activeNote,
     setNoteContent,
     saveActiveNote,
-    isSaving: storeIsSaving,
     isDirty: storeIsDirty,
     settings,
     selectedDate,
@@ -121,7 +120,6 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const effectiveContent = isControlled ? content : activeNote?.content || '';
   const effectiveOnChange = isControlled ? (onChange || (() => {})) : setNoteContent;
   const effectiveOnSave = isControlled ? (onSave || (() => {})) : saveActiveNote;
-  const effectiveIsSaving = customIsSaving !== undefined ? customIsSaving : storeIsSaving;
   const effectiveIsDirty = customIsDirty !== undefined ? customIsDirty : storeIsDirty;
 
   const allTagsRef = useRef(allTags);
@@ -428,80 +426,64 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           </Group>
 
           {/* Right: Layout Switcher + Discrete Autosave + 3-dots Menu */}
-          <Group gap={8} wrap="nowrap">
-            {layoutMode && onLayoutModeChange && (
-              <SegmentedControl
-                value={layoutMode}
-                onChange={(val: string) => onLayoutModeChange(val as any)}
-                size="xs"
-                radius="md"
-                className="nav-segmented-control"
-                transitionDuration={180}
-                data={[
-                  { label: t('editor.live'), value: 'live' },
-                  { label: t('editor.split'), value: 'split' },
-                  { label: t('editor.write'), value: 'edit' },
-                  { label: t('editor.preview'), value: 'preview' },
-                ]}
-              />
-            )}
+          {showStatusAndActions && (
+            <Group gap={8} wrap="nowrap">
+              {layoutMode && onLayoutModeChange && (
+                <SegmentedControl
+                  value={layoutMode}
+                  onChange={(val: string) => onLayoutModeChange(val as any)}
+                  size="xs"
+                  radius="md"
+                  className="nav-segmented-control"
+                  transitionDuration={180}
+                  data={[
+                    { label: t('editor.live'), value: 'live' },
+                    { label: t('editor.split'), value: 'split' },
+                    { label: t('editor.write'), value: 'edit' },
+                    { label: t('editor.preview'), value: 'preview' },
+                  ]}
+                />
+              )}
 
-            {/* Discrete Save Status */}
-            {effectiveIsSaving ? (
-              <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
-                {t('editor.saving')}
-              </Text>
-            ) : effectiveIsDirty ? (
-              <Badge color="yellow" variant="light" size="xs">
-                {t('editor.unsaved')}
-              </Badge>
-            ) : (
-              <Group gap={4} wrap="nowrap" style={{ color: 'var(--mantine-color-teal-filled)' }}>
-                <IconCheck size={14} stroke={2.2} />
-                <Text size="xs" c="teal.7" fw={500} style={{ whiteSpace: 'nowrap' }}>
-                  {t('editor.saved')}
-                </Text>
-              </Group>
-            )}
-
-            {/* 3-dots actions menu */}
-            <Menu position="bottom-end" shadow="md" withinPortal>
-              <Menu.Target>
-                <ActionIcon variant="subtle" size="sm" color="gray">
-                  <IconDotsVertical size={15} />
-                </ActionIcon>
-              </Menu.Target>
-              <Menu.Dropdown>
-                <Menu.Item
-                  leftSection={<IconDeviceFloppy size={14} />}
-                  onClick={effectiveOnSave}
-                  disabled={!effectiveIsDirty}
-                >
-                  {t('common.save')}
-                </Menu.Item>
-                {onExportClick && (
+              {/* 3-dots actions menu */}
+              <Menu position="bottom-end" shadow="md" withinPortal>
+                <Menu.Target>
+                  <ActionIcon variant="subtle" size="sm" color="gray">
+                    <IconDotsVertical size={15} />
+                  </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown>
                   <Menu.Item
-                    leftSection={<IconFileExport size={14} />}
-                    onClick={onExportClick}
+                    leftSection={<IconDeviceFloppy size={14} />}
+                    onClick={effectiveOnSave}
+                    disabled={!effectiveIsDirty}
                   >
-                    {t('editor.exportNote')}
+                    {t('common.save')}
                   </Menu.Item>
-                )}
-                {onDeleteClick && (isControlled || activeNote?.exists) && (
-                  <>
-                    <Menu.Divider />
+                  {onExportClick && (
                     <Menu.Item
-                      color="red"
-                      leftSection={<IconTrash size={14} />}
-                      onClick={onDeleteClick}
+                      leftSection={<IconFileExport size={14} />}
+                      onClick={onExportClick}
                     >
-                      {t('common.delete')}
+                      {t('editor.exportNote')}
                     </Menu.Item>
-                  </>
-                )}
-              </Menu.Dropdown>
-            </Menu>
-          </Group>
+                  )}
+                  {onDeleteClick && (isControlled || activeNote?.exists) && (
+                    <>
+                      <Menu.Divider />
+                      <Menu.Item
+                        color="red"
+                        leftSection={<IconTrash size={14} />}
+                        onClick={onDeleteClick}
+                      >
+                        {t('common.delete')}
+                      </Menu.Item>
+                    </>
+                  )}
+                </Menu.Dropdown>
+              </Menu>
+            </Group>
+          )}
         </Group>
       </Paper>
 

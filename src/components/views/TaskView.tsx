@@ -12,10 +12,12 @@ import {
   Paper,
   Stack,
   TextInput,
-  Select,
+  Menu,
   TagsInput,
   ScrollArea,
-  Divider,
+  Progress,
+  Collapse,
+  UnstyledButton,
   useComputedColorScheme,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
@@ -28,7 +30,6 @@ import {
   IconCode,
   IconCheck,
   IconTrash,
-  IconDeviceFloppy,
   IconCalendar,
   IconTag,
   IconFlag,
@@ -38,6 +39,14 @@ import {
   IconLayoutSidebarRight,
   IconLayoutSidebarRightCollapse,
   IconCalendarPlus,
+  IconDotsVertical,
+  IconFileExport,
+  IconListCheck,
+  IconListTree,
+  IconChevronDown,
+  IconChevronRight,
+  IconRotateClockwise,
+  IconFolder,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
@@ -56,7 +65,7 @@ import {
 } from '../../utils/areaProjectUtils';
 
 export const TaskView: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
   const isDark = computedColorScheme === 'dark';
 
@@ -93,6 +102,12 @@ export const TaskView: React.FC = () => {
   const [isLogging, setIsLogging] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
+  // Inspector section collapse states
+  const [isOutlineOpen, setIsOutlineOpen] = useState(true);
+  const [isDatesOpen, setIsDatesOpen] = useState(true);
+  const [isTagsOpen, setIsTagsOpen] = useState(true);
+  const [isActionsOpen, setIsActionsOpen] = useState(false);
 
   const availableColumns = useMemo(() => {
     return settings?.kanbanColumns && settings.kanbanColumns.length > 0
@@ -180,7 +195,24 @@ export const TaskView: React.FC = () => {
     const lines = (content || '').split('\n');
     const total = lines.filter((l) => /^\s*-\s*\[([ xX])\]/.test(l)).length;
     const completed = lines.filter((l) => /^\s*-\s*\[[xX]\]/.test(l)).length;
-    return { total, completed };
+    const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return { total, completed, percent };
+  }, [content]);
+
+  // Extract document outline (Headings H1, H2, H3)
+  const documentHeadings = useMemo(() => {
+    const lines = (content || '').split('\n');
+    const headings: { text: string; level: number; id: string }[] = [];
+    lines.forEach((line) => {
+      const match = line.match(/^(#{1,3})\s+(.+)$/);
+      if (match) {
+        const level = match[1].length;
+        const text = match[2].trim().replace(/[*_`]/g, '');
+        const id = text.toLowerCase().replace(/[^a-z0-9áéíóúñü]+/g, '-').replace(/(^-|-$)/g, '');
+        headings.push({ text, level, id });
+      }
+    });
+    return headings;
   }, [content]);
 
   const handleStatusChange = (newStatus: TaskStatus) => {
@@ -269,6 +301,15 @@ export const TaskView: React.FC = () => {
     t,
   ]);
 
+  // Autosave debounce timer
+  useEffect(() => {
+    if (!settings?.autoSave || !isDirty) return;
+    const timer = setTimeout(() => {
+      handleSave();
+    }, settings.autoSaveDelay || 1000);
+    return () => clearTimeout(timer);
+  }, [content, title, isDirty, settings?.autoSave, settings?.autoSaveDelay, handleSave]);
+
   const handleLogToDaily = async () => {
     if (!activeTask && !title.trim()) return;
     setIsLogging(true);
@@ -337,254 +378,431 @@ export const TaskView: React.FC = () => {
   ];
 
   const currentStatusObj = statusOptions.find((o) => o.value === status);
+  const currentPriorityObj = priorityOptions.find((p) => p.value === priority) || priorityOptions[1];
   const currentAreaColor = getAreaColor(area, areas);
+  const currentProjectColor = project ? getProjectColor(project, area, projects, areas) : 'gray';
+
+  const isCompleted = currentStatusObj?.behavior === 'done' || status === 'done' || status === 'completed';
+  const isCancelled = currentStatusObj?.behavior === 'cancelled' || status === 'cancelled';
+  const isClosed = isCompleted || isCancelled;
+
+  // Jump to TOC heading
+  const handleScrollToHeading = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  // Format date range for metadata strip
+  const dateRangeStr = useMemo(() => {
+    if (startedDate && completedDate) {
+      const s = dayjs(startedDate).locale(i18n.language).format('D MMM');
+      const c = dayjs(completedDate).locale(i18n.language).format('D MMM');
+      return `${s} – ${c}`;
+    }
+    if (completedDate) {
+      return `${t('tasks.completedOn', { date: dayjs(completedDate).locale(i18n.language).format('D MMM YYYY') })}`;
+    }
+    if (dueDate) {
+      return `${t('tasks.dueDate')}: ${dayjs(dueDate).locale(i18n.language).format('D MMM YYYY')}`;
+    }
+    if (startedDate) {
+      return `${t('tasks.startedDate')}: ${dayjs(startedDate).locale(i18n.language).format('D MMM')}`;
+    }
+    return null;
+  }, [startedDate, completedDate, dueDate, i18n.language, t]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 12, overflow: 'hidden' }}>
-      {/* Sub-Header: Back Button, Title, Fast Selectors & Layout Switcher */}
-      <Group justify="space-between" align="center" wrap="wrap" gap="sm">
-        {/* Left Side: Back button + Task ID */}
-        <Group gap="xs" wrap="nowrap">
-          <Tooltip label={t('tasks.backToTasks', 'Back')} withArrow>
-            <Button
-              variant="default"
-              size="sm"
-              leftSection={<IconArrowLeft size={16} />}
-              onClick={() => {
-                if (isDirty) {
-                  handleSave();
-                }
-                closeTaskEditor();
-              }}
-              radius="md"
-              style={{ flexShrink: 0 }}
-            >
-              {t('tasks.backToTasks', 'Back')}
-            </Button>
-          </Tooltip>
-
-          {/* GitHub-style Task ID badge */}
-          {activeTask && (activeTask.taskId !== undefined || activeTask.id) && (
-            <Tooltip
-              label={
-                <div style={{ textAlign: 'center' }}>
-                  <Text size="xs" fw={700}>#{activeTask.taskId ?? activeTask.id}</Text>
-                  {activeTask.filename && <Text size="xs" c="dimmed">{activeTask.filename}</Text>}
-                </div>
-              }
-              withArrow
-            >
-              <Badge
-                variant="light"
+    <div className="task-view-container">
+      {/* 1. UNIFIED SINGLE HEADER BAR */}
+      <div className="task-header-unified">
+        <Group justify="space-between" align="center" wrap="nowrap" gap="xs">
+          {/* Left: Back Button + Task ID Badge + Editable Title */}
+          <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+            <Tooltip label={t('tasks.backToTasks', 'Back to Tasks')} withArrow>
+              <Button
+                variant="subtle"
                 color="gray"
-                size="md"
-                style={{
-                  flexShrink: 0,
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                  fontWeight: 700,
-                  fontSize: 13,
-                  cursor: 'default',
+                size="xs"
+                leftSection={<IconArrowLeft size={16} />}
+                onClick={() => {
+                  if (isDirty) {
+                    handleSave();
+                  }
+                  closeTaskEditor();
                 }}
+                radius="md"
+                style={{ flexShrink: 0, fontWeight: 600 }}
               >
-                #{activeTask.taskId ?? activeTask.id}
-              </Badge>
+                {t('tasks.backToTasks', 'Back to Tasks')}
+              </Button>
             </Tooltip>
-          )}
-        </Group>
 
-        {/* Right Side: Quick Status/Priority Badges, Layout Switcher & Actions */}
-        <Group gap="xs" wrap="nowrap">
-          {/* Layout Mode Switcher (Live, Split, Edit, Preview) */}
-          <SegmentedControl
-            value={taskEditorLayoutMode}
-            onChange={(val) => setTaskEditorLayoutMode(val as any)}
-            size="xs"
-            radius="md"
-            transitionDuration={180}
-            className="nav-segmented-control"
-            data={[
-              {
-                value: 'live',
-                label: (
-                  <Group gap={6} justify="center" wrap="nowrap" style={{ padding: '2px 4px', whiteSpace: 'nowrap' }}>
-                    <IconWriting size={15} stroke={1.8} />
-                    <span style={{ fontWeight: 500, fontSize: 13 }}>{t('editor.live')}</span>
-                  </Group>
-                ),
-              },
-              {
-                value: 'split',
-                label: (
-                  <Group gap={6} justify="center" wrap="nowrap" style={{ padding: '2px 4px', whiteSpace: 'nowrap' }}>
-                    <IconColumns size={15} stroke={1.8} />
-                    <span style={{ fontWeight: 500, fontSize: 13 }}>{t('editor.split')}</span>
-                  </Group>
-                ),
-              },
-              {
-                value: 'edit',
-                label: (
-                  <Group gap={6} justify="center" wrap="nowrap" style={{ padding: '2px 4px', whiteSpace: 'nowrap' }}>
-                    <IconCode size={15} stroke={1.8} />
-                    <span style={{ fontWeight: 500, fontSize: 13 }}>{t('editor.write')}</span>
-                  </Group>
-                ),
-              },
-              {
-                value: 'preview',
-                label: (
-                  <Group gap={6} justify="center" wrap="nowrap" style={{ padding: '2px 4px', whiteSpace: 'nowrap' }}>
-                    <IconEye size={15} stroke={1.8} />
-                    <span style={{ fontSize: 13, fontWeight: 500 }}>{t('editor.preview')}</span>
-                  </Group>
-                ),
-              },
-            ]}
-          />
+            {/* Task #ID Badge */}
+            {activeTask && (activeTask.taskId !== undefined || activeTask.id) && (
+              <Tooltip
+                label={
+                  <div style={{ textAlign: 'center' }}>
+                    <Text size="xs" fw={700}>#{activeTask.taskId ?? activeTask.id}</Text>
+                    {activeTask.filename && <Text size="xs" c="dimmed">{activeTask.filename}</Text>}
+                  </div>
+                }
+                withArrow
+              >
+                <Badge
+                  variant="light"
+                  color="gray"
+                  size="md"
+                  radius="sm"
+                  style={{
+                    flexShrink: 0,
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: 'default',
+                  }}
+                >
+                  #{activeTask.taskId ?? activeTask.id}
+                </Badge>
+              </Tooltip>
+            )}
 
-          {/* Save Status & Button */}
-          {isDirty ? (
-            <Badge color="yellow" variant="light" size="sm">
-              {t('editor.unsaved')}
-            </Badge>
-          ) : isSaving ? (
-            <Badge color="blue" variant="light" size="sm">
-              {t('editor.saving')}
-            </Badge>
-          ) : (
-            <Badge color="green" variant="subtle" size="sm" leftSection={<IconCheck size={12} />}>
-              {t('editor.saved')}
-            </Badge>
-          )}
-
-          <Tooltip label={t('common.save')} withArrow>
-            <ActionIcon
-              variant={isDirty ? 'filled' : 'light'}
-              color="primary"
-              size="md"
-              radius="md"
-              onClick={handleSave}
-              loading={isSaving}
-            >
-              <IconDeviceFloppy size={18} />
-            </ActionIcon>
-          </Tooltip>
-
-          {/* Properties Panel Toggle */}
-          <Tooltip label={t('tasks.toggleProperties', 'Task Properties')} withArrow>
-            <Button
-              variant={isTaskPropertiesPanelOpen ? 'light' : 'default'}
-              size="xs"
-              radius="md"
-              leftSection={
-                isTaskPropertiesPanelOpen ? (
-                  <IconLayoutSidebarRightCollapse size={15} />
-                ) : (
-                  <IconLayoutSidebarRight size={15} />
-                )
-              }
-              onClick={toggleTaskPropertiesPanel}
-            >
-              {t('tasks.properties', 'Properties')}
-            </Button>
-          </Tooltip>
-        </Group>
-      </Group>
-
-      {/* Main Area: Full-space Editor / Viewer + Right-side Properties Panel */}
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: 12, overflow: 'hidden' }}>
-        {/* Left / Main Workspace: Markdown Editor / Viewer */}
-        <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {/* Document Title Header */}
-          <div style={{ padding: '0 2px' }}>
-            {taskEditorLayoutMode === 'preview' ? (
-              <Text
-                fw={800}
-                style={{
-                  fontSize: 22,
-                  lineHeight: 1.3,
+            {/* Task Title Input */}
+            <TextInput
+              value={title}
+              onChange={(e) => {
+                setTitle(e.currentTarget.value);
+                setIsDirty(true);
+              }}
+              placeholder={t('tasks.titlePlaceholder', 'What needs to be done?')}
+              variant="unstyled"
+              style={{ flex: 1, minWidth: 120 }}
+              styles={{
+                input: {
+                  fontSize: 18,
+                  fontWeight: 750,
                   letterSpacing: '-0.02em',
                   fontFamily: 'var(--font-display)',
-                  padding: '2px 4px',
                   color: isDark ? 'var(--mantine-color-white)' : 'var(--mantine-color-dark-9)',
-                }}
+                  padding: '2px 6px',
+                  height: 'auto',
+                  textDecoration: isClosed ? 'line-through' : 'none',
+                  opacity: isClosed ? 0.85 : 1,
+                },
+              }}
+            />
+          </Group>
+
+          {/* Right: Quick Status Action, Save Indicator, Layout Modes, Properties Toggle & 3-dots */}
+          <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
+            {/* Quick Contextual Status Badge / Reopen Action */}
+            {isClosed ? (
+              <Button
+                variant="light"
+                color={isCompleted ? 'teal' : 'red'}
+                size="xs"
+                radius="md"
+                leftSection={<IconRotateClockwise size={14} />}
+                onClick={() => handleStatusChange(availableColumns[0]?.id || 'todo')}
               >
-                {title || t('tasks.untitledTask', 'Untitled Task')}
-              </Text>
+                {t('tasks.reopenTask', 'Reopen Task')}
+              </Button>
             ) : (
-              <TextInput
-                value={title}
-                onChange={(e) => {
-                  setTitle(e.currentTarget.value);
-                  setIsDirty(true);
-                }}
-                placeholder={t('tasks.titlePlaceholder', 'Task Title')}
-                variant="unstyled"
-                styles={{
-                  input: {
-                    fontSize: 22,
-                    fontWeight: 800,
-                    lineHeight: 1.3,
-                    letterSpacing: '-0.02em',
-                    fontFamily: 'var(--font-display)',
-                    padding: '2px 4px',
-                    height: 'auto',
-                    color: isDark ? 'var(--mantine-color-white)' : 'var(--mantine-color-dark-9)',
-                  },
-                }}
+              <Menu shadow="md" width={180} position="bottom-end">
+                <Menu.Target>
+                  <Button
+                    variant="light"
+                    color={currentStatusObj?.color || 'blue'}
+                    size="xs"
+                    radius="md"
+                    leftSection={
+                      <span style={{ color: `var(--mantine-color-${currentStatusObj?.color || 'blue'}-filled)` }}>
+                        {getColumnIcon(currentStatusObj?.iconName, 14)}
+                      </span>
+                    }
+                    rightSection={<IconChevronDown size={12} />}
+                  >
+                    {currentStatusObj?.label || status}
+                  </Button>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  <Menu.Label>{t('tasks.moveTo')}</Menu.Label>
+                  {statusOptions.map((opt) => (
+                    <Menu.Item
+                      key={opt.value}
+                      leftSection={
+                        <span style={{ color: `var(--mantine-color-${opt.color || 'blue'}-filled)` }}>
+                          {getColumnIcon(opt.iconName, 14)}
+                        </span>
+                      }
+                      onClick={() => handleStatusChange(opt.value as TaskStatus)}
+                    >
+                      {opt.label}
+                    </Menu.Item>
+                  ))}
+                </Menu.Dropdown>
+              </Menu>
+            )}
+
+            {/* Discrete Save Status Indicator */}
+            {isSaving ? (
+              <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+                {t('editor.saving')}
+              </Text>
+            ) : isDirty ? (
+              <Badge color="yellow" variant="light" size="xs">
+                {t('editor.unsaved')}
+              </Badge>
+            ) : (
+              <Group gap={4} wrap="nowrap" style={{ color: 'var(--mantine-color-teal-filled)' }}>
+                <IconCheck size={14} stroke={2.2} />
+                <Text size="xs" c="teal.7" fw={500} style={{ whiteSpace: 'nowrap' }}>
+                  {t('editor.saved')}
+                </Text>
+              </Group>
+            )}
+
+            {/* Layout Mode Switcher */}
+            <SegmentedControl
+              value={taskEditorLayoutMode}
+              onChange={(val) => setTaskEditorLayoutMode(val as any)}
+              size="xs"
+              radius="md"
+              transitionDuration={180}
+              className="nav-segmented-control"
+              data={[
+                {
+                  value: 'live',
+                  label: (
+                    <Group gap={4} justify="center" wrap="nowrap">
+                      <IconWriting size={14} />
+                      <span style={{ fontWeight: 500, fontSize: 12 }}>{t('editor.live')}</span>
+                    </Group>
+                  ),
+                },
+                {
+                  value: 'split',
+                  label: (
+                    <Group gap={4} justify="center" wrap="nowrap">
+                      <IconColumns size={14} />
+                      <span style={{ fontWeight: 500, fontSize: 12 }}>{t('editor.split')}</span>
+                    </Group>
+                  ),
+                },
+                {
+                  value: 'edit',
+                  label: (
+                    <Group gap={4} justify="center" wrap="nowrap">
+                      <IconCode size={14} />
+                      <span style={{ fontWeight: 500, fontSize: 12 }}>{t('editor.write')}</span>
+                    </Group>
+                  ),
+                },
+                {
+                  value: 'preview',
+                  label: (
+                    <Group gap={4} justify="center" wrap="nowrap">
+                      <IconEye size={14} />
+                      <span style={{ fontSize: 12, fontWeight: 500 }}>{t('editor.preview')}</span>
+                    </Group>
+                  ),
+                },
+              ]}
+            />
+
+            {/* Properties Inspector Toggle */}
+            <Tooltip label={t('tasks.toggleProperties', 'Task Properties')} withArrow>
+              <ActionIcon
+                variant={isTaskPropertiesPanelOpen ? 'light' : 'default'}
+                color={isTaskPropertiesPanelOpen ? 'primary' : 'gray'}
+                size="md"
+                radius="md"
+                onClick={toggleTaskPropertiesPanel}
+              >
+                {isTaskPropertiesPanelOpen ? (
+                  <IconLayoutSidebarRightCollapse size={17} />
+                ) : (
+                  <IconLayoutSidebarRight size={17} />
+                )}
+              </ActionIcon>
+            </Tooltip>
+
+            {/* 3-Dots More Actions Menu */}
+            <Menu position="bottom-end" shadow="md" width={200} withinPortal>
+              <Menu.Target>
+                <ActionIcon variant="subtle" size="md" color="gray" radius="md">
+                  <IconDotsVertical size={16} />
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item
+                  leftSection={<IconCalendarPlus size={15} />}
+                  onClick={handleLogToDaily}
+                  disabled={isLogging}
+                >
+                  {t('tasks.logToDailyNote')}
+                </Menu.Item>
+                <Menu.Item
+                  leftSection={<IconFileExport size={15} />}
+                  onClick={() => setIsExportModalOpen(true)}
+                >
+                  {t('editor.exportNote')}
+                </Menu.Item>
+                {window.electronAPI && activeTask?.filepath && (
+                  <Menu.Item
+                    leftSection={<IconFolderOpen size={15} />}
+                    onClick={handleOpenFileInFileManager}
+                  >
+                    {t('tasks.openInFileManager')}
+                  </Menu.Item>
+                )}
+                {isCompleted ? (
+                  <Menu.Item
+                    leftSection={<IconRotateClockwise size={15} />}
+                    onClick={() => handleStatusChange(availableColumns[0]?.id || 'todo')}
+                  >
+                    {t('tasks.reopenTask', 'Reopen Task')}
+                  </Menu.Item>
+                ) : (
+                  <Menu.Item
+                    leftSection={<IconCheck size={15} />}
+                    color="teal"
+                    onClick={() => handleStatusChange('done')}
+                  >
+                    {t('tasks.markAsCompleted', 'Mark as Done')}
+                  </Menu.Item>
+                )}
+                <Menu.Divider />
+                <Menu.Item
+                  color="red"
+                  leftSection={<IconTrash size={15} />}
+                  onClick={() => setIsDeleteModalOpen(true)}
+                >
+                  {t('tasks.deleteTask')}
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          </Group>
+        </Group>
+
+        {/* 2. METADATA SUMMARY STRIP (Single Line Below Title) */}
+        <div className="task-metadata-strip">
+          {/* Status Indicator */}
+          <span className="task-metadata-item">
+            <span
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                backgroundColor: `var(--mantine-color-${currentStatusObj?.color || 'blue'}-filled)`,
+              }}
+            />
+            <Text size="xs" fw={600} style={{ color: 'var(--app-text-primary)' }}>
+              {currentStatusObj?.label || status}
+            </Text>
+          </span>
+
+          <span className="task-metadata-separator">•</span>
+
+          {/* Priority */}
+          <span className="task-metadata-item">
+            <span
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                backgroundColor: `var(--mantine-color-${currentPriorityObj.color}-filled)`,
+              }}
+            />
+            <Text size="xs" c="dimmed">
+              {currentPriorityObj.label}
+            </Text>
+          </span>
+
+          {/* Area / Service */}
+          {area && (
+            <>
+              <span className="task-metadata-separator">•</span>
+              <span className="task-metadata-item">
+                <IconFolder size={13} style={{ color: `var(--mantine-color-${currentAreaColor}-filled)` }} />
+                <Text size="xs" fw={500} style={{ color: 'var(--app-text-secondary)' }}>
+                  {area}
+                </Text>
+              </span>
+            </>
+          )}
+
+          {/* Project */}
+          {project && (
+            <>
+              <span className="task-metadata-separator">•</span>
+              <Badge size="xs" color={currentProjectColor} variant="light" radius="sm">
+                {project}
+              </Badge>
+            </>
+          )}
+
+          {/* Date range */}
+          {dateRangeStr && (
+            <>
+              <span className="task-metadata-separator">•</span>
+              <span className="task-metadata-item">
+                <IconCalendar size={13} style={{ color: 'var(--app-sidebar-text-dimmed)' }} />
+                <Text size="xs" c="dimmed">
+                  {dateRangeStr}
+                </Text>
+              </span>
+            </>
+          )}
+
+          {/* Tags & Inherited Context */}
+          {resolvedInheritedContext.allEffectiveTags.length > 0 && (
+            <>
+              <span className="task-metadata-separator">•</span>
+              <Group gap={4} wrap="nowrap">
+                {resolvedInheritedContext.allEffectiveTags.slice(0, 3).map((tg) => (
+                  <Badge key={tg} size="xs" color="gray" variant="subtle" style={{ padding: '0 4px', fontSize: 11 }}>
+                    #{tg}
+                  </Badge>
+                ))}
+                {resolvedInheritedContext.allEffectiveTags.length > 3 && (
+                  <Text size="xs" c="dimmed">
+                    +{resolvedInheritedContext.allEffectiveTags.length - 3}
+                  </Text>
+                )}
+              </Group>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* 3. MAIN WORKSPACE: EDITOR/VIEWER + COMPACT INSPECTOR */}
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: 10, overflow: 'hidden' }}>
+        {/* Document Editor / Viewer */}
+        <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
+          {taskEditorLayoutMode === 'live' && (
+            <div style={{ height: '100%' }}>
+              <MarkdownEditor
+                isLivePreview={true}
+                content={content}
+                onChange={handleContentChange}
+                onSave={handleSave}
+                isSaving={isSaving}
+                isDirty={isDirty}
+                showTemplates={false}
+                showStatusAndActions={false}
+                placeholder={t('tasks.descriptionPlaceholder')}
+                tasksStats={checklistStats}
+                onExportClick={() => setIsExportModalOpen(true)}
+                onDeleteClick={() => setIsDeleteModalOpen(true)}
               />
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Editor / Viewer based on layout mode */}
-          <div style={{ flex: 1, minHeight: 0 }}>
-            {taskEditorLayoutMode === 'live' && (
-              <div style={{ height: '100%' }}>
-                <MarkdownEditor
-                  isLivePreview={true}
-                  content={content}
-                  onChange={handleContentChange}
-                  onSave={handleSave}
-                  isSaving={isSaving}
-                  isDirty={isDirty}
-                  showTemplates={false}
-                  placeholder={t('tasks.descriptionPlaceholder')}
-                  tasksStats={checklistStats}
-                  onExportClick={() => setIsExportModalOpen(true)}
-                  onDeleteClick={() => setIsDeleteModalOpen(true)}
-                />
-              </div>
-            )}
-
-            {taskEditorLayoutMode === 'split' && (
-              <Grid style={{ height: '100%' }} gutter="md">
-                <Grid.Col span={{ base: 12, md: 6 }} style={{ height: '100%' }}>
-                  <MarkdownEditor
-                    isLivePreview={false}
-                    content={content}
-                    onChange={handleContentChange}
-                    onSave={handleSave}
-                    isSaving={isSaving}
-                    isDirty={isDirty}
-                    showTemplates={false}
-                    placeholder={t('tasks.descriptionPlaceholder')}
-                    tasksStats={checklistStats}
-                    onExportClick={() => setIsExportModalOpen(true)}
-                    onDeleteClick={() => setIsDeleteModalOpen(true)}
-                  />
-                </Grid.Col>
-                <Grid.Col span={{ base: 12, md: 6 }} style={{ height: '100%' }}>
-                  <MarkdownViewer
-                    content={content || '_No description provided_'}
-                    allowToggleTasks={true}
-                    onToggleTask={handleToggleTaskInContent}
-                  />
-                </Grid.Col>
-              </Grid>
-            )}
-
-            {taskEditorLayoutMode === 'edit' && (
-              <div style={{ height: '100%' }}>
+          {taskEditorLayoutMode === 'split' && (
+            <Grid style={{ height: '100%' }} gutter="sm">
+              <Grid.Col span={{ base: 12, md: 6 }} style={{ height: '100%' }}>
                 <MarkdownEditor
                   isLivePreview={false}
                   content={content}
@@ -593,317 +811,510 @@ export const TaskView: React.FC = () => {
                   isSaving={isSaving}
                   isDirty={isDirty}
                   showTemplates={false}
+                  showStatusAndActions={false}
                   placeholder={t('tasks.descriptionPlaceholder')}
                   tasksStats={checklistStats}
                   onExportClick={() => setIsExportModalOpen(true)}
                   onDeleteClick={() => setIsDeleteModalOpen(true)}
                 />
-              </div>
-            )}
-
-            {taskEditorLayoutMode === 'preview' && (
-              <div style={{ height: '100%' }}>
+              </Grid.Col>
+              <Grid.Col span={{ base: 12, md: 6 }} style={{ height: '100%' }}>
                 <MarkdownViewer
                   content={content || '_No description provided_'}
                   allowToggleTasks={true}
                   onToggleTask={handleToggleTaskInContent}
                 />
-              </div>
-            )}
-          </div>
+              </Grid.Col>
+            </Grid>
+          )}
+
+          {taskEditorLayoutMode === 'edit' && (
+            <div style={{ height: '100%' }}>
+              <MarkdownEditor
+                isLivePreview={false}
+                content={content}
+                onChange={handleContentChange}
+                onSave={handleSave}
+                isSaving={isSaving}
+                isDirty={isDirty}
+                showTemplates={false}
+                showStatusAndActions={false}
+                placeholder={t('tasks.descriptionPlaceholder')}
+                tasksStats={checklistStats}
+                onExportClick={() => setIsExportModalOpen(true)}
+                onDeleteClick={() => setIsDeleteModalOpen(true)}
+              />
+            </div>
+          )}
+
+          {taskEditorLayoutMode === 'preview' && (
+            <div style={{ height: '100%' }}>
+              <MarkdownViewer
+                content={content || '_No description provided_'}
+                allowToggleTasks={true}
+                onToggleTask={handleToggleTaskInContent}
+              />
+            </div>
+          )}
         </div>
 
-        {/* Right Side: Collapsible Task Properties Panel */}
+        {/* 4. COMPACT PROPERTIES INSPECTOR PANEL */}
         {isTaskPropertiesPanelOpen && (
-          <Paper
-            withBorder
-            p="md"
-            radius="md"
-            style={{
-              width: 320,
-              display: 'flex',
-              flexDirection: 'column',
-              backgroundColor: isDark ? 'var(--mantine-color-dark-7)' : 'var(--mantine-color-gray-0)',
-              overflow: 'hidden',
-            }}
-          >
-            <ScrollArea style={{ flex: 1 }} type="auto" offsetScrollbars>
-              <Stack gap="md" pr={4}>
-                {/* Properties Header */}
-                <Group justify="space-between" align="center">
-                  <Text fw={700} size="sm">
-                    {t('tasks.taskProperties', 'Task Metadata')}
-                  </Text>
-                  {currentStatusObj && (
-                    <Badge size="sm" color={currentStatusObj.color || 'blue'} variant="light">
-                      {currentStatusObj.label}
-                    </Badge>
-                  )}
-                </Group>
-
-                <Divider />
-
-                {/* Status Selection */}
-                <Select
-                  label="Status"
-                  value={status}
-                  onChange={(val) => val && handleStatusChange(val as TaskStatus)}
-                  data={statusOptions.map((o) => ({ value: o.value, label: o.label }))}
-                  radius="md"
-                  allowDeselect={false}
-                  leftSection={
-                    currentStatusObj ? (
-                      <span style={{ color: `var(--mantine-color-${currentStatusObj.color}-filled)` }}>
-                        {getColumnIcon(currentStatusObj.iconName, 16)}
-                      </span>
-                    ) : undefined
-                  }
-                  renderOption={({ option }) => {
-                    const opt = statusOptions.find((o) => o.value === option.value);
-                    return (
-                      <Group gap="xs">
-                        <span style={{ color: `var(--mantine-color-${opt?.color || 'blue'}-filled)` }}>
-                          {getColumnIcon(opt?.iconName, 15)}
-                        </span>
-                        <Badge size="xs" color={opt?.color || 'blue'} variant="dot">
-                          {option.label}
-                        </Badge>
-                      </Group>
-                    );
-                  }}
-                />
-
-                {/* Priority Selection */}
-                <Select
-                  label={t('tasks.priority')}
-                  value={priority}
-                  onChange={(val) => {
-                    if (val) {
-                      setPriority(val as TaskPriority);
-                      setIsDirty(true);
-                    }
-                  }}
-                  data={priorityOptions.map((p) => ({ value: p.value, label: p.label }))}
-                  leftSection={<IconFlag size={16} />}
-                  radius="md"
-                  allowDeselect={false}
-                  renderOption={({ option }) => {
-                    const pObj = priorityOptions.find((p) => p.value === option.value);
-                    return (
-                      <Group gap="xs">
-                        <Badge size="xs" color={pObj?.color || 'gray'} variant="filled">
-                          {option.label}
-                        </Badge>
-                      </Group>
-                    );
-                  }}
-                />
-
-                {/* Area Selection */}
-                <Select
-                  label={t('areas.areaLabel', 'Area (Service)')}
-                  value={area}
-                  onChange={(val) => {
-                    if (val) {
-                      setArea(val);
-                      setIsDirty(true);
-                      if (project) {
-                        const projMatches = projects.some(
-                          (p) => p.name.toLowerCase() === project.toLowerCase() && (p.areaName || '').toLowerCase() === val.toLowerCase()
-                        );
-                        if (!projMatches) setProject(null);
-                      }
-                    }
-                  }}
-                  data={areas.map((a) => ({
-                    value: a.name,
-                    label: a.name,
-                  }))}
-                  radius="md"
-                  allowDeselect={false}
-                  renderOption={({ option }) => {
-                    const aColor = getAreaColor(option.value, areas);
-                    return (
-                      <Group gap="xs">
-                        <Badge size="xs" color={aColor} variant="filled">
-                          {option.label}
-                        </Badge>
-                      </Group>
-                    );
-                  }}
-                />
-
-                {/* Project Selection */}
-                <Select
-                  label={t('areas.projectLabel', 'Project')}
-                  placeholder={t('areas.noProject', 'None (Direct Area task)')}
-                  value={project}
-                  onChange={(val) => {
-                    setProject(val || null);
-                    setIsDirty(true);
-                  }}
-                  data={[
-                    { value: '', label: t('areas.noProject', 'None (Direct Area task)') },
-                    ...availableProjectsForArea.map((p) => ({
-                      value: p.name,
-                      label: p.name,
-                    })),
-                  ]}
-                  radius="md"
-                  clearable
-                  renderOption={({ option }) => {
-                    if (!option.value) return <Text size="sm" c="dimmed">{option.label}</Text>;
-                    const pColor = getProjectColor(option.value, area, projects, areas);
-                    return (
-                      <Group gap="xs">
-                        <Badge size="xs" color={pColor} variant="light">
-                          {option.label}
-                        </Badge>
-                      </Group>
-                    );
-                  }}
-                />
-
-                {/* Inherited Context Banner */}
-                {resolvedInheritedContext.inheritedTags.length > 0 && (
-                  <Paper
-                    p="xs"
-                    radius="sm"
-                    withBorder
-                    style={{
-                      backgroundColor: isDark ? 'rgba(76, 110, 245, 0.05)' : 'rgba(76, 110, 245, 0.03)',
-                      borderColor: isDark ? 'rgba(76, 110, 245, 0.2)' : 'rgba(76, 110, 245, 0.15)',
-                    }}
-                  >
-                    <Group gap="xs" align="center">
-                      <Text size="xs" fw={600} c="indigo">
-                        {t('areas.autoInherited', 'Inherited Context')}:
-                      </Text>
-                      {resolvedInheritedContext.inheritedTags.map((tg) => (
-                        <Badge key={tg} size="xs" color={currentAreaColor} variant="dot">
-                          #{tg}
-                        </Badge>
-                      ))}
-                    </Group>
-                  </Paper>
+          <div className="task-inspector-panel">
+            {/* Inspector Header */}
+            <div className="task-inspector-header">
+              <Group gap={6} align="center">
+                <Text fw={700} size="xs" style={{ letterSpacing: '0.02em', textTransform: 'uppercase' }}>
+                  {t('tasks.inspector', 'Inspector')}
+                </Text>
+                {activeTask && (activeTask.taskId !== undefined || activeTask.id) && (
+                  <Badge size="xs" variant="dot" color={currentStatusObj?.color || 'blue'}>
+                    #{activeTask.taskId ?? activeTask.id}
+                  </Badge>
                 )}
+              </Group>
 
-                {/* Due Date */}
-                <DatePickerInput
-                  label={t('tasks.dueDate')}
-                  placeholder={t('tasks.noDueDate')}
-                  value={dueDate}
-                  onChange={(val) => {
-                    setDueDate(val);
-                    setIsDirty(true);
-                  }}
-                  leftSection={<IconCalendar size={16} />}
-                  clearable
-                  radius="md"
-                />
+              <ActionIcon
+                variant="subtle"
+                size="xs"
+                color="gray"
+                onClick={toggleTaskPropertiesPanel}
+              >
+                <IconLayoutSidebarRightCollapse size={14} />
+              </ActionIcon>
+            </div>
 
-                {/* Started Date */}
-                <DatePickerInput
-                  label={t('tasks.startedDate')}
-                  placeholder={t('tasks.noStartedDate')}
-                  value={startedDate}
-                  onChange={(val) => {
-                    setStartedDate(val);
-                    setIsDirty(true);
-                  }}
-                  leftSection={<IconClockPlay size={16} />}
-                  clearable
-                  radius="md"
-                />
-
-                {/* Completed Date */}
-                <DatePickerInput
-                  label={t('tasks.completedDate')}
-                  placeholder={t('tasks.noCompletedDate')}
-                  value={completedDate}
-                  onChange={(val) => {
-                    setCompletedDate(val);
-                    setIsDirty(true);
-                  }}
-                  leftSection={<IconClockCheck size={16} />}
-                  clearable
-                  radius="md"
-                />
-
-                {/* Tags */}
-                <TagsInput
-                  label={t('tasks.tags')}
-                  placeholder={t('tasks.addTagPlaceholder')}
-                  value={tags}
-                  onChange={(val) => {
-                    setTags(val);
-                    setIsDirty(true);
-                  }}
-                  data={allTags.map((t) => t.name)}
-                  leftSection={<IconTag size={16} />}
-                  clearable
-                  radius="md"
-                  renderOption={({ option }) => {
-                    const tagColor = getTagColor(option.value, allTags);
-                    const tagDef = allTags.find((t) => t.name.toLowerCase() === option.value.toLowerCase());
-                    return (
-                      <Group justify="space-between" w="100%" gap="xs">
-                        <Badge size="xs" color={tagColor} variant="light">
-                          #{option.value}
-                        </Badge>
-                        {tagDef?.service && (
-                          <Text size="xs" c="dimmed">
-                            {tagDef.service} {tagDef.project ? `• ${tagDef.project}` : ''}
-                          </Text>
-                        )}
+            <ScrollArea style={{ flex: 1 }} type="auto" offsetScrollbars>
+              {/* Checklist Progress Card (if checklist items exist) */}
+              {checklistStats.total > 0 && (
+                <div className="task-inspector-section" style={{ backgroundColor: isDark ? 'rgba(32, 201, 151, 0.05)' : 'rgba(32, 201, 151, 0.04)' }}>
+                  <Stack gap={6}>
+                    <Group justify="space-between" align="center">
+                      <Group gap={5}>
+                        <IconListCheck size={14} style={{ color: 'var(--mantine-color-teal-filled)' }} />
+                        <Text size="xs" fw={600} style={{ color: 'var(--app-text-primary)' }}>
+                          {t('tasks.checklistProgress', 'Checklist Progress')}
+                        </Text>
                       </Group>
-                    );
-                  }}
-                />
+                      <Badge size="xs" color="teal" variant="light">
+                        {checklistStats.percent}%
+                      </Badge>
+                    </Group>
+                    <Progress value={checklistStats.percent} color="teal" size="sm" radius="xl" animated={checklistStats.percent < 100 && checklistStats.percent > 0} />
+                    <Text size="xs" c="dimmed" style={{ fontSize: 11 }}>
+                      {t('tasks.stepsCompleted', {
+                        completed: checklistStats.completed,
+                        total: checklistStats.total,
+                        percent: checklistStats.percent,
+                      })}
+                    </Text>
+                  </Stack>
+                </div>
+              )}
 
-                <Divider my="xs" />
+              {/* General Properties (Always Compact & Accessible) */}
+              <div className="task-inspector-section">
+                <Stack gap={6}>
+                  {/* Status Row */}
+                  <div className="task-inspector-row">
+                    <span className="task-inspector-key">
+                      {getColumnIcon(currentStatusObj?.iconName, 14)}
+                      <span>{t('tasks.statusBacklog', 'Status')}</span>
+                    </span>
+                    <Menu shadow="md" width={170} position="bottom-end">
+                      <Menu.Target>
+                        <UnstyledButton className="task-inspector-val">
+                          <Badge size="xs" color={currentStatusObj?.color || 'blue'} variant="light" style={{ cursor: 'pointer' }}>
+                            {currentStatusObj?.label || status} ▾
+                          </Badge>
+                        </UnstyledButton>
+                      </Menu.Target>
+                      <Menu.Dropdown>
+                        {statusOptions.map((opt) => (
+                          <Menu.Item
+                            key={opt.value}
+                            leftSection={
+                              <span style={{ color: `var(--mantine-color-${opt.color || 'blue'}-filled)` }}>
+                                {getColumnIcon(opt.iconName, 14)}
+                              </span>
+                            }
+                            onClick={() => handleStatusChange(opt.value as TaskStatus)}
+                          >
+                            {opt.label}
+                          </Menu.Item>
+                        ))}
+                      </Menu.Dropdown>
+                    </Menu>
+                  </div>
 
-                {/* Quick Actions */}
-                <Stack gap="xs">
-                  <Button
-                    variant="light"
-                    color="blue"
-                    size="xs"
-                    radius="md"
-                    leftSection={<IconCalendarPlus size={15} />}
-                    loading={isLogging}
-                    onClick={handleLogToDaily}
-                  >
-                    {t('tasks.logToDailyNote')}
-                  </Button>
+                  {/* Priority Row */}
+                  <div className="task-inspector-row">
+                    <span className="task-inspector-key">
+                      <IconFlag size={14} />
+                      <span>{t('tasks.priority')}</span>
+                    </span>
+                    <Menu shadow="md" width={150} position="bottom-end">
+                      <Menu.Target>
+                        <UnstyledButton className="task-inspector-val">
+                          <Group gap={4} wrap="nowrap" style={{ cursor: 'pointer' }}>
+                            <span
+                              style={{
+                                width: 7,
+                                height: 7,
+                                borderRadius: '50%',
+                                backgroundColor: `var(--mantine-color-${currentPriorityObj.color}-filled)`,
+                              }}
+                            />
+                            <Text size="xs" fw={600} style={{ color: 'var(--app-text-primary)' }}>
+                              {currentPriorityObj.label} ▾
+                            </Text>
+                          </Group>
+                        </UnstyledButton>
+                      </Menu.Target>
+                      <Menu.Dropdown>
+                        {priorityOptions.map((p) => (
+                          <Menu.Item
+                            key={p.value}
+                            leftSection={
+                              <span
+                                style={{
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: '50%',
+                                  backgroundColor: `var(--mantine-color-${p.color}-filled)`,
+                                  display: 'inline-block',
+                                }}
+                              />
+                            }
+                            onClick={() => {
+                              setPriority(p.value as TaskPriority);
+                              setIsDirty(true);
+                            }}
+                          >
+                            {p.label}
+                          </Menu.Item>
+                        ))}
+                      </Menu.Dropdown>
+                    </Menu>
+                  </div>
 
-                  {window.electronAPI && activeTask?.filepath && (
-                    <Button
-                      variant="subtle"
-                      color="gray"
+                  {/* Area Row */}
+                  <div className="task-inspector-row">
+                    <span className="task-inspector-key">
+                      <IconFolder size={14} />
+                      <span>{t('areas.areaLabel', 'Area')}</span>
+                    </span>
+                    <Menu shadow="md" width={180} position="bottom-end">
+                      <Menu.Target>
+                        <UnstyledButton className="task-inspector-val">
+                          <Badge size="xs" color={currentAreaColor} variant="filled" style={{ cursor: 'pointer' }}>
+                            {area} ▾
+                          </Badge>
+                        </UnstyledButton>
+                      </Menu.Target>
+                      <Menu.Dropdown>
+                        {areas.map((a) => (
+                          <Menu.Item
+                            key={a.name}
+                            leftSection={
+                              <span
+                                style={{
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: '50%',
+                                  backgroundColor: `var(--mantine-color-${getAreaColor(a.name, areas)}-filled)`,
+                                  display: 'inline-block',
+                                }}
+                              />
+                            }
+                            onClick={() => {
+                              setArea(a.name);
+                              setIsDirty(true);
+                              if (project) {
+                                const projMatches = projects.some(
+                                  (p) => p.name.toLowerCase() === project.toLowerCase() && (p.areaName || '').toLowerCase() === a.name.toLowerCase()
+                                );
+                                if (!projMatches) setProject(null);
+                              }
+                            }}
+                          >
+                            {a.name}
+                          </Menu.Item>
+                        ))}
+                      </Menu.Dropdown>
+                    </Menu>
+                  </div>
+
+                  {/* Project Row */}
+                  <div className="task-inspector-row">
+                    <span className="task-inspector-key">
+                      <IconTag size={14} />
+                      <span>{t('areas.projectLabel', 'Project')}</span>
+                    </span>
+                    <Menu shadow="md" width={200} position="bottom-end">
+                      <Menu.Target>
+                        <UnstyledButton className="task-inspector-val">
+                          {project ? (
+                            <Badge size="xs" color={currentProjectColor} variant="light" style={{ cursor: 'pointer' }}>
+                              {project} ▾
+                            </Badge>
+                          ) : (
+                            <Text size="xs" c="dimmed" style={{ cursor: 'pointer' }}>
+                              {t('areas.noProject', 'None')} ▾
+                            </Text>
+                          )}
+                        </UnstyledButton>
+                      </Menu.Target>
+                      <Menu.Dropdown>
+                        <Menu.Item onClick={() => { setProject(null); setIsDirty(true); }}>
+                          <Text size="xs" c="dimmed">{t('areas.noProject', 'None (Direct Area task)')}</Text>
+                        </Menu.Item>
+                        {availableProjectsForArea.map((p) => (
+                          <Menu.Item
+                            key={p.name}
+                            leftSection={
+                              <Badge size="xs" color={getProjectColor(p.name, area, projects, areas)} variant="dot">
+                                {p.name}
+                              </Badge>
+                            }
+                            onClick={() => {
+                              setProject(p.name);
+                              setIsDirty(true);
+                            }}
+                          >
+                            {p.name}
+                          </Menu.Item>
+                        ))}
+                      </Menu.Dropdown>
+                    </Menu>
+                  </div>
+                </Stack>
+              </div>
+
+              {/* Schedule & Dates Collapsible Section */}
+              <div className="task-inspector-section">
+                <UnstyledButton
+                  onClick={() => setIsDatesOpen(!isDatesOpen)}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isDatesOpen ? 8 : 0 }}
+                >
+                  <Group gap={6}>
+                    <IconCalendar size={14} style={{ color: 'var(--app-text-secondary)' }} />
+                    <Text size="xs" fw={700} style={{ letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--app-text-secondary)' }}>
+                      {t('tasks.sectionSchedule', 'Dates & Planning')}
+                    </Text>
+                  </Group>
+                  {isDatesOpen ? <IconChevronDown size={13} /> : <IconChevronRight size={13} />}
+                </UnstyledButton>
+
+                <Collapse in={isDatesOpen}>
+                  <Stack gap={8} mt={4}>
+                    <DatePickerInput
+                      label={t('tasks.dueDate')}
+                      placeholder={t('tasks.noDueDate')}
+                      value={dueDate}
+                      onChange={(val) => {
+                        setDueDate(val);
+                        setIsDirty(true);
+                      }}
+                      leftSection={<IconCalendar size={14} />}
+                      clearable
                       size="xs"
                       radius="md"
-                      leftSection={<IconFolderOpen size={15} />}
-                      onClick={handleOpenFileInFileManager}
-                    >
-                      {t('tasks.openInFileManager')}
-                    </Button>
-                  )}
+                    />
 
-                  <Button
-                    variant="subtle"
-                    color="red"
-                    size="xs"
-                    radius="md"
-                    leftSection={<IconTrash size={15} />}
-                    onClick={() => setIsDeleteModalOpen(true)}
-                  >
-                    {t('tasks.deleteTask')}
-                  </Button>
-                </Stack>
-              </Stack>
+                    <DatePickerInput
+                      label={t('tasks.startedDate')}
+                      placeholder={t('tasks.noStartedDate')}
+                      value={startedDate}
+                      onChange={(val) => {
+                        setStartedDate(val);
+                        setIsDirty(true);
+                      }}
+                      leftSection={<IconClockPlay size={14} />}
+                      clearable
+                      size="xs"
+                      radius="md"
+                    />
+
+                    <DatePickerInput
+                      label={t('tasks.completedDate')}
+                      placeholder={t('tasks.noCompletedDate')}
+                      value={completedDate}
+                      onChange={(val) => {
+                        setCompletedDate(val);
+                        setIsDirty(true);
+                      }}
+                      leftSection={<IconClockCheck size={14} />}
+                      clearable
+                      size="xs"
+                      radius="md"
+                    />
+                  </Stack>
+                </Collapse>
+              </div>
+
+              {/* Context & Tags Collapsible Section */}
+              <div className="task-inspector-section">
+                <UnstyledButton
+                  onClick={() => setIsTagsOpen(!isTagsOpen)}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isTagsOpen ? 8 : 0 }}
+                >
+                  <Group gap={6}>
+                    <IconTag size={14} style={{ color: 'var(--app-text-secondary)' }} />
+                    <Text size="xs" fw={700} style={{ letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--app-text-secondary)' }}>
+                      {t('tasks.contextTags', 'Context & Tags')}
+                    </Text>
+                  </Group>
+                  {isTagsOpen ? <IconChevronDown size={13} /> : <IconChevronRight size={13} />}
+                </UnstyledButton>
+
+                <Collapse in={isTagsOpen}>
+                  <Stack gap={8} mt={4}>
+                    {/* Inherited tags */}
+                    {resolvedInheritedContext.inheritedTags.length > 0 && (
+                      <Paper p="xs" radius="sm" withBorder style={{ backgroundColor: isDark ? 'rgba(76, 110, 245, 0.05)' : 'rgba(76, 110, 245, 0.03)' }}>
+                        <Group gap={4} wrap="wrap">
+                          {resolvedInheritedContext.inheritedTags.map((tg) => (
+                            <Badge key={tg} size="xs" color={currentAreaColor} variant="dot">
+                              #{tg}
+                            </Badge>
+                          ))}
+                        </Group>
+                      </Paper>
+                    )}
+
+                    <TagsInput
+                      placeholder={t('tasks.addTagPlaceholder')}
+                      value={tags}
+                      onChange={(val) => {
+                        setTags(val);
+                        setIsDirty(true);
+                      }}
+                      data={allTags.map((t) => t.name)}
+                      clearable
+                      size="xs"
+                      radius="md"
+                      renderOption={({ option }) => {
+                        const tagColor = getTagColor(option.value, allTags);
+                        return (
+                          <Badge size="xs" color={tagColor} variant="light">
+                            #{option.value}
+                          </Badge>
+                        );
+                      }}
+                    />
+                  </Stack>
+                </Collapse>
+              </div>
+
+              {/* Document Outline / Table of Contents */}
+              <div className="task-inspector-section">
+                <UnstyledButton
+                  onClick={() => setIsOutlineOpen(!isOutlineOpen)}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isOutlineOpen ? 8 : 0 }}
+                >
+                  <Group gap={6}>
+                    <IconListTree size={14} style={{ color: 'var(--app-text-secondary)' }} />
+                    <Text size="xs" fw={700} style={{ letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--app-text-secondary)' }}>
+                      {t('tasks.outline', 'Outline')} ({documentHeadings.length})
+                    </Text>
+                  </Group>
+                  {isOutlineOpen ? <IconChevronDown size={13} /> : <IconChevronRight size={13} />}
+                </UnstyledButton>
+
+                <Collapse in={isOutlineOpen}>
+                  {documentHeadings.length > 0 ? (
+                    <Stack gap={2} mt={4}>
+                      {documentHeadings.map((h, idx) => (
+                        <button
+                          key={`${h.id}-${idx}`}
+                          type="button"
+                          className={`task-toc-item level-${h.level}`}
+                          onClick={() => handleScrollToHeading(h.id)}
+                        >
+                          <span style={{ opacity: 0.5, fontSize: 10, fontFamily: 'var(--font-mono)' }}>
+                            {'#'.repeat(h.level)}
+                          </span>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {h.text}
+                          </span>
+                        </button>
+                      ))}
+                    </Stack>
+                  ) : (
+                    <Text size="xs" c="dimmed" py={4} fs="italic">
+                      {t('tasks.noHeadings', 'No headings in document')}
+                    </Text>
+                  )}
+                </Collapse>
+              </div>
+
+              {/* Actions & Storage Collapsible Section */}
+              <div className="task-inspector-section" style={{ borderBottom: 'none' }}>
+                <UnstyledButton
+                  onClick={() => setIsActionsOpen(!isActionsOpen)}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isActionsOpen ? 8 : 0 }}
+                >
+                  <Group gap={6}>
+                    <Text size="xs" fw={700} style={{ letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--app-text-secondary)' }}>
+                      {t('tasks.sectionActions', 'Actions & Storage')}
+                    </Text>
+                  </Group>
+                  {isActionsOpen ? <IconChevronDown size={13} /> : <IconChevronRight size={13} />}
+                </UnstyledButton>
+
+                <Collapse in={isActionsOpen}>
+                  <Stack gap={6} mt={4}>
+                    <Button
+                      variant="light"
+                      color="blue"
+                      size="xs"
+                      radius="md"
+                      leftSection={<IconCalendarPlus size={14} />}
+                      loading={isLogging}
+                      onClick={handleLogToDaily}
+                    >
+                      {t('tasks.logToDailyNote')}
+                    </Button>
+
+                    <Button
+                      variant="default"
+                      size="xs"
+                      radius="md"
+                      leftSection={<IconFileExport size={14} />}
+                      onClick={() => setIsExportModalOpen(true)}
+                    >
+                      {t('editor.exportNote')}
+                    </Button>
+
+                    {window.electronAPI && activeTask?.filepath && (
+                      <Button
+                        variant="subtle"
+                        color="gray"
+                        size="xs"
+                        radius="md"
+                        leftSection={<IconFolderOpen size={14} />}
+                        onClick={handleOpenFileInFileManager}
+                      >
+                        {t('tasks.openInFileManager')}
+                      </Button>
+                    )}
+
+                    <Button
+                      variant="subtle"
+                      color="red"
+                      size="xs"
+                      radius="md"
+                      leftSection={<IconTrash size={14} />}
+                      onClick={() => setIsDeleteModalOpen(true)}
+                    >
+                      {t('tasks.deleteTask')}
+                    </Button>
+                  </Stack>
+                </Collapse>
+              </div>
             </ScrollArea>
-          </Paper>
+          </div>
         )}
       </div>
 

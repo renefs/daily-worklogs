@@ -8,6 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-09-01
+
+### Added
+- **Segmented Time Navigation**: Replaced navigation text links with a unified segmented control (`Daily`, `Weekly`, `Monthly`, `Yearly`).
+- **Visually Separated Tasks Action**: Added a distinct vertical separator and button styling for the Tasks board.
+- **Neutral Dark & Modern Blue Theme**: Redesigned dark mode palette with neutral dark slate/zinc surfaces and modern blue accent highlights.
+- **Friendlier Heading & Inline Code Badges**: Softer margins and border treatment for `# ` H1 headings, and polished inline code badges.
+
+### Removed
+- **Worklog Prefix in Header**: Removed the redundant `"Worklog:"` label before the navigation controls.
+- **Duplicate Today Badge**: Removed redundant `[TODAY]` badge next to the date heading in the daily view.
+
+### Changed
+- **Compact Top-Bar**: Reduced header height from 54px to 44px for a sleeker desktop titlebar.
+
 ## [1.4.0] - 2026-09-01
 
 ### Added

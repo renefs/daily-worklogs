@@ -23,6 +23,10 @@ function extractRawText(node: React.ReactNode): string {
   return '';
 }
 
+function slugify(text: string): string {
+  return text.toLowerCase().replace(/[^a-z0-9áéíóúñü]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
 export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   content,
   allowToggleTasks = true,
@@ -50,8 +54,24 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
             remarkPlugins={[remarkGfm]}
             rehypePlugins={[rehypeRaw, rehypeHighlight]}
             components={{
+              h1({ children, ...props }) {
+                const { node, ...rest } = props as any;
+                const id = slugify(extractRawText(children));
+                return <h1 id={id} {...rest}>{children}</h1>;
+              },
+              h2({ children, ...props }) {
+                const { node, ...rest } = props as any;
+                const id = slugify(extractRawText(children));
+                return <h2 id={id} {...rest}>{children}</h2>;
+              },
+              h3({ children, ...props }) {
+                const { node, ...rest } = props as any;
+                const id = slugify(extractRawText(children));
+                return <h3 id={id} {...rest}>{children}</h3>;
+              },
               // Custom interactive checkbox renderer
               li({ children, ...props }) {
+                const { node, ...rest } = props as any;
                 // Check if this is a task list item
                 const isTask = Array.isArray(children) && children.length > 0 && 
                   typeof children[0] === 'object' && 
@@ -71,7 +91,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                     .trim();
 
                   return (
-                    <li className="task-list-item" style={{ listStyle: 'none' }} {...props}>
+                    <li className="task-list-item" style={{ listStyle: 'none' }} {...rest}>
                       <Checkbox
                         size="xs"
                         checked={isChecked}
@@ -92,11 +112,12 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                   );
                 }
 
-                return <li {...props}>{children}</li>;
+                return <li {...rest}>{children}</li>;
               },
 
               // Custom pre / code block wrapper with header and copy button
               pre({ children, ...props }) {
+                const { node, ...rest } = props as any;
                 let language = '';
                 let rawCode = '';
 
@@ -136,7 +157,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                         </CopyButton>
                       )}
                     </div>
-                    <pre className="markdown-codeblock-pre" {...props}>
+                    <pre className="markdown-codeblock-pre" {...rest}>
                       {children}
                     </pre>
                   </div>
@@ -145,16 +166,17 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
 
               // Custom inline code
               code({ className, children, ...props }) {
+                const { node, ...rest } = props as any;
                 const isCodeBlock = className?.includes('language-') || className?.includes('hljs');
                 if (isCodeBlock) {
                   return (
-                    <code className={className} {...props}>
+                    <code className={className} {...rest}>
                       {children}
                     </code>
                   );
                 }
                 return (
-                  <code className="markdown-inline-code" {...props}>
+                  <code className="markdown-inline-code" {...rest}>
                     {children}
                   </code>
                 );
@@ -162,6 +184,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
 
               // Custom image renderer with local vault support
               img({ src, alt, ...props }) {
+                const { node, ...rest } = props as any;
                 if (!src) return null;
                 let resolvedSrc = src;
                 if (
@@ -192,7 +215,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                             parent.appendChild(err);
                           }
                         }}
-                        {...props}
+                        {...rest}
                       />
                     </span>
                     {alt && (

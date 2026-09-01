@@ -97,16 +97,18 @@ export const DailyView: React.FC = () => {
             <IconChevronRight size={16} />
           </ActionIcon>
 
-          <Group gap="xs" ml={6} wrap="nowrap">
-            <Text fw={700} size="md" style={{ letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
-              {formattedDateTitle}
-            </Text>
-            {isToday && (
-              <Badge color="primary" variant="light" size="sm">
-                {t('nav.today')}
-              </Badge>
-            )}
-          </Group>
+          <Text
+            fw={700}
+            size="md"
+            ml={8}
+            style={{
+              fontFamily: 'var(--font-display)',
+              letterSpacing: '-0.01em',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {formattedDateTitle}
+          </Text>
         </Group>
 
         {/* Right Side: Daily Routines Counter */}
