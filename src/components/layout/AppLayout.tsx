@@ -10,12 +10,13 @@ import { useTranslation } from 'react-i18next';
 import { useAppStoreSelector } from '../../store/useAppStore';
 import { AppHeader } from './AppHeader';
 import { AppSidebar } from './AppSidebar';
-import { DailyView } from '../views/DailyView';
-import { WeeklyView } from '../views/WeeklyView';
-import { MonthlyView } from '../views/MonthlyView';
-import { YearlyView } from '../views/YearlyView';
-import { KanbanView } from '../views/KanbanView';
-import { TaskView } from '../views/TaskView';
+
+const DailyView = React.lazy(() => import('../views/DailyView').then((module) => ({ default: module.DailyView })));
+const WeeklyView = React.lazy(() => import('../views/WeeklyView').then((module) => ({ default: module.WeeklyView })));
+const MonthlyView = React.lazy(() => import('../views/MonthlyView').then((module) => ({ default: module.MonthlyView })));
+const YearlyView = React.lazy(() => import('../views/YearlyView').then((module) => ({ default: module.YearlyView })));
+const KanbanView = React.lazy(() => import('../views/KanbanView').then((module) => ({ default: module.KanbanView })));
+const TaskView = React.lazy(() => import('../views/TaskView').then((module) => ({ default: module.TaskView })));
 
 const SettingsModal = React.lazy(() =>
   import('../modals/SettingsModal').then((module) => ({ default: module.SettingsModal }))
@@ -102,12 +103,14 @@ export const AppLayout: React.FC = () => {
           backgroundColor: 'var(--app-main-bg)',
         }}
       >
-        {currentView === 'daily' && <DailyView />}
-        {currentView === 'weekly' && <WeeklyView />}
-        {currentView === 'monthly' && <MonthlyView />}
-        {currentView === 'yearly' && <YearlyView />}
-        {currentView === 'tasks' && <KanbanView />}
-        {currentView === 'task' && <TaskView />}
+        <React.Suspense fallback={<Center h="100%"><Loader size="md" /></Center>}>
+          {currentView === 'daily' && <DailyView />}
+          {currentView === 'weekly' && <WeeklyView />}
+          {currentView === 'monthly' && <MonthlyView />}
+          {currentView === 'yearly' && <YearlyView />}
+          {currentView === 'tasks' && <KanbanView />}
+          {currentView === 'task' && <TaskView />}
+        </React.Suspense>
       </AppShell.Main>
 
       <React.Suspense fallback={null}>

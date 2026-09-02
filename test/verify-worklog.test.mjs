@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import matter from 'gray-matter';
+import { mapWithConcurrency } from '../electron/utils/async.ts';
+import { requireIsoDate, requireTaskFilename, resolvePathInside } from '../electron/utils/security.ts';
 
 const testVault = path.join(os.tmpdir(), 'test-daily-worklog-vault');
 if (fs.existsSync(testVault)) {
@@ -11,6 +13,17 @@ if (fs.existsSync(testVault)) {
 fs.mkdirSync(testVault, { recursive: true });
 
 console.log('--- Testing Daily Worklog Logic ---');
+
+assert.strictEqual(requireIsoDate('2026-09-02'), '2026-09-02');
+assert.throws(() => requireIsoDate('2026-02-31'), /Invalid date/);
+assert.strictEqual(requireTaskFilename('release-notes'), 'release-notes.md');
+assert.throws(() => requireTaskFilename('../outside.md'), /Invalid task filename/);
+assert.strictEqual(resolvePathInside('/tmp/vault', 'images/example.png'), path.resolve('/tmp/vault/images/example.png'));
+assert.throws(() => resolvePathInside('/tmp/vault', '../secret.txt'), /outside the allowed directory/);
+
+const concurrentResults = await mapWithConcurrency([1, 2, 3], 2, async (value) => value * 2);
+assert.deepStrictEqual(concurrentResults, [2, 4, 6]);
+console.log('✓ Production path validation and concurrency utilities verified');
 
 // Year helper functions under test
 function getYearFromDate(date) {
@@ -1104,7 +1117,6 @@ if (fs.existsSync(sharedCloudVault)) fs.rmSync(sharedCloudVault, { recursive: tr
 if (fs.existsSync(computerASettingsFile)) fs.rmSync(computerASettingsFile);
 if (fs.existsSync(computerBSettingsFile)) fs.rmSync(computerBSettingsFile);
 console.log('✓ All verification tests passed successfully!');
-
 
 
 

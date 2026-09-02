@@ -7,6 +7,7 @@ import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import { Paper, ScrollArea, Checkbox, CopyButton, ActionIcon, Tooltip } from '@mantine/core';
 import { IconCopy, IconCheck, IconCode } from '@tabler/icons-react';
 import { useAppStoreSelector } from '../../store/useAppStore';
+import { useTranslation } from 'react-i18next';
 
 export interface MarkdownViewerProps {
   content?: string;
@@ -33,6 +34,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   allowToggleTasks = true,
   onToggleTask,
 }) => {
+  const { t } = useTranslation();
   const { activeNote, toggleTaskInNote } = useAppStoreSelector((state) => ({
     activeNote: state.activeNote,
     toggleTaskInNote: state.toggleTaskInNote,
@@ -151,12 +153,12 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                     <div className="markdown-codeblock-header">
                       <span className="markdown-codeblock-lang">
                         <IconCode size={13} style={{ marginRight: 4, verticalAlign: -2 }} />
-                        {language ? language.toUpperCase() : 'CODE'}
+                        {language ? language.toUpperCase() : t('common.code')}
                       </span>
                       {rawCode && (
                         <CopyButton value={rawCode.trimEnd()} timeout={2000}>
                           {({ copied, copy }) => (
-                            <Tooltip label={copied ? 'Copied!' : 'Copy code'} withArrow position="left">
+                            <Tooltip label={copied ? t('common.copied') : t('common.copyCode')} withArrow position="left">
                               <ActionIcon
                                 variant="subtle"
                                 color={copied ? 'teal' : 'gray'}

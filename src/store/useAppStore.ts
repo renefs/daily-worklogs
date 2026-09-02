@@ -184,11 +184,13 @@ export const useAppStore = create<AppState>((set, get) => ({
           isLoading: false,
           isOnboardingOpen: shouldShowOnboarding,
         });
-        await get().refreshNotesList();
-        await get().refreshTasksList();
-        await get().refreshTagsList();
-        await get().loadRoutineCompletions(get().selectedDate);
-        await get().loadNoteForDate(get().selectedDate);
+        await Promise.all([
+          get().refreshNotesList(),
+          get().refreshTasksList(),
+          get().refreshTagsList(),
+          get().loadRoutineCompletions(get().selectedDate),
+          get().loadNoteForDate(get().selectedDate),
+        ]);
       } else {
         // Fallback for browser testing if opened outside electron
         set({
