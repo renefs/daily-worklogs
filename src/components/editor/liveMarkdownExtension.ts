@@ -6,6 +6,13 @@ import {
   WidgetType,
 } from '@codemirror/view';
 import { EditorState, RangeSetBuilder } from '@codemirror/state';
+import { matchesMarkdownSyntaxNode, sanitizeLivePreviewUrl } from './liveMarkdownUtils';
+
+export interface LiveMarkdownLabels {
+  copyCode: string;
+  editTable: string;
+  imageNotFound: string;
+}
 
 /**
  * Checkbox widget that renders an interactive Mantine-styled checkbox.
@@ -80,7 +87,8 @@ class CodeBlockHeaderWidget extends WidgetType {
   constructor(
     readonly lang: string,
     readonly pos: number,
-    readonly rawCode: string
+    readonly rawCode: string,
+    readonly copyCodeLabel: string
   ) {
     super();
   }
@@ -91,13 +99,15 @@ class CodeBlockHeaderWidget extends WidgetType {
 
     const langSpan = document.createElement('span');
     langSpan.className = 'cm-live-codeblock-lang';
-    langSpan.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px; vertical-align: -2px;"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>${this.lang ? this.lang.toUpperCase() : 'CODE'}`;
+    langSpan.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px; vertical-align: -2px;"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>`;
+    langSpan.append(document.createTextNode(this.lang ? this.lang.toUpperCase() : 'CODE'));
     header.appendChild(langSpan);
 
     const copyBtn = document.createElement('button');
     copyBtn.className = 'cm-live-codeblock-copy-btn';
     copyBtn.type = 'button';
-    copyBtn.title = 'Copy code';
+    copyBtn.title = this.copyCodeLabel;
+    copyBtn.setAttribute('aria-label', this.copyCodeLabel);
     copyBtn.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
 
     copyBtn.addEventListener('mousedown', (e) => {
@@ -127,7 +137,7 @@ class CodeBlockHeaderWidget extends WidgetType {
   }
 
   eq(other: CodeBlockHeaderWidget): boolean {
-    return this.lang === other.lang && this.pos === other.pos && this.rawCode === other.rawCode;
+    return this.lang === other.lang && this.pos === other.pos && this.rawCode === other.rawCode && this.copyCodeLabel === other.copyCodeLabel;
   }
 
   ignoreEvent(): boolean {
@@ -206,7 +216,8 @@ class ImageWidget extends WidgetType {
   constructor(
     readonly alt: string,
     readonly src: string,
-    readonly pos: number
+    readonly pos: number,
+    readonly imageNotFoundLabel: string
   ) {
     super();
   }
@@ -234,20 +245,18 @@ class ImageWidget extends WidgetType {
 
     const img = document.createElement('img');
     img.className = 'cm-live-image-img';
-    img.src = resolvedSrc;
+    img.src = sanitizeLivePreviewUrl(resolvedSrc, true) || '';
     img.alt = this.alt || 'Image';
     img.loading = 'lazy';
 
     img.onerror = () => {
-      wrapper.innerHTML = `
-        <span class="cm-live-image-error">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="1" y1="1" x2="23" y2="23"></line>
-            <path d="M21 21H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3m3-3h6l2 3h4a2 2 0 0 1 2 2v9.34m-7.72-2.06a4 4 0 1 1-5.56-5.56"></path>
-          </svg>
-          <span>Image not found: <strong>${this.src}</strong></span>
-        </span>
-      `;
+      wrapper.replaceChildren();
+      const error = document.createElement('span');
+      error.className = 'cm-live-image-error';
+      const message = document.createElement('span');
+      message.textContent = `${this.imageNotFoundLabel}: ${this.src}`;
+      error.appendChild(message);
+      wrapper.appendChild(error);
     };
 
     wrapper.appendChild(img);
@@ -285,7 +294,7 @@ class ImageWidget extends WidgetType {
   }
 
   eq(other: ImageWidget): boolean {
-    return this.alt === other.alt && this.src === other.src && this.pos === other.pos;
+    return this.alt === other.alt && this.src === other.src && this.pos === other.pos && this.imageNotFoundLabel === other.imageNotFoundLabel;
   }
 
   ignoreEvent(): boolean {
@@ -364,44 +373,56 @@ function isDelimiterRow(text: string): boolean {
 /**
  * Format inline markdown tokens (bold, italic, strike, code, link, checkboxes) safely into HTML for table cells.
  */
-function renderInlineMarkdown(text: string): string {
-  let html = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-
-  // Escaped pipe \| -> |
-  html = html.replace(/\\\|/g, '|');
-
-  // Checkboxes
-  html = html.replace(/\[ \]/g, '<span class="cm-live-table-checkbox"></span>');
-  html = html.replace(
-    /\[[xX]\]/g,
-    '<span class="cm-live-table-checkbox checked"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>'
-  );
-
-  // Inline code: `code`
-  html = html.replace(/`([^`]+)`/g, '<code class="cm-live-code">$1</code>');
-
-  // Links: [text](url)
-  html = html.replace(
-    /\[([^\]]+)\]\(([^)]+)\)/g,
-    '<a href="$2" class="cm-live-link" target="_blank" rel="noopener noreferrer">$1</a>'
-  );
-
-  // Bold + Italic: ***text*** or ___text___
-  html = html.replace(/(\*{3}|_{3})(.*?)\1/g, '<strong><em>$2</em></strong>');
-
-  // Bold: **text** or __text__
-  html = html.replace(/(\*{2}|_{2})(.*?)\1/g, '<strong>$2</strong>');
-
-  // Italic: *text* or _text_
-  html = html.replace(/(\*|_)(.*?)\1/g, '<em>$2</em>');
-
-  // Strikethrough: ~~text~~
-  html = html.replace(/~~(.*?)~~/g, '<del>$1</del>');
-
-  return html;
+function appendInlineMarkdown(container: HTMLElement, text: string): void {
+  const tokenPattern = /\[[^\]]+\]\([^)]+\)|\[[ xX]\]|`[^`]+`|\*\*\*.+?\*\*\*|___.+?___|\*\*.+?\*\*|__.+?__|~~.+?~~|\*[^*]+\*|_[^_]+_/g;
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  while ((match = tokenPattern.exec(text)) !== null) {
+    container.append(document.createTextNode(text.slice(cursor, match.index).replace(/\\\|/g, '|')));
+    const token = match[0];
+    const linkMatch = token.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    if (linkMatch) {
+      const safeUrl = sanitizeLivePreviewUrl(linkMatch[2]);
+      if (safeUrl) {
+        const anchor = document.createElement('a');
+        anchor.className = 'cm-live-link';
+        anchor.href = safeUrl;
+        anchor.target = '_blank';
+        anchor.rel = 'noopener noreferrer';
+        anchor.textContent = linkMatch[1];
+        container.appendChild(anchor);
+      } else {
+        container.append(document.createTextNode(token));
+      }
+    } else if (/^\[[ xX]\]$/.test(token)) {
+      const checkbox = document.createElement('span');
+      checkbox.className = `cm-live-table-checkbox${/[xX]/.test(token) ? ' checked' : ''}`;
+      checkbox.setAttribute('aria-hidden', 'true');
+      container.appendChild(checkbox);
+    } else {
+      const isTriple = token.startsWith('***') || token.startsWith('___');
+      const isBold = !isTriple && (token.startsWith('**') || token.startsWith('__'));
+      const tag = token.startsWith('`')
+        ? 'code'
+        : token.startsWith('~~')
+        ? 'del'
+        : isBold
+        ? 'strong'
+        : 'em';
+      const markerLength = isTriple ? 3 : isBold || token.startsWith('~~') ? 2 : 1;
+      const element = document.createElement(tag);
+      element.textContent = token.slice(markerLength, -markerLength);
+      if (isTriple) {
+        const strong = document.createElement('strong');
+        strong.appendChild(element);
+        container.appendChild(strong);
+      } else {
+        container.appendChild(element);
+      }
+    }
+    cursor = match.index + token.length;
+  }
+  container.append(document.createTextNode(text.slice(cursor).replace(/\\\|/g, '|')));
 }
 
 interface TableData {
@@ -466,7 +487,8 @@ class TableWidget extends WidgetType {
     readonly from: number,
     readonly to: number,
     readonly rawText: string,
-    readonly headerLineNum: number
+    readonly headerLineNum: number,
+    readonly editTableLabel: string
   ) {
     super();
   }
@@ -477,7 +499,7 @@ class TableWidget extends WidgetType {
 
     const hint = document.createElement('span');
     hint.className = 'cm-live-table-hint';
-    hint.innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>Click to edit table`;
+    hint.textContent = this.editTableLabel;
     wrapper.appendChild(hint);
 
     const table = document.createElement('table');
@@ -492,7 +514,7 @@ class TableWidget extends WidgetType {
         if (align) {
           th.style.textAlign = align;
         }
-        th.innerHTML = renderInlineMarkdown(h);
+        appendInlineMarkdown(th, h);
         tr.appendChild(th);
       });
       thead.appendChild(tr);
@@ -511,7 +533,7 @@ class TableWidget extends WidgetType {
             td.style.textAlign = align;
           }
           const cellContent = row[colIdx] || '';
-          td.innerHTML = renderInlineMarkdown(cellContent);
+          appendInlineMarkdown(td, cellContent);
           tr.appendChild(td);
         }
         tbody.appendChild(tr);
@@ -555,7 +577,7 @@ class TableWidget extends WidgetType {
   }
 
   eq(other: TableWidget): boolean {
-    return this.rawText === other.rawText && this.from === other.from && this.to === other.to;
+    return this.rawText === other.rawText && this.from === other.from && this.to === other.to && this.editTableLabel === other.editTableLabel;
   }
 
   ignoreEvent(): boolean {
@@ -575,11 +597,14 @@ interface QueuedDeco {
  */
 function buildLiveDecorations(
   state: EditorState,
-  visibleRanges?: readonly { from: number; to: number }[]
+  visibleRanges: readonly { from: number; to: number }[] | undefined,
+  labels: LiveMarkdownLabels
 ): DecorationSet {
   const queued: QueuedDeco[] = [];
   const { doc, selection } = state;
   const cursorRanges = selection.ranges;
+  const matchesSyntaxNode = (names: readonly string[], from: number, to: number): boolean =>
+    matchesMarkdownSyntaxNode(state, names, from, to);
 
   // Helper: check if any selection cursor touches or is inside a range
   const isCursorTouching = (start: number, end: number, buffer = 1): boolean => {
@@ -650,7 +675,7 @@ function buildLiveDecorations(
           from: line.from,
           to: line.to,
           deco: Decoration.replace({
-            widget: new CodeBlockHeaderWidget(lang, line.from, rawCode),
+            widget: new CodeBlockHeaderWidget(lang, line.from, rawCode, labels.copyCode),
           }),
         });
       }
@@ -717,7 +742,8 @@ function buildLiveDecorations(
               tableFrom,
               tableTo,
               rawTableText,
-              tableData.headerLine
+              tableData.headerLine,
+              labels.editTable
             ),
             block: true,
           }),
@@ -977,7 +1003,7 @@ function buildLiveDecorations(
       const innerFrom = mFrom + 1;
       const innerTo = mTo - 1;
 
-      if (!isOccupied(mFrom, mTo)) {
+      if (!isOccupied(mFrom, mTo) && matchesSyntaxNode(['InlineCode'], mFrom, mTo)) {
         occupiedRanges.push({ from: mFrom, to: mTo });
         const touching = isCursorTouching(mFrom, mTo, 1);
 
@@ -1025,7 +1051,7 @@ function buildLiveDecorations(
       const altText = match[1];
       const srcUrl = match[2];
 
-      if (!isOccupied(mFrom, mTo)) {
+      if (!isOccupied(mFrom, mTo) && matchesSyntaxNode(['Image'], mFrom, mTo)) {
         occupiedRanges.push({ from: mFrom, to: mTo });
         const touching = isCursorTouching(mFrom, mTo, 1);
 
@@ -1042,7 +1068,7 @@ function buildLiveDecorations(
             from: mFrom,
             to: mTo,
             deco: Decoration.replace({
-              widget: new ImageWidget(altText, srcUrl, mFrom),
+              widget: new ImageWidget(altText, srcUrl, mFrom, labels.imageNotFound),
             }),
           });
         }
@@ -1059,7 +1085,7 @@ function buildLiveDecorations(
       const urlPartStart = textEnd;
       const urlPartEnd = mTo;
 
-      if (!isOccupied(mFrom, mTo)) {
+      if (!isOccupied(mFrom, mTo) && matchesSyntaxNode(['Link'], mFrom, mTo)) {
         occupiedRanges.push({ from: mFrom, to: mTo });
         const touching = isCursorTouching(mFrom, mTo, 1);
 
@@ -1108,7 +1134,7 @@ function buildLiveDecorations(
       const innerFrom = mFrom + 3;
       const innerTo = mTo - 3;
 
-      if (!isOccupied(mFrom, mTo)) {
+      if (!isOccupied(mFrom, mTo) && matchesSyntaxNode(['Emphasis'], mFrom, mTo)) {
         occupiedRanges.push({ from: mFrom, to: mTo });
         const touching = isCursorTouching(mFrom, mTo, 1);
 
@@ -1157,7 +1183,7 @@ function buildLiveDecorations(
       const innerFrom = mFrom + 2;
       const innerTo = mTo - 2;
 
-      if (!isOccupied(mFrom, mTo)) {
+      if (!isOccupied(mFrom, mTo) && matchesSyntaxNode(['StrongEmphasis'], mFrom, mTo)) {
         occupiedRanges.push({ from: mFrom, to: mTo });
         const touching = isCursorTouching(mFrom, mTo, 1);
 
@@ -1206,7 +1232,7 @@ function buildLiveDecorations(
       const innerFrom = mFrom + 1;
       const innerTo = mTo - 1;
 
-      if (!isOccupied(mFrom, mTo)) {
+      if (!isOccupied(mFrom, mTo) && matchesSyntaxNode(['Emphasis'], mFrom, mTo)) {
         occupiedRanges.push({ from: mFrom, to: mTo });
         const touching = isCursorTouching(mFrom, mTo, 1);
 
@@ -1255,7 +1281,7 @@ function buildLiveDecorations(
       const innerFrom = mFrom + 2;
       const innerTo = mTo - 2;
 
-      if (!isOccupied(mFrom, mTo)) {
+      if (!isOccupied(mFrom, mTo) && matchesSyntaxNode(['Strikethrough'], mFrom, mTo)) {
         occupiedRanges.push({ from: mFrom, to: mTo });
         const touching = isCursorTouching(mFrom, mTo, 1);
 
@@ -1323,31 +1349,33 @@ function buildLiveDecorations(
  * View-scoped decorations keep live preview work proportional to what the user
  * can see instead of rebuilding every decoration in a long document.
  */
-export const liveMarkdownPlugin = ViewPlugin.fromClass(
-  class {
+function createLiveMarkdownPlugin(labels: LiveMarkdownLabels) {
+  return ViewPlugin.fromClass(
+    class {
     decorations: DecorationSet;
 
     constructor(view: EditorView) {
-      this.decorations = buildLiveDecorations(view.state, view.visibleRanges);
+      this.decorations = buildLiveDecorations(view.state, view.visibleRanges, labels);
     }
 
     update(update: { docChanged: boolean; selectionSet: boolean; viewportChanged: boolean; view: EditorView }) {
       if (update.docChanged || update.selectionSet || update.viewportChanged) {
-        this.decorations = buildLiveDecorations(update.view.state, update.view.visibleRanges);
+        this.decorations = buildLiveDecorations(update.view.state, update.view.visibleRanges, labels);
       }
     }
   },
   {
     decorations: (plugin) => plugin.decorations,
-  }
-);
+    }
+  );
+}
 
 /**
  * Returns the extension suite for Obsidian-like Live Preview markdown editing
  */
-export function liveMarkdownExtension() {
+export function liveMarkdownExtension(labels: LiveMarkdownLabels) {
   return [
-    liveMarkdownPlugin,
+    createLiveMarkdownPlugin(labels),
     EditorView.editorAttributes.of({ class: 'cm-live-editor' }),
   ];
 }

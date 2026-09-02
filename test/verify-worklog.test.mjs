@@ -3,10 +3,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import matter from 'gray-matter';
+import { markdown } from '@codemirror/lang-markdown';
+import { EditorState } from '@codemirror/state';
 import { mapWithConcurrency } from '../electron/utils/async.ts';
 import { requireIsoDate, requireTaskFilename, resolvePathInside } from '../electron/utils/security.ts';
 import { atomicWriteFile, atomicWriteFileSync } from '../electron/utils/atomicFile.ts';
 import { ensureYearDir, getNoteFilePath, getYearFromDate, listDailyNoteFiles } from '../electron/services/vaultService.ts';
+import { matchesMarkdownSyntaxNode, sanitizeLivePreviewUrl } from '../src/components/editor/liveMarkdownUtils.ts';
 
 const testVault = path.join(os.tmpdir(), 'test-daily-worklog-vault');
 if (fs.existsSync(testVault)) {
@@ -26,6 +29,21 @@ assert.throws(() => resolvePathInside('/tmp/vault', '../secret.txt'), /outside t
 const concurrentResults = await mapWithConcurrency([1, 2, 3], 2, async (value) => value * 2);
 assert.deepStrictEqual(concurrentResults, [2, 4, 6]);
 console.log('✓ Production path validation and concurrency utilities verified');
+
+assert.strictEqual(sanitizeLivePreviewUrl('https://example.com/docs'), 'https://example.com/docs');
+assert.strictEqual(sanitizeLivePreviewUrl('../images/example.png'), '../images/example.png');
+assert.strictEqual(sanitizeLivePreviewUrl('javascript:alert(1)'), null);
+assert.strictEqual(sanitizeLivePreviewUrl('data:text/html,<script>alert(1)</script>', true), null);
+assert.strictEqual(sanitizeLivePreviewUrl('data:image/png;base64,AAAA', true), 'data:image/png;base64,AAAA');
+assert.strictEqual(sanitizeLivePreviewUrl('https://example.com/\nmalformed'), null);
+const liveMarkdownState = EditorState.create({
+  doc: '**bold** \\*not emphasis* [safe](https://example.com)',
+  extensions: [markdown()],
+});
+assert.strictEqual(matchesMarkdownSyntaxNode(liveMarkdownState, ['StrongEmphasis'], 0, 8), true);
+assert.strictEqual(matchesMarkdownSyntaxNode(liveMarkdownState, ['Emphasis'], 10, 24), false);
+assert.strictEqual(matchesMarkdownSyntaxNode(liveMarkdownState, ['Link'], 25, 52), true);
+console.log('✓ Live Editor link and image URL validation verified');
 
 const atomicFilePath = path.join(testVault, 'atomic-write.txt');
 atomicWriteFileSync(atomicFilePath, 'first');

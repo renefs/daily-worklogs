@@ -331,10 +331,14 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       EditorView.lineWrapping,
     ];
     if (isLivePreview) {
-      list.push(...liveMarkdownExtension());
+      list.push(...liveMarkdownExtension({
+        copyCode: t('editor.copyCode'),
+        editTable: t('editor.editTable'),
+        imageNotFound: t('editor.imageNotFound'),
+      }));
     }
     return list;
-  }, [isLivePreview]);
+  }, [isLivePreview, t]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>

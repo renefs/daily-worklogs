@@ -789,7 +789,11 @@ export const TaskModal: React.FC = () => {
                 extensions={[
                   markdown(),
                   createTagAutocompleteExtension(() => allTagsRef.current),
-                  ...liveMarkdownExtension(),
+                  ...liveMarkdownExtension({
+                    copyCode: t('editor.copyCode'),
+                    editTable: t('editor.editTable'),
+                    imageNotFound: t('editor.imageNotFound'),
+                  }),
                 ]}
                 onChange={(val) => setContent(val)}
                 placeholder={t('tasks.descriptionPlaceholder')}
