@@ -28,7 +28,6 @@ protocol.registerSchemesAsPrivileged([
       standard: true,
       secure: true,
       supportFetchAPI: true,
-      bypassCSP: true,
       stream: true,
       corsEnabled: true,
     },
@@ -37,6 +36,31 @@ protocol.registerSchemesAsPrivileged([
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+function requireIsoDate(value: unknown, fieldName = 'date'): string {
+  if (typeof value !== 'string' || !ISO_DATE_PATTERN.test(value) || dayjs(value).format('YYYY-MM-DD') !== value) {
+    throw new Error(`Invalid ${fieldName}`);
+  }
+  return value;
+}
+
+function requireTaskFilename(value: unknown): string {
+  if (typeof value !== 'string' || !value.trim()) throw new Error('Invalid task filename');
+  const filename = value.toLowerCase().endsWith('.md') ? value : `${value}.md`;
+  if (path.basename(filename) !== filename || filename.includes('\0')) throw new Error('Invalid task filename');
+  return filename;
+}
+
+function resolvePathInside(root: string, relativePath: string): string {
+  const resolvedRoot = path.resolve(root);
+  const resolvedPath = path.resolve(resolvedRoot, relativePath);
+  if (resolvedPath !== resolvedRoot && !resolvedPath.startsWith(`${resolvedRoot}${path.sep}`)) {
+    throw new Error('Path is outside the allowed directory');
+  }
+  return resolvedPath;
+}
 
 function formatTemplateDate(dateStr: string, format?: string, lang?: string): string {
   const targetLang = lang === 'es' ? 'es' : 'en';
@@ -728,8 +752,16 @@ function createWindow() {
       preload: preloadPath,
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: false,
+      sandbox: true,
     },
+  });
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https:\/\//i.test(url)) void shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (url !== mainWindow?.webContents.getURL()) event.preventDefault();
   });
 
   if (process.env.VITE_DEV_SERVER_URL) {
@@ -909,18 +941,9 @@ app.whenReady().then(() => {
     try {
       const urlObj = new URL(request.url);
       const { vaultPath } = getSettings();
-      let targetFilePath = '';
-
-      if (urlObj.hostname === 'vault') {
-        const subPath = decodeURIComponent(urlObj.pathname.replace(/^\/+/, ''));
-        targetFilePath = path.join(vaultPath, subPath);
-      } else {
-        let decodedPath = decodeURIComponent(urlObj.pathname);
-        if (process.platform === 'win32' && decodedPath.startsWith('/')) {
-          decodedPath = decodedPath.slice(1);
-        }
-        targetFilePath = decodedPath;
-      }
+      if (urlObj.hostname !== 'vault') return new Response('Invalid media location', { status: 403 });
+      const subPath = decodeURIComponent(urlObj.pathname.replace(/^\/+/, ''));
+      const targetFilePath = resolvePathInside(vaultPath, subPath);
 
       if (!fs.existsSync(targetFilePath)) {
         return new Response('Media file not found', { status: 404 });
@@ -1074,6 +1097,7 @@ ipcMain.handle('select-vault-directory', async () => {
 });
 
 ipcMain.handle('read-note', async (_event, date: string) => {
+  date = requireIsoDate(date);
   const { vaultPath } = getSettings();
   ensureVaultDir(vaultPath);
   const { filepath, exists, filename, relativePath } = getNoteFilePath(vaultPath, date);
@@ -1113,6 +1137,8 @@ ipcMain.handle('read-note', async (_event, date: string) => {
 });
 
 ipcMain.handle('write-note', async (_event, date: string, content: string) => {
+  date = requireIsoDate(date);
+  if (typeof content !== 'string') throw new Error('Invalid note content');
   const { vaultPath } = getSettings();
   const year = getYearFromDate(date);
   const yearDir = ensureYearDir(vaultPath, year);
@@ -1131,6 +1157,7 @@ ipcMain.handle('write-note', async (_event, date: string, content: string) => {
 });
 
 ipcMain.handle('delete-note', async (_event, date: string) => {
+  date = requireIsoDate(date);
   const { vaultPath } = getSettings();
   const year = getYearFromDate(date);
   const yearFilePath = path.join(vaultPath, year, `${date}.md`);
@@ -1899,8 +1926,8 @@ ipcMain.handle('search-task-contents', async (_event, rawQuery: string) => {
 ipcMain.handle('read-task', async (_event, filename: string) => {
   const { vaultPath } = getSettings();
   const tasksDir = ensureTasksDir(vaultPath);
-  const safeFilename = filename.toLowerCase().endsWith('.md') ? filename : `${filename}.md`;
-  const filepath = path.join(tasksDir, safeFilename);
+  const safeFilename = requireTaskFilename(filename);
+  const filepath = resolvePathInside(tasksDir, safeFilename);
 
   if (fs.existsSync(filepath)) {
     return await parseTaskFile(filepath, safeFilename);
@@ -1924,8 +1951,8 @@ ipcMain.handle('write-task', async (_event, taskData: any) => {
       filename = `${datePrefix}-${slug}-${counter}.md`;
       counter++;
     }
-  } else if (!filename.toLowerCase().endsWith('.md')) {
-    filename = `${filename}.md`;
+  } else {
+    filename = requireTaskFilename(filename);
   }
 
   const filepath = path.join(tasksDir, filename);
@@ -2024,8 +2051,8 @@ ipcMain.handle('write-task', async (_event, taskData: any) => {
 ipcMain.handle('update-task-status', async (_event, filename: string, status: string) => {
   const { vaultPath } = getSettings();
   const tasksDir = ensureTasksDir(vaultPath);
-  const safeFilename = filename.toLowerCase().endsWith('.md') ? filename : `${filename}.md`;
-  const filepath = path.join(tasksDir, safeFilename);
+  const safeFilename = requireTaskFilename(filename);
+  const filepath = resolvePathInside(tasksDir, safeFilename);
 
   if (!fs.existsSync(filepath)) {
     return { success: false, error: 'Task file not found' };
@@ -2067,8 +2094,8 @@ ipcMain.handle('update-task-status', async (_event, filename: string, status: st
 ipcMain.handle('delete-task', async (_event, filename: string) => {
   const { vaultPath } = getSettings();
   const tasksDir = ensureTasksDir(vaultPath);
-  const safeFilename = filename.toLowerCase().endsWith('.md') ? filename : `${filename}.md`;
-  const filepath = path.join(tasksDir, safeFilename);
+  const safeFilename = requireTaskFilename(filename);
+  const filepath = resolvePathInside(tasksDir, safeFilename);
 
   if (fs.existsSync(filepath)) {
     fs.unlinkSync(filepath);

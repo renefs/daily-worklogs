@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeRaw from 'rehype-raw';
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import { Paper, ScrollArea, Checkbox, CopyButton, ActionIcon, Tooltip } from '@mantine/core';
 import { IconCopy, IconCheck, IconCode } from '@tabler/icons-react';
 import { useAppStoreSelector } from '../../store/useAppStore';
@@ -55,7 +56,17 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
         <div className="markdown-body selectable-text">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
-            rehypePlugins={[rehypeRaw, rehypeHighlight]}
+            rehypePlugins={[
+              rehypeRaw,
+              [rehypeSanitize, {
+                ...defaultSchema,
+                attributes: {
+                  ...defaultSchema.attributes,
+                  code: [...(defaultSchema.attributes?.code || []), ['className', /^language-./]],
+                },
+              }],
+              rehypeHighlight,
+            ]}
             components={{
               h1({ children, ...props }) {
                 const { node, ...rest } = props as any;
