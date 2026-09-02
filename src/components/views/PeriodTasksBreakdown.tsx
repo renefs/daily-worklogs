@@ -3,38 +3,28 @@ import {
   Group,
   Stack,
   Text,
-  Badge,
-  Card,
   Paper,
-  Accordion,
   Progress,
   SimpleGrid,
   ActionIcon,
   Tooltip,
   Checkbox,
-  ThemeIcon,
-  Button,
-  useComputedColorScheme,
+  Menu,
+  Divider,
+  Collapse,
+  TextInput,
+  UnstyledButton,
+  ScrollArea,
 } from '@mantine/core';
 import {
-  IconCircleCheck,
-  IconPlayerPlay,
-  IconHourglass,
-  IconInbox,
-  IconFlag,
-  IconTag,
-  IconCalendar,
-  IconClockPlay,
-  IconClockCheck,
+  IconChevronDown,
+  IconSearch,
   IconEdit,
-  IconNotes,
-  IconFolders,
-  IconBriefcase,
   IconX,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
-import { PeriodSummary, TaskItem, TaskPriority } from '../../types';
+import { PeriodSummary, TaskItem, TaskPriority, DailyChecklistItem } from '../../types';
 import { formatLocalizedDateTitle } from '../../utils/dateTemplate';
 import { getTagColor } from '../../utils/tagUtils';
 import {
@@ -49,13 +39,19 @@ interface PeriodTasksBreakdownProps {
   onOpenTask: (task: TaskItem) => void;
 }
 
+/** Left stripe colour encoding task priority on a compact row. */
+const PRIORITY_STRIPE: Record<TaskPriority, string> = {
+  urgent: 'var(--mantine-color-red-6)',
+  high: 'var(--mantine-color-orange-6)',
+  medium: 'var(--mantine-color-blue-5)',
+  low: 'var(--mantine-color-gray-4)',
+};
+
 export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
   periodSummary,
   onOpenTask,
 }) => {
   const { t, i18n } = useTranslation();
-  const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
-  const isDark = computedColorScheme === 'dark';
 
   const {
     allTags: storeAllTags,
@@ -63,10 +59,13 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
     projects = [],
   } = useAppStore();
 
-  const [selectedService, setSelectedService] = useState<string>('all');
+  const [selectedArea, setSelectedArea] = useState<string>('all');
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const [selectedTag, setSelectedTag] = useState<string>('all');
   const [selectedPriority, setSelectedPriority] = useState<string>('all');
+  const [query, setQuery] = useState<string>('');
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState<string[]>(['completed', 'in_progress']);
 
   const completedList = periodSummary?.completedTasksList || [];
   const inProgressList = periodSummary?.inProgressTasksList || [];
@@ -75,10 +74,9 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
   const dailyChecklists = periodSummary?.dailyChecklistItems || [];
   const tagBreakdown = periodSummary?.tagBreakdown || {};
   const priorityBreakdown = periodSummary?.priorityBreakdown || {};
-  const serviceBreakdown = periodSummary?.serviceBreakdown || {};
+  const areaBreakdown = periodSummary?.serviceBreakdown || {};
   const projectBreakdown = periodSummary?.projectBreakdown || {};
 
-  // Priority metadata
   const priorityMeta: Record<TaskPriority, { label: string; color: string }> = {
     urgent: { label: t('tasks.priorityUrgent'), color: 'red' },
     high: { label: t('tasks.priorityHigh'), color: 'orange' },
@@ -86,19 +84,17 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
     low: { label: t('tasks.priorityLow'), color: 'gray' },
   };
 
-  // Filter tasks based on selected service, project, tag & priority
+  // Filter tasks by area, project, tag, priority and free text
   const filterTasks = (taskList: TaskItem[]) => {
+    const q = query.trim().toLowerCase();
     return taskList.filter((task) => {
-      if (selectedPriority !== 'all') {
-        if (task.priority !== selectedPriority) return false;
-      }
-      if (selectedTag !== 'all') {
-        if (!task.tags || !task.tags.includes(selectedTag)) return false;
-      }
+      if (selectedPriority !== 'all' && task.priority !== selectedPriority) return false;
+      if (selectedTag !== 'all' && !(task.tags || []).includes(selectedTag)) return false;
+
       const taskCtx = resolveTaskContext(task, areas, projects, storeAllTags);
 
-      if (selectedService !== 'all') {
-        if (taskCtx.area.toLowerCase() !== selectedService.toLowerCase()) return false;
+      if (selectedArea !== 'all' && taskCtx.area.toLowerCase() !== selectedArea.toLowerCase()) {
+        return false;
       }
       if (selectedProject !== 'all') {
         const pKey = `${taskCtx.area} / ${taskCtx.project}`;
@@ -110,55 +106,80 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
           return false;
         }
       }
+      if (q) {
+        const haystack = [
+          task.title,
+          `#${task.taskId ?? task.id ?? ''}`,
+          ...(task.tags || []),
+        ]
+          .join(' ')
+          .toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
       return true;
     });
   };
 
-  const filteredCompleted = useMemo(() => filterTasks(completedList), [completedList, selectedTag, selectedPriority, selectedService, selectedProject, storeAllTags]);
-  const filteredInProgress = useMemo(() => filterTasks(inProgressList), [inProgressList, selectedTag, selectedPriority, selectedService, selectedProject, storeAllTags]);
-  const filteredWaiting = useMemo(() => filterTasks(waitingList), [waitingList, selectedTag, selectedPriority, selectedService, selectedProject, storeAllTags]);
-  const filteredBacklog = useMemo(() => filterTasks(backlogList), [backlogList, selectedTag, selectedPriority, selectedService, selectedProject, storeAllTags]);
+  const filterDeps = [selectedTag, selectedPriority, selectedArea, selectedProject, query, storeAllTags];
+  const filteredCompleted = useMemo(() => filterTasks(completedList), [completedList, ...filterDeps]);
+  const filteredInProgress = useMemo(() => filterTasks(inProgressList), [inProgressList, ...filterDeps]);
+  const filteredWaiting = useMemo(() => filterTasks(waitingList), [waitingList, ...filterDeps]);
+  const filteredBacklog = useMemo(() => filterTasks(backlogList), [backlogList, ...filterDeps]);
 
   // Group daily checklist items by date
   const checklistsByDate = useMemo(() => {
-    const map = new Map<string, Array<{ text: string; completed: boolean }>>();
-    if (periodSummary?.days) {
-      periodSummary.days.forEach((day) => {
-        if (day.checklistItems && day.checklistItems.length > 0) {
-          map.set(day.date, day.checklistItems);
-        }
-      });
-    }
+    const map = new Map<string, DailyChecklistItem[]>();
+    (periodSummary?.days || []).forEach((day) => {
+      if (day.checklistItems && day.checklistItems.length > 0) {
+        map.set(day.date, day.checklistItems);
+      }
+    });
     return map;
   }, [periodSummary]);
 
-  // Sort services by total tasks descending
-  const sortedServices = useMemo(() => {
-    return Object.values(serviceBreakdown).sort((a, b) => b.total - a.total);
-  }, [serviceBreakdown]);
+  const sortedAreas = useMemo(
+    () => Object.values(areaBreakdown).sort((a, b) => b.total - a.total),
+    [areaBreakdown]
+  );
+  const sortedProjects = useMemo(
+    () => Object.values(projectBreakdown).sort((a, b) => b.total - a.total),
+    [projectBreakdown]
+  );
 
-  // Sort projects by total tasks descending
-  const sortedProjects = useMemo(() => {
-    return Object.values(projectBreakdown).sort((a, b) => b.total - a.total);
-  }, [projectBreakdown]);
+  // Period-wide totals summarised in the collapsed strip header
+  const totals = useMemo(
+    () =>
+      sortedAreas.reduce(
+        (acc, a) => ({
+          total: acc.total + a.total,
+          completed: acc.completed + a.completed,
+          inProgress: acc.inProgress + a.inProgress,
+        }),
+        { total: 0, completed: 0, inProgress: 0 }
+      ),
+    [sortedAreas]
+  );
 
   const hasActiveFilters =
-    selectedService !== 'all' ||
+    selectedArea !== 'all' ||
     selectedProject !== 'all' ||
     selectedTag !== 'all' ||
-    selectedPriority !== 'all';
+    selectedPriority !== 'all' ||
+    query.trim() !== '';
 
   const resetAllFilters = () => {
-    setSelectedService('all');
+    setSelectedArea('all');
     setSelectedProject('all');
     setSelectedTag('all');
     setSelectedPriority('all');
+    setQuery('');
   };
 
-  const totalPeriodTasks = (periodSummary?.periodTasks || []).length;
-  const hasNoPeriodTasks = totalPeriodTasks === 0 && dailyChecklists.length === 0;
+  const toggleGroup = (key: string) =>
+    setOpenGroups((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
 
-  if (hasNoPeriodTasks) {
+  const totalPeriodTasks = (periodSummary?.periodTasks || []).length;
+  if (totalPeriodTasks === 0 && dailyChecklists.length === 0) {
     return (
       <Paper withBorder radius="md" p="xl" style={{ textAlign: 'center' }}>
         <Text c="dimmed" size="sm">
@@ -168,683 +189,625 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
     );
   }
 
+  const allLabel = t('reports.filterAll');
+  const areaOptions = sortedAreas.map((a) => ({
+    value: a.service,
+    label: a.service,
+    hint: `${a.completed}/${a.total}`,
+  }));
+  const projectOptions = sortedProjects.map((p) => ({
+    value: `${p.service} / ${p.project}`,
+    label: p.project,
+    hint: `${p.completed}/${p.total}`,
+  }));
+  const tagOptions = Object.entries(tagBreakdown).map(([tag, data]) => ({
+    value: tag,
+    label: `#${tag}`,
+    hint: `${data.completed}/${data.total}`,
+  }));
+  const priorityOptions = (['urgent', 'high', 'medium', 'low'] as TaskPriority[])
+    .filter((p) => (priorityBreakdown[p]?.total || 0) > 0)
+    .map((p) => ({
+      value: p,
+      label: priorityMeta[p].label,
+      hint: `${priorityBreakdown[p].completed}/${priorityBreakdown[p].total}`,
+    }));
+
+  const groups: Array<{
+    key: string;
+    label: string;
+    color: string;
+    tasks: TaskItem[];
+    alwaysShow?: boolean;
+  }> = [
+    { key: 'completed', label: t('reports.completedSection'), color: 'teal', tasks: filteredCompleted, alwaysShow: true },
+    { key: 'in_progress', label: t('reports.inProgressSection'), color: 'indigo', tasks: filteredInProgress, alwaysShow: true },
+    { key: 'waiting', label: t('reports.waitingSection'), color: 'yellow', tasks: filteredWaiting },
+    { key: 'backlog', label: t('reports.backlogSection'), color: 'blue', tasks: filteredBacklog },
+  ];
+
   return (
-    <Stack gap="md">
-      {/* Active Filter Bar (if any filter active) */}
-      {hasActiveFilters && (
-        <Paper
-          withBorder
-          p="xs"
-          radius="md"
-          style={{
-            backgroundColor: isDark ? 'var(--mantine-color-dark-6)' : 'var(--mantine-color-blue-0)',
-            borderColor: 'var(--mantine-color-blue-4)',
-          }}
-        >
-          <Group justify="space-between" align="center" wrap="wrap">
-            <Group gap="xs" wrap="wrap">
-              <Text size="xs" fw={700} c="blue">
-                Active Filter:
-              </Text>
-              {selectedService !== 'all' && (
-                <Badge
-                  color="indigo"
-                  variant="filled"
-                  size="sm"
-                  rightSection={
-                    <ActionIcon size="xs" color="indigo" variant="transparent" onClick={() => setSelectedService('all')}>
-                      <IconX size={10} />
-                    </ActionIcon>
-                  }
-                >
-                  Service: {selectedService}
-                </Badge>
-              )}
-              {selectedProject !== 'all' && (
-                <Badge
-                  color="violet"
-                  variant="filled"
-                  size="sm"
-                  rightSection={
-                    <ActionIcon size="xs" color="violet" variant="transparent" onClick={() => setSelectedProject('all')}>
-                      <IconX size={10} />
-                    </ActionIcon>
-                  }
-                >
-                  Project: {selectedProject}
-                </Badge>
-              )}
-              {selectedTag !== 'all' && (
-                <Badge
-                  color={getTagColor(selectedTag, storeAllTags)}
-                  variant="filled"
-                  size="sm"
-                  rightSection={
-                    <ActionIcon size="xs" color="gray" variant="transparent" onClick={() => setSelectedTag('all')}>
-                      <IconX size={10} />
-                    </ActionIcon>
-                  }
-                >
-                  #{selectedTag}
-                </Badge>
-              )}
-              {selectedPriority !== 'all' && (
-                <Badge
-                  color={priorityMeta[selectedPriority as TaskPriority]?.color || 'gray'}
-                  variant="filled"
-                  size="sm"
-                  rightSection={
-                    <ActionIcon size="xs" color="gray" variant="transparent" onClick={() => setSelectedPriority('all')}>
-                      <IconX size={10} />
-                    </ActionIcon>
-                  }
-                >
-                  Priority: {selectedPriority}
-                </Badge>
-              )}
+    <Stack gap="sm">
+      {/* 1 · Single control bar: text filter + four dropdown chips */}
+      <div className="pbd-filterbar">
+        <TextInput
+          value={query}
+          onChange={(e) => setQuery(e.currentTarget.value)}
+          placeholder={t('reports.filterPlaceholder')}
+          size="xs"
+          variant="unstyled"
+          leftSection={<IconSearch size={14} />}
+          style={{ flex: '1 1 180px', minWidth: 150 }}
+        />
+        <FilterChip
+          label={t('areas.badgeArea', 'Area')}
+          value={selectedArea}
+          options={areaOptions}
+          allLabel={allLabel}
+          onChange={setSelectedArea}
+        />
+        <FilterChip
+          label={t('areas.projectLabel', 'Project')}
+          value={selectedProject}
+          options={projectOptions}
+          allLabel={allLabel}
+          onChange={setSelectedProject}
+        />
+        <FilterChip
+          label={t('tasks.tags', 'Tags')}
+          value={selectedTag}
+          displayValue={selectedTag === 'all' ? undefined : `#${selectedTag}`}
+          options={tagOptions}
+          allLabel={allLabel}
+          emptyLabel={t('reports.noTagsInPeriod')}
+          onChange={setSelectedTag}
+        />
+        <FilterChip
+          label={t('tasks.priority', 'Priority')}
+          value={selectedPriority}
+          displayValue={
+            selectedPriority === 'all'
+              ? undefined
+              : priorityMeta[selectedPriority as TaskPriority]?.label
+          }
+          options={priorityOptions}
+          allLabel={allLabel}
+          onChange={setSelectedPriority}
+        />
+        {hasActiveFilters && (
+          <UnstyledButton onClick={resetAllFilters} style={{ marginLeft: 'auto' }}>
+            <Group gap={4} c="dimmed">
+              <IconX size={12} />
+              <Text size="xs">{t('reports.clearFilters')}</Text>
             </Group>
-            <Button size="compact-xs" variant="subtle" color="red" onClick={resetAllFilters}>
-              Reset All Filters
-            </Button>
-          </Group>
+          </UnstyledButton>
+        )}
+      </div>
+
+      {/* 2 · One collapsible breakdown strip that summarises itself while closed */}
+      {(sortedAreas.length > 0 || sortedProjects.length > 0) && (
+        <Paper withBorder radius="md" style={{ overflow: 'hidden' }}>
+          <UnstyledButton
+            className="pbd-strip-head"
+            onClick={() => setBreakdownOpen((o) => !o)}
+            aria-expanded={breakdownOpen}
+          >
+            <Text size="xs" fw={700} tt="uppercase" c="dimmed" style={{ letterSpacing: '0.08em' }}>
+              {t('reports.breakdownLabel')}
+            </Text>
+            <Group gap="md" ml="md" wrap="nowrap" visibleFrom="sm">
+              <Text size="xs" c="dimmed">
+                {t('reports.doneOfTotal', { completed: totals.completed, total: totals.total })}
+              </Text>
+              <Progress.Root size={6} radius="xl" style={{ width: 110 }}>
+                <Progress.Section
+                  value={totals.total ? (totals.completed / totals.total) * 100 : 0}
+                  color="teal"
+                />
+                <Progress.Section
+                  value={totals.total ? (totals.inProgress / totals.total) * 100 : 0}
+                  color="indigo"
+                />
+              </Progress.Root>
+              <Text size="xs" c="dimmed">
+                {sortedAreas.length} {t('areas.areasLabel')} · {sortedProjects.length}{' '}
+                {t('areas.projectsLabel')}
+              </Text>
+            </Group>
+            <span className={`pbd-caret${breakdownOpen ? ' open' : ''}`}>
+              <IconChevronDown size={14} />
+            </span>
+          </UnstyledButton>
+
+          <Collapse in={breakdownOpen}>
+            <Divider />
+            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg" p="sm">
+              <Stack gap="xs">
+                <MetricRows
+                  label={t('reports.topAreas')}
+                  rows={sortedAreas.map((a) => ({
+                    key: a.service,
+                    name: a.service,
+                    hint: (() => {
+                      const n = Object.keys(a.projects || {}).length;
+                      const word = n === 1 ? t('areas.projectLabel') : t('areas.projectsLabel');
+                      return `${n} ${word.toLowerCase()}`;
+                    })(),
+                    completed: a.completed,
+                    total: a.total,
+                    color: getAreaColor(a.service, areas),
+                    selected: selectedArea.toLowerCase() === a.service.toLowerCase(),
+                    onToggle: () =>
+                      setSelectedArea(
+                        selectedArea.toLowerCase() === a.service.toLowerCase() ? 'all' : a.service
+                      ),
+                  }))}
+                />
+                <PillRow
+                  label={t('reports.byPriority')}
+                  pills={priorityOptions.map((p) => ({
+                    key: p.value,
+                    label: `${p.label} ${p.hint}`,
+                    color: priorityMeta[p.value as TaskPriority].color,
+                    selected: selectedPriority === p.value,
+                    onToggle: () =>
+                      setSelectedPriority(selectedPriority === p.value ? 'all' : p.value),
+                  }))}
+                />
+              </Stack>
+
+              <Stack gap="xs">
+                <MetricRows
+                  label={t('reports.topProjects')}
+                  rows={sortedProjects.map((p) => {
+                    const key = `${p.service} / ${p.project}`;
+                    return {
+                      key,
+                      name: p.project,
+                      hint: p.service,
+                      completed: p.completed,
+                      total: p.total,
+                      color: getProjectColor(p.project, p.service, projects, areas),
+                      selected: selectedProject.toLowerCase() === key.toLowerCase(),
+                      onToggle: () =>
+                        setSelectedProject(
+                          selectedProject.toLowerCase() === key.toLowerCase() ? 'all' : key
+                        ),
+                    };
+                  })}
+                />
+                <PillRow
+                  label={t('reports.byTag')}
+                  emptyLabel={t('reports.noTagsInPeriod')}
+                  pills={tagOptions.map((tg) => ({
+                    key: tg.value,
+                    label: `${tg.label} ${tg.hint}`,
+                    color: getTagColor(tg.value, storeAllTags),
+                    selected: selectedTag === tg.value,
+                    onToggle: () => setSelectedTag(selectedTag === tg.value ? 'all' : tg.value),
+                  }))}
+                />
+              </Stack>
+            </SimpleGrid>
+          </Collapse>
         </Paper>
       )}
 
-      {/* Services & Projects Analytics Cards */}
-      {(sortedServices.length > 0 || sortedProjects.length > 0) && (
-        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-          {/* Top Services Card */}
-          <Card withBorder radius="md" p="md">
-            <Group justify="space-between" mb="xs">
-              <Group gap="xs">
-                <ThemeIcon size="sm" variant="light" color="indigo" radius="md">
-                  <IconFolders size={16} />
-                </ThemeIcon>
-                <Text size="xs" fw={700} tt="uppercase" c="dimmed">
-                  {t('reports.topServices') || 'Top Services Worked On'}
+      {/* 3 · Dense task rows grouped by status */}
+      {groups.map((group) => {
+        if (!group.alwaysShow && group.tasks.length === 0) return null;
+        const isOpen = openGroups.includes(group.key);
+        return (
+          <Paper key={group.key} withBorder radius="md" style={{ overflow: 'hidden' }}>
+            <UnstyledButton
+              className="pbd-group-head"
+              onClick={() => toggleGroup(group.key)}
+              aria-expanded={isOpen}
+            >
+              <span
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: 2,
+                  backgroundColor: `var(--mantine-color-${group.color}-6)`,
+                }}
+              />
+              <Text size="sm" fw={600}>
+                {group.label}
+              </Text>
+              <Text size="xs" c="dimmed" ff="var(--font-mono)">
+                {group.tasks.length}
+              </Text>
+              <span className={`pbd-caret${isOpen ? ' open' : ''}`}>
+                <IconChevronDown size={14} />
+              </span>
+            </UnstyledButton>
+            <Collapse in={isOpen}>
+              <Divider />
+              {group.tasks.length === 0 ? (
+                <Text size="xs" c="dimmed" fs="italic" p="sm">
+                  {t('reports.noTasksMatch')}
                 </Text>
-              </Group>
-              {selectedService !== 'all' && (
-                <Badge
-                  variant="light"
-                  size="xs"
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => setSelectedService('all')}
-                >
-                  Reset
-                </Badge>
+              ) : (
+                group.tasks.map((task) => (
+                  <TaskRow
+                    key={task.id || task.filename}
+                    task={task}
+                    onOpenTask={onOpenTask}
+                    openLabel={t('reports.clickToEdit')}
+                    cancelledLabel={t('reports.cancelledLabel')}
+                    sinceLabel={(date) => t('reports.sinceLabel', { date })}
+                    dueLabel={(date) => t('reports.dueLabel', { date })}
+                  />
+                ))
               )}
-            </Group>
+            </Collapse>
+          </Paper>
+        );
+      })}
 
-            <Stack gap="xs" mt="xs">
-              {sortedServices.map((sItem) => {
-                const isSelected = selectedService.toLowerCase() === sItem.service.toLowerCase();
-                const aColor = getAreaColor(sItem.service, areas);
-                const pct = Math.round((sItem.completed / (sItem.total || 1)) * 100);
-                const projectsCount = Object.keys(sItem.projects || {}).length;
-
-                return (
-                  <Paper
-                    key={sItem.service}
-                    p="xs"
-                    radius="md"
-                    withBorder
-                    style={{
-                      cursor: 'pointer',
-                      borderColor: isSelected ? `var(--mantine-color-${aColor}-6)` : undefined,
-                      backgroundColor: isSelected
-                        ? isDark ? 'rgba(76, 110, 245, 0.15)' : 'rgba(76, 110, 245, 0.08)'
-                        : undefined,
-                      transition: 'all 0.15s ease',
-                    }}
-                    onClick={() => setSelectedService(isSelected ? 'all' : sItem.service)}
-                  >
-                    <Group justify="space-between" mb={4}>
-                      <Group gap="xs">
-                        <Text size="sm" fw={600}>
-                          {sItem.service}
-                        </Text>
-                        <Badge size="xs" variant="light" color={aColor}>
-                          {sItem.completed}/{sItem.total} done ({pct}%)
-                        </Badge>
-                      </Group>
-                      <Text size="xs" c="dimmed">
-                        {projectsCount} {projectsCount === 1 ? 'project' : 'projects'}
+      {/* Daily note checklists — collapsed by default */}
+      {checklistsByDate.size > 0 && (
+        <Paper withBorder radius="md" style={{ overflow: 'hidden' }}>
+          <UnstyledButton
+            className="pbd-group-head"
+            onClick={() => toggleGroup('daily_checklists')}
+            aria-expanded={openGroups.includes('daily_checklists')}
+          >
+            <span
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: 2,
+                backgroundColor: 'var(--mantine-color-teal-6)',
+              }}
+            />
+            <Text size="sm" fw={600}>
+              {t('reports.dailyChecklistsSection')}
+            </Text>
+            <Text size="xs" c="dimmed" ff="var(--font-mono)">
+              {dailyChecklists.filter((c) => c.completed).length}/{dailyChecklists.length}
+            </Text>
+            <span className={`pbd-caret${openGroups.includes('daily_checklists') ? ' open' : ''}`}>
+              <IconChevronDown size={14} />
+            </span>
+          </UnstyledButton>
+          <Collapse in={openGroups.includes('daily_checklists')}>
+            <Divider />
+            <Stack gap="sm" p="sm">
+              {Array.from(checklistsByDate.entries()).map(([dateStr, items]) => (
+                <Stack key={dateStr} gap={4}>
+                  <Group gap="xs">
+                    <Text size="xs" fw={600}>
+                      {formatLocalizedDateTitle(dateStr, i18n.language)}
+                    </Text>
+                    <Text size="xs" c="dimmed" ff="var(--font-mono)">
+                      {items.filter((i) => i.completed).length}/{items.length}
+                    </Text>
+                  </Group>
+                  {items.map((item, idx) => (
+                    <Group key={idx} gap="xs" wrap="nowrap" pl="xs">
+                      <Checkbox checked={item.completed} readOnly size="xs" color="teal" />
+                      <Text
+                        size="xs"
+                        style={{
+                          textDecoration: item.completed ? 'line-through' : 'none',
+                          color: item.completed ? 'var(--mantine-color-dimmed)' : undefined,
+                        }}
+                      >
+                        {item.text}
                       </Text>
                     </Group>
-                    <Progress
-                      value={pct}
-                      size="sm"
-                      radius="xl"
-                      color={aColor}
-                      animated={sItem.inProgress > 0}
-                    />
-                  </Paper>
-                );
-              })}
+                  ))}
+                </Stack>
+              ))}
             </Stack>
-          </Card>
-
-          {/* Top Projects Card */}
-          <Card withBorder radius="md" p="md">
-            <Group justify="space-between" mb="xs">
-              <Group gap="xs">
-                <ThemeIcon size="sm" variant="light" color="violet" radius="md">
-                  <IconBriefcase size={16} />
-                </ThemeIcon>
-                <Text size="xs" fw={700} tt="uppercase" c="dimmed">
-                  {t('reports.topProjects') || 'Top Projects Worked On'}
-                </Text>
-              </Group>
-              {selectedProject !== 'all' && (
-                <Badge
-                  variant="light"
-                  size="xs"
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => setSelectedProject('all')}
-                >
-                  Reset
-                </Badge>
-              )}
-            </Group>
-
-            <Stack gap="xs" mt="xs" style={{ maxHeight: 250, overflowY: 'auto' }}>
-              {sortedProjects.map((pItem) => {
-                const projectKey = `${pItem.service} / ${pItem.project}`;
-                const isSelected = selectedProject.toLowerCase() === projectKey.toLowerCase();
-                const aColor = getAreaColor(pItem.service, areas);
-                const pColor = getProjectColor(pItem.project, pItem.service, projects, areas);
-                const pct = Math.round((pItem.completed / (pItem.total || 1)) * 100);
-
-                return (
-                  <Paper
-                    key={projectKey}
-                    p="xs"
-                    radius="md"
-                    withBorder
-                    style={{
-                      cursor: 'pointer',
-                      borderColor: isSelected ? `var(--mantine-color-${pColor}-6)` : undefined,
-                      backgroundColor: isSelected
-                        ? isDark ? 'rgba(130, 80, 223, 0.15)' : 'rgba(130, 80, 223, 0.08)'
-                        : undefined,
-                      transition: 'all 0.15s ease',
-                    }}
-                    onClick={() => setSelectedProject(isSelected ? 'all' : projectKey)}
-                  >
-                    <Group justify="space-between" mb={4}>
-                      <Group gap="xs">
-                        <Badge size="xs" color={aColor} variant="outline">
-                          {pItem.service}
-                        </Badge>
-                        <Text size="sm" fw={600}>
-                          {pItem.project}
-                        </Text>
-                      </Group>
-                      <Badge size="xs" variant="light" color={pColor}>
-                        {pItem.completed}/{pItem.total} ({pct}%)
-                      </Badge>
-                    </Group>
-                    <Progress value={pct} size="xs" radius="xl" color={pColor} />
-                  </Paper>
-                );
-              })}
-            </Stack>
-          </Card>
-        </SimpleGrid>
+          </Collapse>
+        </Paper>
       )}
-
-      {/* Priority & Tag Metrics Summary */}
-      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-        {/* Priority Breakdown Card */}
-        <Card withBorder radius="md" p="sm">
-          <Group justify="space-between" mb="xs">
-            <Group gap="xs">
-              <IconFlag size={16} color="var(--mantine-primary-color-filled)" />
-              <Text size="xs" fw={700} tt="uppercase" c="dimmed">
-                {t('reports.byPriority')}
-              </Text>
-            </Group>
-            {selectedPriority !== 'all' && (
-              <Badge
-                variant="light"
-                size="xs"
-                style={{ cursor: 'pointer' }}
-                onClick={() => setSelectedPriority('all')}
-              >
-                Reset
-              </Badge>
-            )}
-          </Group>
-          <Group gap="xs" wrap="wrap">
-            {(['urgent', 'high', 'medium', 'low'] as TaskPriority[]).map((pKey) => {
-              const data = priorityBreakdown[pKey] || { total: 0, completed: 0 };
-              const meta = priorityMeta[pKey];
-              const isSelected = selectedPriority === pKey;
-              if (data.total === 0 && !isSelected) return null;
-              return (
-                <Badge
-                  key={pKey}
-                  color={meta.color}
-                  variant={isSelected ? 'filled' : 'light'}
-                  size="md"
-                  radius="sm"
-                  style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
-                  onClick={() => setSelectedPriority(isSelected ? 'all' : pKey)}
-                >
-                  {meta.label}: {data.completed}/{data.total}
-                </Badge>
-              );
-            })}
-          </Group>
-        </Card>
-
-        {/* Tag Breakdown Card */}
-        <Card withBorder radius="md" p="sm">
-          <Group justify="space-between" mb="xs">
-            <Group gap="xs">
-              <IconTag size={16} color="var(--mantine-primary-color-filled)" />
-              <Text size="xs" fw={700} tt="uppercase" c="dimmed">
-                {t('reports.byTag')}
-              </Text>
-            </Group>
-            {selectedTag !== 'all' && (
-              <Badge
-                variant="light"
-                size="xs"
-                style={{ cursor: 'pointer' }}
-                onClick={() => setSelectedTag('all')}
-              >
-                Reset
-              </Badge>
-            )}
-          </Group>
-          <Group gap="xs" wrap="wrap">
-            {Object.keys(tagBreakdown).length === 0 ? (
-              <Text size="xs" c="dimmed">
-                No tags recorded in this period
-              </Text>
-            ) : (
-              Object.entries(tagBreakdown).map(([tag, data]) => {
-                const isSelected = selectedTag === tag;
-                const tagColor = getTagColor(tag, storeAllTags);
-                return (
-                  <Badge
-                    key={tag}
-                    color={tagColor}
-                    variant={isSelected ? 'filled' : 'outline'}
-                    size="md"
-                    radius="sm"
-                    style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
-                    onClick={() => setSelectedTag(isSelected ? 'all' : tag)}
-                  >
-                    #{tag}: {data.completed}/{data.total}
-                  </Badge>
-                );
-              })
-            )}
-          </Group>
-        </Card>
-      </SimpleGrid>
-
-      {/* Main Task Category Accordions */}
-      <Accordion
-        multiple
-        defaultValue={['completed', 'in_progress', 'waiting', 'daily_checklists']}
-        variant="separated"
-        radius="md"
-      >
-        {/* Completed This Period */}
-        <Accordion.Item value="completed">
-          <Accordion.Control
-            icon={
-              <ThemeIcon color="teal" variant="light" size="sm" radius="md">
-                <IconCircleCheck size={16} />
-              </ThemeIcon>
-            }
-          >
-            <Group justify="space-between" pr="sm">
-              <Text fw={600} size="sm">
-                {t('reports.completedSection')}
-              </Text>
-              <Badge color="teal" variant="light" size="sm">
-                {filteredCompleted.length} {t('common.tasks')}
-              </Badge>
-            </Group>
-          </Accordion.Control>
-          <Accordion.Panel>
-            {filteredCompleted.length === 0 ? (
-              <Text size="xs" c="dimmed" fs="italic" p="xs">
-                No completed tasks matching current filters.
-              </Text>
-            ) : (
-              <Stack gap="xs">
-                {filteredCompleted.map((task) => (
-                  <TaskReportCard
-                    key={task.id || task.filename}
-                    task={task}
-                    priorityMeta={priorityMeta}
-                    onOpenTask={onOpenTask}
-                    isDark={isDark}
-                  />
-                ))}
-              </Stack>
-            )}
-          </Accordion.Panel>
-        </Accordion.Item>
-
-        {/* In Progress */}
-        <Accordion.Item value="in_progress">
-          <Accordion.Control
-            icon={
-              <ThemeIcon color="indigo" variant="light" size="sm" radius="md">
-                <IconPlayerPlay size={16} />
-              </ThemeIcon>
-            }
-          >
-            <Group justify="space-between" pr="sm">
-              <Text fw={600} size="sm">
-                {t('reports.inProgressSection')}
-              </Text>
-              <Badge color="indigo" variant="light" size="sm">
-                {filteredInProgress.length} {t('common.tasks')}
-              </Badge>
-            </Group>
-          </Accordion.Control>
-          <Accordion.Panel>
-            {filteredInProgress.length === 0 ? (
-              <Text size="xs" c="dimmed" fs="italic" p="xs">
-                No active tasks in progress matching current filters.
-              </Text>
-            ) : (
-              <Stack gap="xs">
-                {filteredInProgress.map((task) => (
-                  <TaskReportCard
-                    key={task.id || task.filename}
-                    task={task}
-                    priorityMeta={priorityMeta}
-                    onOpenTask={onOpenTask}
-                    isDark={isDark}
-                  />
-                ))}
-              </Stack>
-            )}
-          </Accordion.Panel>
-        </Accordion.Item>
-
-        {/* Waiting / Blocked */}
-        {filteredWaiting.length > 0 && (
-          <Accordion.Item value="waiting">
-            <Accordion.Control
-              icon={
-                <ThemeIcon color="yellow" variant="light" size="sm" radius="md">
-                  <IconHourglass size={16} />
-                </ThemeIcon>
-              }
-            >
-              <Group justify="space-between" pr="sm">
-                <Text fw={600} size="sm">
-                  {t('reports.waitingSection')}
-                </Text>
-                <Badge color="yellow" variant="light" size="sm">
-                  {filteredWaiting.length} {t('common.tasks')}
-                </Badge>
-              </Group>
-            </Accordion.Control>
-            <Accordion.Panel>
-              <Stack gap="xs">
-                {filteredWaiting.map((task) => (
-                  <TaskReportCard
-                    key={task.id || task.filename}
-                    task={task}
-                    priorityMeta={priorityMeta}
-                    onOpenTask={onOpenTask}
-                    isDark={isDark}
-                  />
-                ))}
-              </Stack>
-            </Accordion.Panel>
-          </Accordion.Item>
-        )}
-
-        {/* Backlog / Scheduled */}
-        {filteredBacklog.length > 0 && (
-          <Accordion.Item value="backlog">
-            <Accordion.Control
-              icon={
-                <ThemeIcon color="blue" variant="light" size="sm" radius="md">
-                  <IconInbox size={16} />
-                </ThemeIcon>
-              }
-            >
-              <Group justify="space-between" pr="sm">
-                <Text fw={600} size="sm">
-                  {t('reports.backlogSection')}
-                </Text>
-                <Badge color="blue" variant="light" size="sm">
-                  {filteredBacklog.length} {t('common.tasks')}
-                </Badge>
-              </Group>
-            </Accordion.Control>
-            <Accordion.Panel>
-              <Stack gap="xs">
-                {filteredBacklog.map((task) => (
-                  <TaskReportCard
-                    key={task.id || task.filename}
-                    task={task}
-                    priorityMeta={priorityMeta}
-                    onOpenTask={onOpenTask}
-                    isDark={isDark}
-                  />
-                ))}
-              </Stack>
-            </Accordion.Panel>
-          </Accordion.Item>
-        )}
-
-        {/* Daily Notes Checklists */}
-        {checklistsByDate.size > 0 && (
-          <Accordion.Item value="daily_checklists">
-            <Accordion.Control
-              icon={
-                <ThemeIcon color="teal" variant="light" size="sm" radius="md">
-                  <IconNotes size={16} />
-                </ThemeIcon>
-              }
-            >
-              <Group justify="space-between" pr="sm">
-                <Text fw={600} size="sm">
-                  {t('reports.dailyChecklistsSection')}
-                </Text>
-                <Badge color="teal" variant="outline" size="sm">
-                  {dailyChecklists.filter((c) => c.completed).length} / {dailyChecklists.length} {t('common.tasks')}
-                </Badge>
-              </Group>
-            </Accordion.Control>
-            <Accordion.Panel>
-              <Stack gap="md">
-                {Array.from(checklistsByDate.entries()).map(([dateStr, items]) => {
-                  const dayTitle = formatLocalizedDateTitle(dateStr, i18n.language);
-                  const completedInDay = items.filter((i) => i.completed).length;
-
-                  return (
-                    <Card key={dateStr} withBorder radius="md" p="xs">
-                      <Group justify="space-between" mb="xs">
-                        <Text fw={600} size="xs">
-                          {dayTitle} <Text span c="dimmed">({dateStr})</Text>
-                        </Text>
-                        <Badge size="xs" color={completedInDay === items.length ? 'teal' : 'blue'} variant="light">
-                          {completedInDay} / {items.length} done
-                        </Badge>
-                      </Group>
-                      <Stack gap={4}>
-                        {items.map((item, idx) => (
-                          <Group key={idx} gap="xs" wrap="nowrap">
-                            <Checkbox checked={item.completed} readOnly size="xs" color="teal" />
-                            <Text
-                              size="xs"
-                              style={{
-                                textDecoration: item.completed ? 'line-through' : 'none',
-                                color: item.completed ? 'var(--mantine-color-dimmed)' : undefined,
-                              }}
-                            >
-                              {item.text}
-                            </Text>
-                          </Group>
-                        ))}
-                      </Stack>
-                    </Card>
-                  );
-                })}
-              </Stack>
-            </Accordion.Panel>
-          </Accordion.Item>
-        )}
-      </Accordion>
     </Stack>
   );
 };
 
-interface TaskReportCardProps {
-  task: TaskItem;
-  priorityMeta: Record<TaskPriority, { label: string; color: string }>;
-  onOpenTask: (task: TaskItem) => void;
-  isDark: boolean;
+/* ------------------------------------------------------------------ */
+/* Filter chip                                                         */
+/* ------------------------------------------------------------------ */
+
+interface FilterChipProps {
+  label: string;
+  value: string;
+  displayValue?: string;
+  options: Array<{ value: string; label: string; hint?: string }>;
+  allLabel: string;
+  emptyLabel?: string;
+  onChange: (value: string) => void;
 }
 
-const TaskReportCard: React.FC<TaskReportCardProps> = ({
-  task,
-  priorityMeta,
-  onOpenTask,
+const FilterChip: React.FC<FilterChipProps> = ({
+  label,
+  value,
+  displayValue,
+  options,
+  allLabel,
+  emptyLabel,
+  onChange,
 }) => {
-  const { allTags: storeAllTags } = useAppStore();
-  const pMeta = task.priority ? priorityMeta[task.priority] : priorityMeta.medium;
-  const isCancelled = task.status === 'cancelled';
-  const isDone = task.status === 'done' || isCancelled || !!task.completedDate;
+  const isActive = value !== 'all';
+  const shown =
+    displayValue ?? (isActive ? options.find((o) => o.value === value)?.label || value : undefined);
 
   return (
-    <Card
-      withBorder
-      radius="md"
-      p="sm"
-      style={{
-        cursor: 'pointer',
-        transition: 'background-color 0.15s ease, transform 0.1s ease',
-      }}
-      onClick={() => onOpenTask(task)}
-    >
-      <Group justify="space-between" align="flex-start" wrap="nowrap">
-        <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-          <Group gap="xs" wrap="wrap">
-            {(task.taskId !== undefined || task.id) && (
-              <Badge
-                size="xs"
-                variant="subtle"
-                color="gray"
-                style={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                  fontWeight: 700,
-                  padding: '0 4px',
-                }}
-              >
-                #{task.taskId ?? task.id}
-              </Badge>
-            )}
-            <Text
-              fw={600}
-              size="sm"
-              style={{
-                textDecoration: isDone ? 'line-through' : 'none',
-                color: isDone ? 'var(--mantine-color-dimmed)' : undefined,
-              }}
-            >
-              {task.title}
+    <Menu shadow="md" width={260} position="bottom-start" withinPortal>
+      <Menu.Target>
+        <UnstyledButton className={`pbd-chip${isActive ? ' active' : ''}`}>
+          <Text span size="xs" fw={500} inherit>
+            {label}
+          </Text>
+          {shown && (
+            <Text span size="xs" fw={700} className="pbd-chip-val" inherit>
+              {shown}
             </Text>
-            {task.priority && (
-              <Badge color={pMeta.color} size="xs" variant="filled">
-                {pMeta.label}
-              </Badge>
-            )}
-            {isCancelled && (
-              <Badge color="red" size="xs" variant="outline">
-                Cancelled
-              </Badge>
-            )}
-          </Group>
-
-          {/* Subtitle / Dates / Tags info */}
-          <Group gap="xs" wrap="wrap">
-            {task.completedDate && (
-              <Badge
-                leftSection={<IconClockCheck size={12} />}
-                color={isCancelled ? 'red' : 'teal'}
-                variant="light"
-                size="xs"
-              >
-                {isCancelled ? 'Cancelled' : 'Done'}: {task.completedDate}
-              </Badge>
-            )}
-            {task.startedDate && !task.completedDate && (
-              <Badge
-                leftSection={<IconClockPlay size={12} />}
-                color="indigo"
-                variant="light"
-                size="xs"
-              >
-                Started: {task.startedDate}
-              </Badge>
-            )}
-            {task.due && (
-              <Badge
-                leftSection={<IconCalendar size={12} />}
-                color="gray"
-                variant="outline"
-                size="xs"
-              >
-                Due: {task.due}
-              </Badge>
-            )}
-            {task.tags &&
-              task.tags.map((tag) => {
-                const tagColor = getTagColor(tag, storeAllTags);
-                return (
-                  <Badge key={tag} color={tagColor} variant="light" size="xs">
-                    #{tag}
-                  </Badge>
-                );
-              })}
-          </Group>
-
-          {/* Internal checklist progress if any */}
-          {task.checklistTotal !== undefined && task.checklistTotal > 0 && (
-            <Group gap="xs" mt={4} align="center">
-              <Progress
-                value={Math.round(((task.checklistCompleted || 0) / task.checklistTotal) * 100)}
-                size="xs"
-                color="teal"
-                style={{ width: 80 }}
-              />
-              <Text size="xs" c="dimmed">
-                {task.checklistCompleted || 0}/{task.checklistTotal} items
-              </Text>
-            </Group>
           )}
-        </Stack>
+          <IconChevronDown size={11} />
+        </UnstyledButton>
+      </Menu.Target>
+      <Menu.Dropdown>
+        <Menu.Item onClick={() => onChange('all')} fw={value === 'all' ? 700 : 400}>
+          <Text size="xs">{allLabel}</Text>
+        </Menu.Item>
+        {options.length === 0 ? (
+          <Menu.Item disabled>
+            <Text size="xs" c="dimmed">
+              {emptyLabel || allLabel}
+            </Text>
+          </Menu.Item>
+        ) : (
+          <>
+            <Menu.Divider />
+            <ScrollArea.Autosize mah={260} type="auto">
+              {options.map((opt) => (
+                <Menu.Item
+                  key={opt.value}
+                  onClick={() => onChange(opt.value)}
+                  fw={value === opt.value ? 700 : 400}
+                  rightSection={
+                    opt.hint ? (
+                      <Text size="xs" c="dimmed" ff="var(--font-mono)">
+                        {opt.hint}
+                      </Text>
+                    ) : undefined
+                  }
+                >
+                  <Text size="xs" truncate>
+                    {opt.label}
+                  </Text>
+                </Menu.Item>
+              ))}
+            </ScrollArea.Autosize>
+          </>
+        )}
+      </Menu.Dropdown>
+    </Menu>
+  );
+};
 
-        <Tooltip label="Open & Edit Task" withArrow>
+/* ------------------------------------------------------------------ */
+/* Breakdown strip internals                                           */
+/* ------------------------------------------------------------------ */
+
+interface MetricRowsProps {
+  label: string;
+  rows: Array<{
+    key: string;
+    name: string;
+    hint?: string;
+    completed: number;
+    total: number;
+    color: string;
+    selected: boolean;
+    onToggle: () => void;
+  }>;
+}
+
+const MetricRows: React.FC<MetricRowsProps> = ({ label, rows }) => {
+  if (rows.length === 0) return null;
+  return (
+    <Stack gap={2}>
+      <Text size="xs" fw={700} tt="uppercase" c="dimmed" style={{ letterSpacing: '0.08em' }}>
+        {label}
+      </Text>
+      {rows.map((row) => {
+        const pct = Math.round((row.completed / (row.total || 1)) * 100);
+        return (
+          <UnstyledButton
+            key={row.key}
+            className={`pbd-brow${row.selected ? ' active' : ''}`}
+            onClick={row.onToggle}
+            aria-pressed={row.selected}
+          >
+            <Text size="xs" truncate>
+              {row.name}
+              {row.hint && (
+                <Text span size="xs" c="dimmed" inherit>
+                  {' · '}
+                  {row.hint}
+                </Text>
+              )}
+            </Text>
+            <Progress value={pct} size={4} radius="xl" color={pct === 100 ? 'teal' : row.color} />
+            <Text size="xs" c="dimmed" ta="right" ff="var(--font-mono)">
+              {row.completed}/{row.total}
+            </Text>
+          </UnstyledButton>
+        );
+      })}
+    </Stack>
+  );
+};
+
+interface PillRowProps {
+  label: string;
+  emptyLabel?: string;
+  pills: Array<{
+    key: string;
+    label: string;
+    color: string;
+    selected: boolean;
+    onToggle: () => void;
+  }>;
+}
+
+const PillRow: React.FC<PillRowProps> = ({ label, emptyLabel, pills }) => (
+  <Stack gap={4} mt="xs">
+    <Text size="xs" fw={700} tt="uppercase" c="dimmed" style={{ letterSpacing: '0.08em' }}>
+      {label}
+    </Text>
+    {pills.length === 0 ? (
+      <Text size="xs" c="dimmed">
+        {emptyLabel}
+      </Text>
+    ) : (
+      <Group gap={6} wrap="wrap">
+        {pills.map((pill) => (
+          <UnstyledButton
+            key={pill.key}
+            onClick={pill.onToggle}
+            aria-pressed={pill.selected}
+            style={{
+              fontSize: 11,
+              fontFamily: 'var(--font-mono)',
+              padding: '2px 7px',
+              borderRadius: 5,
+              border: `1px solid ${
+                pill.selected
+                  ? `var(--mantine-color-${pill.color}-6)`
+                  : 'var(--app-subtle-border)'
+              }`,
+              backgroundColor: pill.selected
+                ? `var(--mantine-color-${pill.color}-light)`
+                : 'transparent',
+              color: pill.selected
+                ? `var(--mantine-color-${pill.color}-filled)`
+                : 'var(--app-text-secondary)',
+            }}
+          >
+            {pill.label}
+          </UnstyledButton>
+        ))}
+      </Group>
+    )}
+  </Stack>
+);
+
+/* ------------------------------------------------------------------ */
+/* Task row                                                            */
+/* ------------------------------------------------------------------ */
+
+interface TaskRowProps {
+  task: TaskItem;
+  onOpenTask: (task: TaskItem) => void;
+  openLabel: string;
+  cancelledLabel: string;
+  sinceLabel: (date: string) => string;
+  dueLabel: (date: string) => string;
+}
+
+const TaskRow: React.FC<TaskRowProps> = ({
+  task,
+  onOpenTask,
+  openLabel,
+  cancelledLabel,
+  sinceLabel,
+  dueLabel,
+}) => {
+  const isCancelled = task.status === 'cancelled';
+  const isDone = task.status === 'done' || isCancelled || !!task.completedDate;
+  const stripe = task.priority ? PRIORITY_STRIPE[task.priority] : 'transparent';
+  const checklistPct =
+    task.checklistTotal && task.checklistTotal > 0
+      ? Math.round(((task.checklistCompleted || 0) / task.checklistTotal) * 100)
+      : null;
+
+  const open = () => onOpenTask(task);
+
+  return (
+    <div
+      className="pbd-row"
+      style={{ borderLeftColor: stripe }}
+      role="button"
+      tabIndex={0}
+      onClick={open}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          open();
+        }
+      }}
+    >
+      <Text size="xs" c="dimmed" ff="var(--font-mono)">
+        #{task.taskId ?? task.id}
+      </Text>
+
+      <Text
+        size="sm"
+        truncate
+        style={{
+          textDecoration: isDone ? 'line-through' : 'none',
+          color: isDone ? 'var(--mantine-color-dimmed)' : undefined,
+        }}
+      >
+        {task.title}
+      </Text>
+
+      <Group gap={10} wrap="nowrap" justify="flex-end">
+        {checklistPct !== null && (
+          <Group gap={5} wrap="nowrap">
+            <Progress value={checklistPct} size={4} radius="xl" color="teal" w={34} />
+            <Text size="xs" c="dimmed" ff="var(--font-mono)">
+              {task.checklistCompleted || 0}/{task.checklistTotal}
+            </Text>
+          </Group>
+        )}
+        {(task.tags || []).slice(0, 2).map((tag) => (
+          <Text key={tag} size="xs" c="dimmed" ff="var(--font-mono)" visibleFrom="md">
+            #{tag}
+          </Text>
+        ))}
+        {isCancelled && (
+          <Text size="xs" c="red.6">
+            {cancelledLabel}
+          </Text>
+        )}
+        {task.completedDate && !isCancelled && (
+          <Text size="xs" c="dimmed">
+            {task.completedDate}
+          </Text>
+        )}
+        {!task.completedDate && task.startedDate && (
+          <Text size="xs" c="dimmed">
+            {sinceLabel(task.startedDate)}
+          </Text>
+        )}
+        {!task.completedDate && !task.startedDate && task.due && (
+          <Text size="xs" c="dimmed">
+            {dueLabel(task.due)}
+          </Text>
+        )}
+        <Tooltip label={openLabel} withArrow>
           <ActionIcon
+            className="pbd-row-edit"
             variant="subtle"
             color="gray"
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              onOpenTask(task);
+              open();
             }}
           >
-            <IconEdit size={16} />
+            <IconEdit size={14} />
           </ActionIcon>
         </Tooltip>
       </Group>
-    </Card>
+    </div>
   );
 };
