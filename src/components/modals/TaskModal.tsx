@@ -41,7 +41,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStoreSelector } from '../../store/useAppStore';
 import { DEFAULT_KANBAN_COLUMNS, TaskPriority, TaskStatus } from '../../types';
 import { MarkdownViewer } from '../viewer/MarkdownViewer';
 import { getColumnIcon, getColumnTitle } from '../kanban/columnUtils';
@@ -73,7 +73,20 @@ export const TaskModal: React.FC = () => {
     allTags,
     areas = DEFAULT_AREAS,
     projects = [],
-  } = useAppStore();
+  } = useAppStoreSelector((state) => ({
+    isTaskModalOpen: state.isTaskModalOpen,
+    activeTask: state.activeTask,
+    taskModalInitialStatus: state.taskModalInitialStatus,
+    closeTaskModal: state.closeTaskModal,
+    openTaskEditor: state.openTaskEditor,
+    createOrUpdateTask: state.createOrUpdateTask,
+    deleteTask: state.deleteTask,
+    logTaskToDailyNote: state.logTaskToDailyNote,
+    settings: state.settings,
+    allTags: state.allTags,
+    areas: state.areas,
+    projects: state.projects,
+  }));
 
   const allTagsRef = useRef(allTags);
   useEffect(() => {

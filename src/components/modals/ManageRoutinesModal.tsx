@@ -30,7 +30,7 @@ import {
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStoreSelector } from '../../store/useAppStore';
 import { DailyRoutine, RoutineSchedule } from '../../types';
 
 interface RoutineFormData {
@@ -54,7 +54,11 @@ const DEFAULT_FORM: RoutineFormData = {
 
 export const RoutinesManagerView: React.FC = () => {
   const { t } = useTranslation();
-  const { settings, saveRoutinesList, openExternalUrl } = useAppStore();
+  const { settings, saveRoutinesList, openExternalUrl } = useAppStoreSelector((state) => ({
+    settings: state.settings,
+    saveRoutinesList: state.saveRoutinesList,
+    openExternalUrl: state.openExternalUrl,
+  }));
 
   const routines: DailyRoutine[] = settings?.routines || [];
 
@@ -490,7 +494,10 @@ export const RoutinesManagerView: React.FC = () => {
 
 export const ManageRoutinesModal: React.FC = () => {
   const { t } = useTranslation();
-  const { isManageRoutinesModalOpen, closeManageRoutinesModal } = useAppStore();
+  const { isManageRoutinesModalOpen, closeManageRoutinesModal } = useAppStoreSelector((state) => ({
+    isManageRoutinesModalOpen: state.isManageRoutinesModalOpen,
+    closeManageRoutinesModal: state.closeManageRoutinesModal,
+  }));
 
   return (
     <Modal

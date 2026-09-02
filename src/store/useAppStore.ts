@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import { AppSettings, AppViewMode, AreaDefinition, DailyNote, DailyNoteMeta, DailyRoutine, DEFAULT_KANBAN_COLUMNS, ProjectDefinition, TagDefinition, TaskItem, TaskMeta, TaskPriority, TaskStatus } from '../types';
@@ -843,3 +844,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ isManageRoutinesModalOpen: false });
   },
 }));
+
+export function useAppStoreSelector<T>(selector: (state: AppState) => T): T {
+  return useAppStore(useShallow(selector));
+}

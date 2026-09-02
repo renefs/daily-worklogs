@@ -37,7 +37,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStoreSelector } from '../../store/useAppStore';
 import { DailyNoteMeta } from '../../types';
 import { capitalizeFirstLetter, formatTemplateDate } from '../../utils/dateTemplate';
 
@@ -63,7 +63,17 @@ export const AppSidebar: React.FC = () => {
     deleteActiveNote,
     isSidebarCollapsed,
     toggleSidebarCollapse,
-  } = useAppStore();
+  } = useAppStoreSelector((state) => ({
+    currentView: state.currentView,
+    selectedDate: state.selectedDate,
+    setSelectedDate: state.setSelectedDate,
+    setCurrentView: state.setCurrentView,
+    notesList: state.notesList,
+    settings: state.settings,
+    deleteActiveNote: state.deleteActiveNote,
+    isSidebarCollapsed: state.isSidebarCollapsed,
+    toggleSidebarCollapse: state.toggleSidebarCollapse,
+  }));
 
   const todayStr = dayjs().format('YYYY-MM-DD');
   const todayNoteExists = useMemo(() => {
@@ -648,4 +658,3 @@ export const AppSidebar: React.FC = () => {
     </div>
   );
 };
-

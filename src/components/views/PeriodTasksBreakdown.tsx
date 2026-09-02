@@ -23,7 +23,7 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStoreSelector } from '../../store/useAppStore';
 import { PeriodSummary, TaskMeta, TaskPriority, DailyChecklistItem } from '../../types';
 import { formatLocalizedDateTitle } from '../../utils/dateTemplate';
 import { getTagColor } from '../../utils/tagUtils';
@@ -57,7 +57,11 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
     allTags: storeAllTags,
     areas = DEFAULT_AREAS,
     projects = [],
-  } = useAppStore();
+  } = useAppStoreSelector((state) => ({
+    allTags: state.allTags,
+    areas: state.areas,
+    projects: state.projects,
+  }));
 
   const [selectedArea, setSelectedArea] = useState<string>('all');
   const [selectedProject, setSelectedProject] = useState<string>('all');

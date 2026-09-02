@@ -50,7 +50,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStoreSelector } from '../../store/useAppStore';
 import { DEFAULT_KANBAN_COLUMNS, TaskPriority, TaskStatus } from '../../types';
 import { MarkdownEditor } from '../editor/MarkdownEditor';
 import { MarkdownViewer } from '../viewer/MarkdownViewer';
@@ -84,7 +84,22 @@ export const TaskView: React.FC = () => {
     isTaskPropertiesPanelOpen,
     toggleTaskPropertiesPanel,
     taskModalInitialStatus,
-  } = useAppStore();
+  } = useAppStoreSelector((state) => ({
+    activeTask: state.activeTask,
+    closeTaskEditor: state.closeTaskEditor,
+    createOrUpdateTask: state.createOrUpdateTask,
+    deleteTask: state.deleteTask,
+    logTaskToDailyNote: state.logTaskToDailyNote,
+    settings: state.settings,
+    allTags: state.allTags,
+    areas: state.areas,
+    projects: state.projects,
+    taskEditorLayoutMode: state.taskEditorLayoutMode,
+    setTaskEditorLayoutMode: state.setTaskEditorLayoutMode,
+    isTaskPropertiesPanelOpen: state.isTaskPropertiesPanelOpen,
+    toggleTaskPropertiesPanel: state.toggleTaskPropertiesPanel,
+    taskModalInitialStatus: state.taskModalInitialStatus,
+  }));
 
   const [title, setTitle] = useState('');
   const [area, setArea] = useState<string>('General');

@@ -28,7 +28,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStoreSelector } from '../../store/useAppStore';
 import { DailyRoutine } from '../../types';
 
 export const DailyRoutinesPanel: React.FC = () => {
@@ -44,7 +44,18 @@ export const DailyRoutinesPanel: React.FC = () => {
     toggleDailyRoutinesPanel,
     openExternalUrl,
     openManageRoutinesModal,
-  } = useAppStore();
+  } = useAppStoreSelector((state) => ({
+    settings: state.settings,
+    routineCompletionsByDate: state.routineCompletionsByDate,
+    selectedDate: state.selectedDate,
+    toggleRoutineCompletion: state.toggleRoutineCompletion,
+    completeAllDailyRoutines: state.completeAllDailyRoutines,
+    resetDailyRoutines: state.resetDailyRoutines,
+    saveRoutinesList: state.saveRoutinesList,
+    toggleDailyRoutinesPanel: state.toggleDailyRoutinesPanel,
+    openExternalUrl: state.openExternalUrl,
+    openManageRoutinesModal: state.openManageRoutinesModal,
+  }));
 
   const [quickTitle, setQuickTitle] = useState('');
 

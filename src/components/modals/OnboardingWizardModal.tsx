@@ -43,7 +43,7 @@ import {
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStoreSelector } from '../../store/useAppStore';
 import { WeekStartDay } from '../../types';
 import { DATE_FORMAT_PRESETS, formatTemplateDate } from '../../utils/dateTemplate';
 
@@ -70,7 +70,13 @@ export const OnboardingWizardModal: React.FC = () => {
     completeOnboarding,
     openSettings,
     loadSettings,
-  } = useAppStore();
+  } = useAppStoreSelector((state) => ({
+    settings: state.settings,
+    isOnboardingOpen: state.isOnboardingOpen,
+    completeOnboarding: state.completeOnboarding,
+    openSettings: state.openSettings,
+    loadSettings: state.loadSettings,
+  }));
 
   const [activeStep, setActiveStep] = useState(0);
 

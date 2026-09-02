@@ -5,7 +5,7 @@ import rehypeHighlight from 'rehype-highlight';
 import rehypeRaw from 'rehype-raw';
 import { Paper, ScrollArea, Checkbox, CopyButton, ActionIcon, Tooltip } from '@mantine/core';
 import { IconCopy, IconCheck, IconCode } from '@tabler/icons-react';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStoreSelector } from '../../store/useAppStore';
 
 export interface MarkdownViewerProps {
   content?: string;
@@ -32,7 +32,10 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   allowToggleTasks = true,
   onToggleTask,
 }) => {
-  const { activeNote, toggleTaskInNote } = useAppStore();
+  const { activeNote, toggleTaskInNote } = useAppStoreSelector((state) => ({
+    activeNote: state.activeNote,
+    toggleTaskInNote: state.toggleTaskInNote,
+  }));
   const markdownText = content !== undefined ? content : activeNote?.content || '';
 
   return (

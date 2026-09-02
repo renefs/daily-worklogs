@@ -42,7 +42,7 @@ import {
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStoreSelector } from '../../store/useAppStore';
 import { AreaDefinition, ProjectDefinition, ProjectStatus } from '../../types';
 import {
   AREA_COLOR_PALETTE,
@@ -100,7 +100,16 @@ export const AreasProjectsManager: React.FC = () => {
     deleteArea,
     saveProject,
     deleteProject,
-  } = useAppStore();
+  } = useAppStoreSelector((state) => ({
+    areas: state.areas,
+    projects: state.projects,
+    tasks: state.tasks,
+    allTags: state.allTags,
+    saveArea: state.saveArea,
+    deleteArea: state.deleteArea,
+    saveProject: state.saveProject,
+    deleteProject: state.deleteProject,
+  }));
 
   const [search, setSearch] = useState('');
 

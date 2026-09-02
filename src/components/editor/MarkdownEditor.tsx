@@ -38,7 +38,7 @@ import {
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStoreSelector } from '../../store/useAppStore';
 import { formatTemplateContent } from '../../utils/dateTemplate';
 
 import { EditorView } from '@codemirror/view';
@@ -114,7 +114,15 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     settings,
     selectedDate,
     allTags,
-  } = useAppStore();
+  } = useAppStoreSelector((state) => ({
+    activeNote: state.activeNote,
+    setNoteContent: state.setNoteContent,
+    saveActiveNote: state.saveActiveNote,
+    isDirty: state.isDirty,
+    settings: state.settings,
+    selectedDate: state.selectedDate,
+    allTags: state.allTags,
+  }));
 
   const isControlled = content !== undefined;
   const effectiveContent = isControlled ? content : activeNote?.content || '';

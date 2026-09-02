@@ -29,7 +29,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStoreSelector } from '../../store/useAppStore';
 import { PeriodSummary, TaskMeta } from '../../types';
 import { ExportModal } from '../modals/ExportModal';
 import { PeriodTasksBreakdown } from './PeriodTasksBreakdown';
@@ -40,7 +40,12 @@ export const MonthlyView: React.FC = () => {
   const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
   const isDark = computedColorScheme === 'dark';
 
-  const { selectedDate, notesList, tasks, openTaskEditor } = useAppStore();
+  const { selectedDate, notesList, tasks, openTaskEditor } = useAppStoreSelector((state) => ({
+    selectedDate: state.selectedDate,
+    notesList: state.notesList,
+    tasks: state.tasks,
+    openTaskEditor: state.openTaskEditor,
+  }));
   const [currentMonthDate, setCurrentMonthDate] = useState<string>(selectedDate);
   const [periodSummary, setPeriodSummary] = useState<PeriodSummary | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);

@@ -7,7 +7,7 @@ import {
   Text,
 } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStoreSelector } from '../../store/useAppStore';
 import { AppHeader } from './AppHeader';
 import { AppSidebar } from './AppSidebar';
 import { DailyView } from '../views/DailyView';
@@ -23,7 +23,12 @@ import { OnboardingWizardModal } from '../modals/OnboardingWizardModal';
 
 export const AppLayout: React.FC = () => {
   const { t } = useTranslation();
-  const { currentView, isLoading, openSettings, isSidebarCollapsed } = useAppStore();
+  const { currentView, isLoading, openSettings, isSidebarCollapsed } = useAppStoreSelector((state) => ({
+    currentView: state.currentView,
+    isLoading: state.isLoading,
+    openSettings: state.openSettings,
+    isSidebarCollapsed: state.isSidebarCollapsed,
+  }));
 
   useEffect(() => {
     if (window.electronAPI?.onOpenSettings) {
@@ -91,4 +96,3 @@ export const AppLayout: React.FC = () => {
     </AppShell>
   );
 };
-

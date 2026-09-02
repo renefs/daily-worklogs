@@ -13,7 +13,7 @@ import {
   IconBook2,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStoreSelector } from '../../store/useAppStore';
 import { AppViewMode } from '../../types';
 
 export const AppHeader: React.FC = () => {
@@ -22,7 +22,11 @@ export const AppHeader: React.FC = () => {
     currentView,
     setCurrentView,
     setIsSettingsOpen,
-  } = useAppStore();
+  } = useAppStoreSelector((state) => ({
+    currentView: state.currentView,
+    setCurrentView: state.setCurrentView,
+    setIsSettingsOpen: state.setIsSettingsOpen,
+  }));
 
   const isMac =
     typeof window !== 'undefined' &&
@@ -161,5 +165,4 @@ export const AppHeader: React.FC = () => {
     </Group>
   );
 };
-
 

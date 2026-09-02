@@ -50,7 +50,7 @@ import {
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStoreSelector } from '../../store/useAppStore';
 import { ColumnBehavior, DEFAULT_KANBAN_COLUMNS, KanbanColumnConfig, WeekStartDay } from '../../types';
 import { AppInfo } from '../../types/electron';
 import {
@@ -105,7 +105,20 @@ export const SettingsModal: React.FC = () => {
     refreshTasksList,
     loadNoteForDate,
     selectedDate,
-  } = useAppStore();
+  } = useAppStoreSelector((state) => ({
+    settings: state.settings,
+    updateSettings: state.updateSettings,
+    isSettingsOpen: state.isSettingsOpen,
+    setIsSettingsOpen: state.setIsSettingsOpen,
+    settingsActiveTab: state.settingsActiveTab,
+    setSettingsActiveTab: state.setSettingsActiveTab,
+    openOnboarding: state.openOnboarding,
+    loadSettings: state.loadSettings,
+    refreshNotesList: state.refreshNotesList,
+    refreshTasksList: state.refreshTasksList,
+    loadNoteForDate: state.loadNoteForDate,
+    selectedDate: state.selectedDate,
+  }));
 
   // Column creation / editing state
   const [isAddColumnModalOpen, setIsAddColumnModalOpen] = useState(false);

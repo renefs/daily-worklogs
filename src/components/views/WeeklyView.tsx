@@ -29,7 +29,7 @@ import {
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import { useTranslation } from 'react-i18next';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStoreSelector } from '../../store/useAppStore';
 import { PeriodSummary, TaskMeta } from '../../types';
 import { ExportModal } from '../modals/ExportModal';
 import { PeriodTasksBreakdown } from './PeriodTasksBreakdown';
@@ -43,7 +43,16 @@ export const WeeklyView: React.FC = () => {
   const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
   const isDark = computedColorScheme === 'dark';
 
-  const { settings, selectedDate, notesList, tasks, openTaskEditor, areas = [], projects = [], allTags = [] } = useAppStore();
+  const { settings, selectedDate, notesList, tasks, openTaskEditor, areas = [], projects = [], allTags = [] } = useAppStoreSelector((state) => ({
+    settings: state.settings,
+    selectedDate: state.selectedDate,
+    notesList: state.notesList,
+    tasks: state.tasks,
+    openTaskEditor: state.openTaskEditor,
+    areas: state.areas,
+    projects: state.projects,
+    allTags: state.allTags,
+  }));
   const [currentWeekDate, setCurrentWeekDate] = useState<string>(selectedDate);
   const [periodSummary, setPeriodSummary] = useState<PeriodSummary | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);

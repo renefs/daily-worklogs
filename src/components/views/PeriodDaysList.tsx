@@ -32,7 +32,7 @@ import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { PeriodSummary, WorklogDaySummary } from '../../types';
 import { MarkdownViewer } from '../viewer/MarkdownViewer';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStoreSelector } from '../../store/useAppStore';
 import { formatLocalizedDateTitle } from '../../utils/dateTemplate';
 
 interface PeriodDaysListProps {
@@ -43,7 +43,10 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
   const { t, i18n } = useTranslation();
   const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
   const isDark = computedColorScheme === 'dark';
-  const { setSelectedDate, setCurrentView } = useAppStore();
+  const { setSelectedDate, setCurrentView } = useAppStoreSelector((state) => ({
+    setSelectedDate: state.setSelectedDate,
+    setCurrentView: state.setCurrentView,
+  }));
 
   const [searchQuery, setSearchQuery] = useState('');
   const [onlyWithNotes, setOnlyWithNotes] = useState(true);

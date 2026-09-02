@@ -30,7 +30,7 @@ import {
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStoreSelector } from '../../store/useAppStore';
 import { TagDefinition } from '../../types';
 import { getTagColor, parseTagHierarchy, TAG_COLOR_PALETTE } from '../../utils/tagUtils';
 
@@ -46,7 +46,14 @@ export const TagsManager: React.FC = () => {
     saveTagDefinition,
     renameTag,
     deleteTag,
-  } = useAppStore();
+  } = useAppStoreSelector((state) => ({
+    allTags: state.allTags,
+    tasks: state.tasks,
+    refreshTagsList: state.refreshTagsList,
+    saveTagDefinition: state.saveTagDefinition,
+    renameTag: state.renameTag,
+    deleteTag: state.deleteTag,
+  }));
 
   const [search, setSearch] = useState('');
   const [serviceFilter, setServiceFilter] = useState('all');

@@ -10,7 +10,7 @@ import {
 import { DatesProvider } from '@mantine/dates';
 import { Notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
-import { useAppStore } from './store/useAppStore';
+import { useAppStore, useAppStoreSelector } from './store/useAppStore';
 import { AppLayout } from './components/layout/AppLayout';
 
 const ColorSchemeSync: React.FC<{ colorScheme?: 'light' | 'dark' | 'auto' }> = ({ colorScheme }) => {
@@ -55,7 +55,10 @@ const claudeColors: MantineColorsTuple = [
 ];
 
 export const App: React.FC = () => {
-  const { initApp, settings } = useAppStore();
+  const { initApp, settings } = useAppStoreSelector((state) => ({
+    initApp: state.initApp,
+    settings: state.settings,
+  }));
   const { i18n } = useTranslation();
 
   useEffect(() => {

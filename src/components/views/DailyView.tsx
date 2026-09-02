@@ -17,7 +17,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStoreSelector } from '../../store/useAppStore';
 import { MarkdownEditor } from '../editor/MarkdownEditor';
 import { MarkdownViewer } from '../viewer/MarkdownViewer';
 import { ExportModal } from '../modals/ExportModal';
@@ -38,7 +38,15 @@ export const DailyView: React.FC = () => {
     activeNote,
     deleteActiveNote,
     toggleDailyRoutinesPanel,
-  } = useAppStore();
+  } = useAppStoreSelector((state) => ({
+    settings: state.settings,
+    routineCompletionsByDate: state.routineCompletionsByDate,
+    selectedDate: state.selectedDate,
+    setSelectedDate: state.setSelectedDate,
+    activeNote: state.activeNote,
+    deleteActiveNote: state.deleteActiveNote,
+    toggleDailyRoutinesPanel: state.toggleDailyRoutinesPanel,
+  }));
 
   const dayObj = dayjs(selectedDate);
   const isToday = selectedDate === dayjs().format('YYYY-MM-DD');
@@ -276,4 +284,3 @@ export const DailyView: React.FC = () => {
     </div>
   );
 };
-

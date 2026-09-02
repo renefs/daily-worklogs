@@ -32,7 +32,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStoreSelector } from '../../store/useAppStore';
 import { DEFAULT_KANBAN_COLUMNS, KanbanColumnConfig, TaskMeta, TaskPriority } from '../../types';
 import { getColumnIcon, getColumnTitle } from '../kanban/columnUtils';
 import {
@@ -58,7 +58,20 @@ export const KanbanView: React.FC = () => {
     allTags: storeAllTags,
     areas = DEFAULT_AREAS,
     projects = [],
-  } = useAppStore();
+  } = useAppStoreSelector((state) => ({
+    tasks: state.tasks,
+    isTasksLoading: state.isTasksLoading,
+    openTaskModal: state.openTaskModal,
+    openTaskEditor: state.openTaskEditor,
+    updateTaskStatus: state.updateTaskStatus,
+    deleteTask: state.deleteTask,
+    refreshTasksList: state.refreshTasksList,
+    settings: state.settings,
+    openSettings: state.openSettings,
+    allTags: state.allTags,
+    areas: state.areas,
+    projects: state.projects,
+  }));
 
   const [search, setSearch] = useState('');
   const [contentSearchMatches, setContentSearchMatches] = useState<Set<string>>(new Set());
