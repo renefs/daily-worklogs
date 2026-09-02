@@ -8,6 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-09-02
+
+### Added
+- **Live Editor Safety Tests**: Added verification for Markdown syntax-node matching and safe link and image destination handling.
+- **Localized Live Widgets**: Added English and Spanish labels for code-copy actions, editable tables, and missing-image feedback.
+
+### Changed
+- **Viewport-Scoped Live Preview**: Live Markdown decorations now render only the visible editor region plus a small buffer, keeping editing responsive in long notes.
+- **Syntax-Aware Decorations**: Inline formatting is validated against CodeMirror's Markdown syntax tree so escaped or invalid Markdown is not decorated as active syntax.
+- **Safe Table Rendering**: Table cells now use DOM nodes and text content instead of interpolated HTML, with validated clickable destinations.
+- **Single Auto-Save Owner**: Controlled editors delegate persistence to their parent view, preventing duplicate task writes.
+
+### Fixed
+- **Concurrent Task Saves**: Task saves are serialized, and edits made during an in-flight save remain dirty until the newer draft is persisted.
+- **Unsafe Live Preview Destinations**: Blocked executable and malformed URL schemes from Live Editor links and images.
+
 ## [1.8.0] - 2026-09-02
 
 ### Added
