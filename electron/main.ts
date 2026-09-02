@@ -23,6 +23,7 @@ import { formatTemplateContent } from '../src/utils/dateTemplate';
 import { mapWithConcurrency } from './utils/async';
 import { requireIsoDate, requireTaskFilename, resolvePathInside } from './utils/security';
 import { atomicWriteFile, atomicWriteFileSync } from './utils/atomicFile';
+import { ensureImagesDir, ensureTasksDir, ensureVaultDir, ensureYearDir, getNoteFilePath, getYearFromDate, listDailyNoteFiles } from './services/vaultService';
 
 // Register custom protocol scheme before app ready
 protocol.registerSchemesAsPrivileged([
@@ -513,18 +514,6 @@ function writeRoutineCompletionsForYear(
   );
 }
 
-function ensureVaultDir(vaultPath: string) {
-  if (!fs.existsSync(vaultPath)) {
-    fs.mkdirSync(vaultPath, { recursive: true });
-  }
-}
-
-function getYearFromDate(date: string): string {
-  const match = date.match(/^(\d{4})/);
-  if (match) return match[1];
-  return new Date().getFullYear().toString();
-}
-
 // Whole-directory scans (a year of daily notes, every document in vault/tasks) touch
 // hundreds of files. Doing that with synchronous fs calls blocks the Electron main
 // process, which freezes the whole app - painfully so on cloud-synced vaults (iCloud
@@ -585,74 +574,6 @@ function expandDateRange(startDate: string, endDate: string): string[] {
     curr = curr.add(1, 'day');
   }
   return dates;
-}
-
-function ensureYearDir(vaultPath: string, year: string): string {
-  ensureVaultDir(vaultPath);
-  const yearDir = path.join(vaultPath, year);
-  if (!fs.existsSync(yearDir)) {
-    fs.mkdirSync(yearDir, { recursive: true });
-  }
-  return yearDir;
-}
-
-function getNoteFilePath(vaultPath: string, date: string): {
-  filepath: string;
-  exists: boolean;
-  year: string;
-  filename: string;
-  relativePath: string;
-} {
-  const year = getYearFromDate(date);
-  const filename = `${date}.md`;
-  const yearFilePath = path.join(vaultPath, year, filename);
-  const rootFilePath = path.join(vaultPath, filename);
-
-  if (fs.existsSync(yearFilePath)) {
-    return {
-      filepath: yearFilePath,
-      exists: true,
-      year,
-      filename,
-      relativePath: `${year}/${filename}`,
-    };
-  }
-
-  if (fs.existsSync(rootFilePath)) {
-    return {
-      filepath: rootFilePath,
-      exists: true,
-      year,
-      filename,
-      relativePath: filename,
-    };
-  }
-
-  return {
-    filepath: yearFilePath,
-    exists: false,
-    year,
-    filename,
-    relativePath: `${year}/${filename}`,
-  };
-}
-
-function ensureTasksDir(vaultPath: string) {
-  ensureVaultDir(vaultPath);
-  const tasksDir = path.join(vaultPath, 'tasks');
-  if (!fs.existsSync(tasksDir)) {
-    fs.mkdirSync(tasksDir, { recursive: true });
-  }
-  return tasksDir;
-}
-
-function ensureImagesDir(vaultPath: string) {
-  ensureVaultDir(vaultPath);
-  const imagesDir = path.join(vaultPath, 'images');
-  if (!fs.existsSync(imagesDir)) {
-    fs.mkdirSync(imagesDir, { recursive: true });
-  }
-  return imagesDir;
 }
 
 function slugify(text: string) {
@@ -1155,78 +1076,8 @@ ipcMain.handle('delete-note', async (_event, date: string) => {
 
 ipcMain.handle('list-notes', async () => {
   const { vaultPath } = getSettings();
-  ensureVaultDir(vaultPath);
-
   try {
-    const dateRegex = /^\d{4}-\d{2}-\d{2}\.md$/;
-    const noteFiles: Array<{ date: string; filename: string; filepath: string; relativePath: string; lastModified: string; size: number }> = [];
-    const seenDates = new Set<string>();
-
-    const rootEntries = await fsp.readdir(vaultPath, { withFileTypes: true });
-
-    // Candidates are collected first so every stat can be issued off the main thread.
-    const candidates: Array<{ date: string; filename: string; filepath: string; relativePath: string }> = [];
-
-    // 1. Scan year subdirectories (e.g. 2024, 2025, 2026)
-    for (const entry of rootEntries) {
-      if (entry.isDirectory() && /^\d{4}$/.test(entry.name)) {
-        const yearDir = path.join(vaultPath, entry.name);
-        try {
-          const yearFiles = await fsp.readdir(yearDir, { withFileTypes: true });
-          for (const yearFile of yearFiles) {
-            if (yearFile.isFile() && dateRegex.test(yearFile.name)) {
-              const date = yearFile.name.replace('.md', '');
-              seenDates.add(date);
-              candidates.push({
-                date,
-                filename: yearFile.name,
-                filepath: path.join(yearDir, yearFile.name),
-                relativePath: `${entry.name}/${yearFile.name}`,
-              });
-            }
-          }
-        } catch (subErr) {
-          console.warn(`Error reading year folder ${entry.name}:`, subErr);
-        }
-      }
-    }
-
-    // 2. Scan vault root for direct date notes
-    for (const entry of rootEntries) {
-      if (entry.isFile() && dateRegex.test(entry.name)) {
-        const date = entry.name.replace('.md', '');
-        if (!seenDates.has(date)) {
-          seenDates.add(date);
-          candidates.push({
-            date,
-            filename: entry.name,
-            filepath: path.join(vaultPath, entry.name),
-            relativePath: entry.name,
-          });
-        }
-      }
-    }
-
-    const stats = await mapWithConcurrency(candidates, FILE_READ_CONCURRENCY, async (candidate) => {
-      try {
-        return await fsp.stat(candidate.filepath);
-      } catch (statErr) {
-        console.warn(`Error reading note metadata for ${candidate.relativePath}:`, statErr);
-        return null;
-      }
-    });
-
-    candidates.forEach((candidate, index) => {
-      const stat = stats[index];
-      if (!stat) return;
-      noteFiles.push({
-        ...candidate,
-        lastModified: stat.mtime.toISOString(),
-        size: stat.size,
-      });
-    });
-
-    return noteFiles.sort((a, b) => b.date.localeCompare(a.date));
+    return await listDailyNoteFiles(vaultPath, FILE_READ_CONCURRENCY);
   } catch (err) {
     console.error('Error listing notes:', err);
     return [];

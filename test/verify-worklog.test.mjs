@@ -6,6 +6,7 @@ import matter from 'gray-matter';
 import { mapWithConcurrency } from '../electron/utils/async.ts';
 import { requireIsoDate, requireTaskFilename, resolvePathInside } from '../electron/utils/security.ts';
 import { atomicWriteFile, atomicWriteFileSync } from '../electron/utils/atomicFile.ts';
+import { ensureYearDir, getNoteFilePath, getYearFromDate, listDailyNoteFiles } from '../electron/services/vaultService.ts';
 
 const testVault = path.join(os.tmpdir(), 'test-daily-worklog-vault');
 if (fs.existsSync(testVault)) {
@@ -32,69 +33,6 @@ await atomicWriteFile(atomicFilePath, 'second');
 assert.strictEqual(fs.readFileSync(atomicFilePath, 'utf-8'), 'second');
 assert.deepStrictEqual(fs.readdirSync(testVault).filter((name) => name.endsWith('.tmp')), []);
 console.log('✓ Atomic persistence utility verified');
-
-// Year helper functions under test
-function getYearFromDate(date) {
-  const match = date.match(/^(\d{4})/);
-  if (match) return match[1];
-  return new Date().getFullYear().toString();
-}
-
-function ensureYearDir(vaultPath, year) {
-  const yearDir = path.join(vaultPath, year);
-  if (!fs.existsSync(yearDir)) {
-    fs.mkdirSync(yearDir, { recursive: true });
-  }
-  return yearDir;
-}
-
-function getNoteFilePath(vaultPath, date) {
-  const year = getYearFromDate(date);
-  const filename = `${date}.md`;
-  const filepath = path.join(vaultPath, year, filename);
-
-  return {
-    filepath,
-    exists: fs.existsSync(filepath),
-    year,
-    filename,
-    relativePath: `${year}/${filename}`,
-  };
-}
-
-function listNotes(vaultPath) {
-  const dateRegex = /^\d{4}-\d{2}-\d{2}\.md$/;
-  const noteFiles = [];
-  const rootEntries = fs.readdirSync(vaultPath, { withFileTypes: true });
-
-  for (const entry of rootEntries) {
-    if (entry.isDirectory() && /^\d{4}$/.test(entry.name)) {
-      const yearDir = path.join(vaultPath, entry.name);
-      try {
-        const yearFiles = fs.readdirSync(yearDir, { withFileTypes: true });
-        for (const yearFile of yearFiles) {
-          if (yearFile.isFile() && dateRegex.test(yearFile.name)) {
-            const filepath = path.join(yearDir, yearFile.name);
-            const stat = fs.statSync(filepath);
-            const date = yearFile.name.replace('.md', '');
-            noteFiles.push({
-              date,
-              filename: yearFile.name,
-              filepath,
-              relativePath: `${entry.name}/${yearFile.name}`,
-              lastModified: stat.mtime.toISOString(),
-              size: stat.size,
-            });
-          }
-        }
-      } catch (err) {
-        console.warn('Error reading year dir:', err);
-      }
-    }
-  }
-
-  return noteFiles.sort((a, b) => b.date.localeCompare(a.date));
-}
 
 // 1. Create a sample daily note in 2026 subfolder
 const noteDate = '2026-08-18';
@@ -140,7 +78,7 @@ fs.writeFileSync(path.join(year2025Dir, '2025-12-31.md'), '# 2025-12-31 - New Ye
 fs.writeFileSync(path.join(year2024Dir, '2024-06-15.md'), '# 2024-06-15 - Mid Year Note\n- [x] Past task', 'utf-8');
 
 // 4. Test note listing strictly across year directories
-const listedNotes = listNotes(testVault);
+const listedNotes = await listDailyNoteFiles(testVault);
 assert.strictEqual(listedNotes.length, 4, 'Should find 4 note files in year subfolders');
 assert.strictEqual(listedNotes[0].date, '2026-08-19', 'Latest note should be 2026-08-19');
 assert.strictEqual(listedNotes[0].relativePath, '2026/2026-08-19.md', 'Relative path should include year');
@@ -1125,5 +1063,4 @@ if (fs.existsSync(sharedCloudVault)) fs.rmSync(sharedCloudVault, { recursive: tr
 if (fs.existsSync(computerASettingsFile)) fs.rmSync(computerASettingsFile);
 if (fs.existsSync(computerBSettingsFile)) fs.rmSync(computerBSettingsFile);
 console.log('✓ All verification tests passed successfully!');
-
 
