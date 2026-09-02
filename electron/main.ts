@@ -43,6 +43,55 @@ const __dirname = path.dirname(__filename);
 
 // Path constants
 let mainWindow: BrowserWindow | null = null;
+let vaultWatcher: fs.FSWatcher | null = null;
+const internalWriteDeadlines = new Map<string, number>();
+
+async function writeInternalFile(filePath: string, content: string | NodeJS.ArrayBufferView): Promise<void> {
+  const resolved = path.resolve(filePath);
+  internalWriteDeadlines.set(resolved, Date.now() + 1_000);
+  await atomicWriteFile(filePath, content);
+}
+
+function setupVaultWatcher(vaultPath: string): void {
+  vaultWatcher?.close();
+  vaultWatcher = null;
+  if (!vaultPath || !fs.existsSync(vaultPath)) return;
+
+  const pending = new Map<string, NodeJS.Timeout>();
+  try {
+    vaultWatcher = fs.watch(vaultPath, { recursive: true }, (_eventType, rawFilename) => {
+    if (!rawFilename || !mainWindow || mainWindow.isDestroyed()) return;
+    const relativePath = rawFilename.toString().replaceAll('\\', '/');
+    const pathParts = relativePath.split('/');
+    if (pathParts.some((part, index) => part.startsWith('.') && !(index === 0 && part === VAULT_CONFIG_DIR))) return;
+    const absolutePath = path.resolve(vaultPath, relativePath);
+    const deadline = internalWriteDeadlines.get(absolutePath) || 0;
+    if (deadline >= Date.now()) return;
+    internalWriteDeadlines.delete(absolutePath);
+
+    const existingTimer = pending.get(relativePath);
+    if (existingTimer) clearTimeout(existingTimer);
+    pending.set(relativePath, setTimeout(async () => {
+      pending.delete(relativePath);
+      if (relativePath.startsWith(`${VAULT_CONFIG_DIR}/`)) invalidateSettingsCache();
+      const noteMatch = /(?:^|\/)(\d{4}-\d{2}-\d{2})\.md$/.exec(relativePath);
+      if (noteMatch) {
+        const date = noteMatch[1];
+        const note = getNoteFilePath(vaultPath, date);
+        const payload = note.exists
+          ? { date, content: await fsp.readFile(note.filepath, 'utf-8'), lastModified: (await fsp.stat(note.filepath)).mtime.toISOString(), exists: true }
+          : { date, content: '', exists: false };
+        mainWindow?.webContents.send('note-file-changed', payload);
+      }
+      mainWindow?.webContents.send('vault-files-changed', { relativePath });
+    }, 200));
+    });
+    vaultWatcher.on('error', (error) => console.error('Vault watcher error:', error));
+  } catch (error) {
+    console.error('Failed to watch vault:', error);
+    vaultWatcher = null;
+  }
+}
 
 // Settings file path
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
@@ -880,6 +929,7 @@ app.whenReady().then(() => {
   });
 
   createWindow();
+  setupVaultWatcher(getSettings().vaultPath);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -889,6 +939,7 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  vaultWatcher?.close();
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -954,10 +1005,12 @@ ipcMain.handle('get-settings', () => {
 });
 
 ipcMain.handle('save-settings', (_event, partialSettings) => {
+  const previousVaultPath = getSettings().vaultPath;
   const updated = saveSettings(partialSettings);
   if (updated.vaultPath) {
     ensureVaultDir(updated.vaultPath);
   }
+  if (updated.vaultPath !== previousVaultPath) setupVaultWatcher(updated.vaultPath);
   return updated;
 });
 
@@ -1014,6 +1067,7 @@ ipcMain.handle('select-vault-directory', async () => {
       saveSettings({ vaultPath: selected });
       writeVaultConfig(selected, currentSettings);
     }
+    setupVaultWatcher(selected);
     return selected;
   }
   return null;
@@ -1068,7 +1122,7 @@ ipcMain.handle('write-note', async (_event, date: string, content: string) => {
   const filename = `${date}.md`;
   const filepath = path.join(yearDir, filename);
 
-  await atomicWriteFile(filepath, content);
+  await writeInternalFile(filepath, content);
   const stat = fs.statSync(filepath);
 
   return {
@@ -1965,7 +2019,7 @@ ipcMain.handle('write-task', async (_event, taskData: any) => {
   const content = taskData.content !== undefined ? taskData.content : '';
   const fileContent = matter.stringify(content, frontmatterData);
 
-  await atomicWriteFile(filepath, fileContent);
+  await writeInternalFile(filepath, fileContent);
   const savedTask = await parseTaskFile(filepath, filename);
 
   return { success: true, task: savedTask };
@@ -2008,7 +2062,7 @@ ipcMain.handle('update-task-status', async (_event, filename: string, status: st
   }
 
   const updatedRaw = matter.stringify(parsed.content, updatedData);
-  await atomicWriteFile(filepath, updatedRaw);
+  await writeInternalFile(filepath, updatedRaw);
   const savedTask = await parseTaskFile(filepath, safeFilename);
 
   return { success: true, task: savedTask };

@@ -32,6 +32,7 @@ interface AppState {
   activeNote: DailyNote | null;
   isSaving: boolean;
   isDirty: boolean;
+  externalNoteConflict: { date: string; content: string; lastModified?: string; exists: boolean } | null;
   notesList: DailyNoteMeta[];
   isSettingsOpen: boolean;
   settingsActiveTab: string;
@@ -71,6 +72,9 @@ interface AppState {
   loadNoteForDate: (date: string) => Promise<void>;
   setNoteContent: (content: string) => void;
   saveActiveNote: () => Promise<void>;
+  handleExternalNoteChange: (change: { date: string; content: string; lastModified?: string; exists: boolean }) => void;
+  acceptExternalNote: () => void;
+  keepLocalNote: () => Promise<void>;
   deleteActiveNote: (date?: string) => Promise<void>;
   refreshNotesList: () => Promise<void>;
   applyTemplate: (templateId: string) => void;
@@ -144,6 +148,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeNote: null,
   isSaving: false,
   isDirty: false,
+  externalNoteConflict: null,
   notesList: [],
   isSettingsOpen: false,
   settingsActiveTab: 'general',
@@ -359,6 +364,48 @@ export const useAppStore = create<AppState>((set, get) => ({
     } finally {
       set({ isSaving: false });
     }
+  },
+
+  handleExternalNoteChange: (change) => {
+    const { activeNote, isDirty } = get();
+    if (!activeNote || activeNote.date !== change.date) return;
+    if (activeNote.content === change.content && change.exists) return;
+    if (isDirty) {
+      set({ externalNoteConflict: change });
+      return;
+    }
+    noteEditRevision += 1;
+    set({
+      activeNote: {
+        ...activeNote,
+        content: change.content,
+        exists: change.exists,
+        lastModified: change.lastModified,
+      },
+      isDirty: false,
+      externalNoteConflict: null,
+    });
+  },
+
+  acceptExternalNote: () => {
+    const { activeNote, externalNoteConflict } = get();
+    if (!activeNote || !externalNoteConflict || activeNote.date !== externalNoteConflict.date) return;
+    noteEditRevision += 1;
+    set({
+      activeNote: {
+        ...activeNote,
+        content: externalNoteConflict.content,
+        exists: externalNoteConflict.exists,
+        lastModified: externalNoteConflict.lastModified,
+      },
+      isDirty: false,
+      externalNoteConflict: null,
+    });
+  },
+
+  keepLocalNote: async () => {
+    set({ externalNoteConflict: null, isDirty: true });
+    await get().saveActiveNote();
   },
 
   deleteActiveNote: async (targetDate?: string) => {

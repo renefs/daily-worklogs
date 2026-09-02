@@ -59,12 +59,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('save-image', payload),
   selectImageDialog: () => ipcRenderer.invoke('select-image-dialog'),
   resolveMediaUrl: (path: string) => ipcRenderer.invoke('resolve-media-url', path),
-  onNoteFileChanged: (callback: (data: { date: string; content: string }) => void) => {
-    const handler = (_event: IpcRendererEvent, data: { date: string; content: string }) => callback(data);
+  onNoteFileChanged: (callback: (data: { date: string; content: string; lastModified?: string; exists: boolean }) => void) => {
+    const handler = (_event: IpcRendererEvent, data: { date: string; content: string; lastModified?: string; exists: boolean }) => callback(data);
     ipcRenderer.on('note-file-changed', handler);
     return () => {
       ipcRenderer.removeListener('note-file-changed', handler);
     };
+  },
+  onVaultFilesChanged: (callback: (data: { relativePath: string }) => void) => {
+    const handler = (_event: IpcRendererEvent, data: { relativePath: string }) => callback(data);
+    ipcRenderer.on('vault-files-changed', handler);
+    return () => ipcRenderer.removeListener('vault-files-changed', handler);
   },
   onOpenSettings: (callback: (tab?: string) => void) => {
     const handler = (_event: IpcRendererEvent, tab?: string) => callback(tab);

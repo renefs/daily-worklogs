@@ -75,9 +75,19 @@ export const App: React.FC = () => {
     };
 
     window.addEventListener('focus', handleFocus);
+    const unsubscribeNote = window.electronAPI?.onNoteFileChanged?.((change) => {
+      useAppStore.getState().handleExternalNoteChange(change);
+      void useAppStore.getState().refreshNotesList();
+    });
+    const unsubscribeVault = window.electronAPI?.onVaultFilesChanged?.(({ relativePath }) => {
+      if (relativePath.startsWith('tasks/')) void useAppStore.getState().refreshTasksList();
+      if (relativePath.startsWith('.daily-worklogs/')) void useAppStore.getState().loadSettings();
+    });
     return () => {
       window.removeEventListener('focus', handleFocus);
       window.clearTimeout(focusTimer);
+      unsubscribeNote?.();
+      unsubscribeVault?.();
     };
   }, [initApp]);
 

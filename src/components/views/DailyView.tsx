@@ -38,6 +38,9 @@ export const DailyView: React.FC = () => {
     activeNote,
     deleteActiveNote,
     toggleDailyRoutinesPanel,
+    externalNoteConflict,
+    acceptExternalNote,
+    keepLocalNote,
   } = useAppStoreSelector((state) => ({
     settings: state.settings,
     routineCompletionsByDate: state.routineCompletionsByDate,
@@ -46,6 +49,9 @@ export const DailyView: React.FC = () => {
     activeNote: state.activeNote,
     deleteActiveNote: state.deleteActiveNote,
     toggleDailyRoutinesPanel: state.toggleDailyRoutinesPanel,
+    externalNoteConflict: state.externalNoteConflict,
+    acceptExternalNote: state.acceptExternalNote,
+    keepLocalNote: state.keepLocalNote,
   }));
 
   const dayObj = dayjs(selectedDate);
@@ -243,6 +249,23 @@ export const DailyView: React.FC = () => {
         {/* Right Side: Daily Routines Panel */}
         {showRoutinesPanel && <DailyRoutinesPanel />}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        opened={externalNoteConflict?.date === selectedDate}
+        onClose={() => undefined}
+        closeOnClickOutside={false}
+        closeOnEscape={false}
+        withCloseButton={false}
+        title={t('daily.externalConflictTitle')}
+        centered
+      >
+        <Text size="sm" mb="lg">{t('daily.externalConflictDescription')}</Text>
+        <Group justify="flex-end">
+          <Button variant="default" onClick={acceptExternalNote}>{t('daily.useExternalVersion')}</Button>
+          <Button onClick={() => void keepLocalNote()}>{t('daily.keepLocalVersion')}</Button>
+        </Group>
+      </Modal>
 
       {/* Delete Confirmation Modal */}
       <Modal

@@ -102,7 +102,8 @@ export interface ElectronAPI {
     error?: string;
   }>;
   resolveMediaUrl: (path: string) => Promise<string>;
-  onNoteFileChanged: (callback: (data: { date: string; content: string }) => void) => () => void;
+  onNoteFileChanged: (callback: (data: { date: string; content: string; lastModified?: string; exists: boolean }) => void) => () => void;
+  onVaultFilesChanged: (callback: (data: { relativePath: string }) => void) => () => void;
   onOpenSettings?: (callback: (tab?: string) => void) => () => void;
 }
 
