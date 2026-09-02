@@ -4,6 +4,10 @@
     "tagline": "Registra tus logros diarios y genera informes semanales y mensuales"
   },
   "daily": {
+    "externalConflictTitle": "Esta nota cambió fuera de Daily Worklog",
+    "externalConflictDescription": "También tienes cambios locales sin guardar. Elige qué versión conservar.",
+    "useExternalVersion": "Usar versión externa",
+    "keepLocalVersion": "Conservar mi versión",
     "todaysWorklog": "Registro de hoy"
   },
   "nav": {

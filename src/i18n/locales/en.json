@@ -4,6 +4,10 @@
     "tagline": "Track your daily achievements and generate weekly & monthly reports"
   },
   "daily": {
+    "externalConflictTitle": "This note changed outside Daily Worklog",
+    "externalConflictDescription": "You also have unsaved edits. Choose which version should be kept.",
+    "useExternalVersion": "Use external version",
+    "keepLocalVersion": "Keep my version",
     "todaysWorklog": "Today's worklog"
   },
   "nav": {
