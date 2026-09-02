@@ -8,6 +8,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-09-02
+
+### Added
+- **External Vault Synchronization**: Added a recursive, debounced vault watcher that refreshes notes, tasks, and synchronized workspace settings when files change outside the application.
+- **Note Conflict Resolution**: Added an explicit choice between the local draft and the external file when another editor or cloud synchronization service changes a note with unsaved local edits.
+- **Production Vault Service**: Extracted note path resolution, directory management, and note listing into a reusable service exercised directly by the verification suite.
+- **Atomic Persistence Utility**: Added reusable atomic file replacement for notes, tasks, settings, vault configuration, and routine completion data.
+
+### Changed
+- **Queued Revision-Aware Auto-Save**: Note saving now tracks edit revisions and immediately persists newer edits made while an earlier write is still in progress.
+- **Hardened Electron Boundary**: Enabled the Electron sandbox, restricted navigation and new windows, validated IPC dates and filenames, and confined file paths to their authorized directories.
+- **Secure Markdown Rendering**: Raw Markdown HTML is now sanitized and renderer resources are restricted by a Content Security Policy.
+- **Typed Preload Contracts**: Replaced loosely typed preload payloads with shared application domain types.
+- **Lazy Main Views**: Daily, weekly, monthly, yearly, Kanban, and task views now load on demand, reducing the initial renderer bundle from approximately 1.96 MB to 554 KB uncompressed.
+- **Parallel Application Startup**: Independent note, task, tag, routine, and active-note reads now initialize concurrently.
+- **Shared Template Formatting**: Electron and the renderer now use the same production template formatter.
+
+### Fixed
+- **Edits During Auto-Save**: Fixed newer note edits being discarded or incorrectly marked as saved when a previous write was still running.
+- **Partial File Writes**: Critical Markdown and JSON files are now written to temporary files and atomically renamed into place.
+- **External File Overwrites**: External note changes no longer silently overwrite local drafts or get overwritten by stale in-memory content.
+- **Path Traversal Protection**: Task filenames, note dates, and media paths can no longer escape their expected vault directories.
+- **Markdown Translation Gaps**: Localized the remaining code-block labels and copy actions in English and Spanish.
+
+### Testing
+- Added direct production tests for path validation, bounded concurrency, atomic persistence, note resolution, and multi-year vault listing.
+- Removed duplicated note-listing and path logic from the verification suite.
+
 ## [1.7.0] - 2026-09-02
 
 ### Added
