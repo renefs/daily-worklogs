@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Group,
   SegmentedControl,
@@ -117,6 +117,22 @@ export const TaskView: React.FC = () => {
   const [isLogging, setIsLogging] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const isSavingRef = useRef(false);
+
+  const draftSignature = JSON.stringify({
+    title,
+    area,
+    project,
+    status,
+    priority,
+    dueDate: dueDate?.toISOString() || null,
+    startedDate: startedDate?.toISOString() || null,
+    completedDate: completedDate?.toISOString() || null,
+    tags,
+    content,
+  });
+  const latestDraftSignatureRef = useRef(draftSignature);
+  latestDraftSignatureRef.current = draftSignature;
 
   // Inspector section collapse states
   const [isOutlineOpen, setIsOutlineOpen] = useState(true);
@@ -264,6 +280,10 @@ export const TaskView: React.FC = () => {
   };
 
   const handleSave = useCallback(async () => {
+    if (isSavingRef.current) return null;
+
+    const savingDraftSignature = draftSignature;
+    isSavingRef.current = true;
     const trimmedTitle = title.trim() || activeTask?.title || t('tasks.untitledTask', 'Untitled Task');
     setIsSaving(true);
     try {
@@ -288,13 +308,14 @@ export const TaskView: React.FC = () => {
       });
 
       if (result) {
-        setIsDirty(false);
+        setIsDirty(latestDraftSignatureRef.current !== savingDraftSignature);
       }
       return result;
     } catch (err) {
       console.error('Failed to save task from TaskView:', err);
       return null;
     } finally {
+      isSavingRef.current = false;
       setIsSaving(false);
     }
   }, [
@@ -312,18 +333,19 @@ export const TaskView: React.FC = () => {
     completedDate,
     tags,
     content,
+    draftSignature,
     createOrUpdateTask,
     t,
   ]);
 
   // Autosave debounce timer
   useEffect(() => {
-    if (!settings?.autoSave || !isDirty) return;
+    if (!settings?.autoSave || !isDirty || isSaving) return;
     const timer = setTimeout(() => {
       handleSave();
     }, settings.autoSaveDelay || 1000);
     return () => clearTimeout(timer);
-  }, [content, title, isDirty, settings?.autoSave, settings?.autoSaveDelay, handleSave]);
+  }, [isDirty, isSaving, settings?.autoSave, settings?.autoSaveDelay, handleSave]);
 
   const handleLogToDaily = async () => {
     if (!activeTask && !title.trim()) return;

@@ -139,8 +139,11 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
   // Auto-save debounce timer
   useEffect(() => {
+    // Controlled editors own their persistence lifecycle. This prevents a parent
+    // view and the editor from scheduling the same save independently.
+    if (isControlled) return;
     if (!settings?.autoSave || !effectiveIsDirty) return;
-    if (!isControlled && !activeNote) return;
+    if (!activeNote) return;
 
     const timer = setTimeout(() => {
       effectiveOnSave();
