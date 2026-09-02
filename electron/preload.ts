@@ -1,9 +1,28 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import type { IpcRendererEvent } from 'electron';
+import type { AppSettings, AreaDefinition, ProjectDefinition, TagDefinition, TaskPriority, TaskStatus } from '../src/types';
+
+interface WriteTaskPayload {
+  id?: string;
+  taskId?: number;
+  filename?: string;
+  title: string;
+  status: TaskStatus;
+  priority?: TaskPriority;
+  area?: string;
+  project?: string;
+  created?: string;
+  due?: string;
+  startedDate?: string;
+  completedDate?: string;
+  tags?: string[];
+  content: string;
+}
 
 contextBridge.exposeInMainWorld('electronAPI', {
   platform: process.platform,
   getSettings: () => ipcRenderer.invoke('get-settings'),
-  saveSettings: (settings: any) => ipcRenderer.invoke('save-settings', settings),
+  saveSettings: (settings: Partial<AppSettings>) => ipcRenderer.invoke('save-settings', settings),
   getRoutineCompletions: (date: string) => ipcRenderer.invoke('get-routine-completions', date),
   updateRoutineCompletions: (date: string, routineIds: string[]) =>
     ipcRenderer.invoke('update-routine-completions', date, routineIds),
@@ -20,15 +39,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listTasks: () => ipcRenderer.invoke('list-tasks'),
   searchTaskContents: (query: string) => ipcRenderer.invoke('search-task-contents', query),
   readTask: (filename: string) => ipcRenderer.invoke('read-task', filename),
-  writeTask: (task: any) => ipcRenderer.invoke('write-task', task),
-  updateTaskStatus: (filename: string, status: string) => ipcRenderer.invoke('update-task-status', filename, status),
+  writeTask: (task: WriteTaskPayload) => ipcRenderer.invoke('write-task', task),
+  updateTaskStatus: (filename: string, status: TaskStatus) => ipcRenderer.invoke('update-task-status', filename, status),
   deleteTask: (filename: string) => ipcRenderer.invoke('delete-task', filename),
   renameTag: (oldName: string, newName: string) => ipcRenderer.invoke('rename-tag', oldName, newName),
   deleteTag: (tagName: string, removeFromTasks?: boolean) => ipcRenderer.invoke('delete-tag', tagName, removeFromTasks),
-  saveTagDefinition: (tagDef: any) => ipcRenderer.invoke('save-tag-definition', tagDef),
+  saveTagDefinition: (tagDef: TagDefinition) => ipcRenderer.invoke('save-tag-definition', tagDef),
   getAllTags: () => ipcRenderer.invoke('get-all-tags'),
-  renameArea: (oldName: string, newArea: any) => ipcRenderer.invoke('rename-area', oldName, newArea),
-  renameProject: (oldName: string, newProject: any, oldAreaName?: string) =>
+  renameArea: (oldName: string, newArea: AreaDefinition) => ipcRenderer.invoke('rename-area', oldName, newArea),
+  renameProject: (oldName: string, newProject: ProjectDefinition, oldAreaName?: string) =>
     ipcRenderer.invoke('rename-project', oldName, newProject, oldAreaName),
   exportDocument: (payload: { title: string; defaultPath: string; content: string; format: string }) =>
     ipcRenderer.invoke('export-document', payload),
@@ -41,14 +60,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectImageDialog: () => ipcRenderer.invoke('select-image-dialog'),
   resolveMediaUrl: (path: string) => ipcRenderer.invoke('resolve-media-url', path),
   onNoteFileChanged: (callback: (data: { date: string; content: string }) => void) => {
-    const handler = (_event: any, data: any) => callback(data);
+    const handler = (_event: IpcRendererEvent, data: { date: string; content: string }) => callback(data);
     ipcRenderer.on('note-file-changed', handler);
     return () => {
       ipcRenderer.removeListener('note-file-changed', handler);
     };
   },
   onOpenSettings: (callback: (tab?: string) => void) => {
-    const handler = (_event: any, tab?: string) => callback(tab);
+    const handler = (_event: IpcRendererEvent, tab?: string) => callback(tab);
     ipcRenderer.on('open-settings', handler);
     return () => {
       ipcRenderer.removeListener('open-settings', handler);

@@ -19,6 +19,9 @@ import matter from 'gray-matter';
 import dayjs from 'dayjs';
 import 'dayjs/locale/es';
 import 'dayjs/locale/en';
+import { formatTemplateContent } from '../src/utils/dateTemplate';
+import { mapWithConcurrency } from './utils/async';
+import { requireIsoDate, requireTaskFilename, resolvePathInside } from './utils/security';
 
 // Register custom protocol scheme before app ready
 protocol.registerSchemesAsPrivileged([
@@ -36,66 +39,6 @@ protocol.registerSchemesAsPrivileged([
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-function requireIsoDate(value: unknown, fieldName = 'date'): string {
-  if (typeof value !== 'string' || !ISO_DATE_PATTERN.test(value) || dayjs(value).format('YYYY-MM-DD') !== value) {
-    throw new Error(`Invalid ${fieldName}`);
-  }
-  return value;
-}
-
-function requireTaskFilename(value: unknown): string {
-  if (typeof value !== 'string' || !value.trim()) throw new Error('Invalid task filename');
-  const filename = value.toLowerCase().endsWith('.md') ? value : `${value}.md`;
-  if (path.basename(filename) !== filename || filename.includes('\0')) throw new Error('Invalid task filename');
-  return filename;
-}
-
-function resolvePathInside(root: string, relativePath: string): string {
-  const resolvedRoot = path.resolve(root);
-  const resolvedPath = path.resolve(resolvedRoot, relativePath);
-  if (resolvedPath !== resolvedRoot && !resolvedPath.startsWith(`${resolvedRoot}${path.sep}`)) {
-    throw new Error('Path is outside the allowed directory');
-  }
-  return resolvedPath;
-}
-
-function formatTemplateDate(dateStr: string, format?: string, lang?: string): string {
-  const targetLang = lang === 'es' ? 'es' : 'en';
-  const targetFormat = format && format.trim() ? format.trim() : 'YYYY-MM-DD';
-  try {
-    const d = dayjs(dateStr).locale(targetLang);
-    if (!d.isValid()) return dateStr;
-    return d.format(targetFormat);
-  } catch {
-    return dateStr;
-  }
-}
-
-function formatTemplateContent(
-  content: string,
-  dateStr: string,
-  dateFormat?: string,
-  lang?: string
-): string {
-  if (!content) return '';
-  const targetLang = lang === 'es' ? 'es' : 'en';
-  const defaultFormat = dateFormat && dateFormat.trim() ? dateFormat.trim() : 'YYYY-MM-DD';
-
-  let processed = content.replace(/\{\{date:([^}]+)\}\}/g, (_match, customFmt) => {
-    return formatTemplateDate(dateStr, customFmt.trim(), targetLang);
-  });
-
-  processed = processed.replace(/\{\{date\}\}/g, () => {
-    return formatTemplateDate(dateStr, defaultFormat, targetLang);
-  });
-
-  return processed;
-}
-
-
 
 // Path constants
 let mainWindow: BrowserWindow | null = null;
@@ -540,26 +483,6 @@ function getYearFromDate(date: string): string {
 // file is materialized. These helpers keep fan-out scans on async I/O so the event loop
 // stays free to serve IPC and paint.
 const FILE_READ_CONCURRENCY = 16;
-
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  limit: number,
-  fn: (item: T, index: number) => Promise<R>
-): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let cursor = 0;
-  const workerCount = Math.max(1, Math.min(limit, items.length));
-  await Promise.all(
-    Array.from({ length: workerCount }, async () => {
-      while (cursor < items.length) {
-        const index = cursor;
-        cursor += 1;
-        results[index] = await fn(items[index], index);
-      }
-    })
-  );
-  return results;
-}
 
 // Resolves which daily notes exist in a date range using one directory listing per
 // involved year (plus the vault root) instead of two existsSync probes per day.
