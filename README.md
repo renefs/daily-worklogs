@@ -17,6 +17,7 @@ Built with **React**, **TypeScript**, **Mantine UI v7**, **CodeMirror 6**, and *
 - 📋 **Task Management with Areas & Projects**: Kanban board and dedicated Task View featuring permanent Areas of responsibility, finite Projects with live progress bars, automatic sequential GitHub-style IDs (`#1`, `#2`), and tag inheritance.
 - 🏷️ **Interactive Tagging & Autocomplete**: Live `#` tag autocomplete popup inside the markdown editor and task descriptions, with full tag management in Settings.
 - 🔄 **Cross-Device Vault Synchronization**: Workspace configuration automatically synchronizes across devices when using iCloud, Dropbox, OneDrive, Google Drive, or Syncthing.
+- ⚡ **Memory-Efficient Data Loading**: Task details, period note content, and heavy modal code load on demand, with segmented routine history and built-in memory diagnostics.
 - 🎨 **Mantine UI v7 Theming**: Light, Dark, and Automatic OS-synced mode support with 9 curated accent color themes.
 - 🌐 **Multi-Language (i18n)**: Full English (default) and Spanish support with instant language switching. Modular architecture ready for more languages.
 - 💻 **Cross-Platform**: Designed for Windows, macOS, and Linux.
@@ -51,6 +52,9 @@ npm run typecheck
 
 # Build renderer and Electron bundles
 npm run build:renderer
+
+# Run the synthetic memory regression benchmark
+npm run benchmark:memory
 
 # Build production installer / package for your OS
 npm run build

@@ -8,6 +8,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-09-02
+
+### Added
+- **Memory Diagnostics API**: Added runtime memory snapshots for the Electron main process and child processes through the secure preload bridge.
+- **Reproducible Memory Benchmark**: Added `npm run benchmark:memory` with a configurable synthetic dataset to track task-list and period-report payload regressions.
+- **Segmented Routine Completion Storage**: Moved daily routine completion history into yearly `.daily-worklogs/routine-completions/YYYY.json` files with legacy configuration migration.
+
+### Changed
+- **Task Metadata and Detail Separation**: Task listings now keep only lightweight metadata in application state and load Markdown content, frontmatter, raw content, and activity history when a task is opened.
+- **On-Demand Full-Text Task Search**: Task body searches now execute through a debounced IPC operation without retaining every task description in the renderer.
+- **Slim Period Reports**: Weekly, monthly, and yearly summaries now transfer only existing day metadata and lightweight task records. Daily Markdown content loads only when expanded, copied, or searched.
+- **Deduplicated Refresh Pipeline**: Concurrent note and task refreshes now share in-flight requests, invalidate stale generations after writes, and discard obsolete period and note responses.
+- **Scoped Zustand Subscriptions**: Migrated all store consumers to shallow field selectors to prevent unrelated components from rendering on every state update.
+- **Lazy Global Modals**: Settings, task, routine-management, and onboarding modals now mount and load their code only while open.
+- **Selective Settings Refreshes**: Appearance and routine changes no longer trigger unnecessary full note scans.
+
+### Performance
+- **Reduced Synthetic Task Payload**: The 10,000-task benchmark reduces the task-list payload from approximately 93.90 MiB to 2.52 MiB.
+- **Reduced Synthetic Period Payload**: The benchmark reduces the period-report payload from approximately 191.12 MiB to 2.53 MiB.
+- **Smaller Initial Renderer Bundle**: Lazy modal loading reduced the initial uncompressed renderer bundle by approximately 111 kB.
+
+### Fixed
+- **Out-of-Order Async Results**: Rapid date or period navigation can no longer replace current data with an older response.
+- **Package Version Metadata**: Removed duplicate and stale package version declarations and synchronized release metadata.
+
 ## [1.6.0] - 2026-09-01
 
 ### Added

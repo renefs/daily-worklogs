@@ -520,9 +520,9 @@ console.log('✓ Onboarding wizard state transitions and settings persistence lo
 // 13. Test App Version & Info Configuration
 const pkgPath = path.resolve('package.json');
 const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-assert.strictEqual(pkg.version, '1.6.0', 'Package version should be 1.6.0');
+assert.strictEqual(pkg.version, '1.7.0', 'Package version should be 1.7.0');
 assert.strictEqual(pkg.name, 'daily-worklog', 'Package name should be daily-worklog');
-console.log('✓ App version 1.6.0 verification tests passed');
+console.log('✓ App version 1.7.0 verification tests passed');
 
 // 14. Test Automatic Dark/Light Mode & System Theme Synchronization Logic
 function computeEffectiveColorScheme(configuredScheme, systemPreference) {
@@ -1104,7 +1104,6 @@ if (fs.existsSync(sharedCloudVault)) fs.rmSync(sharedCloudVault, { recursive: tr
 if (fs.existsSync(computerASettingsFile)) fs.rmSync(computerASettingsFile);
 if (fs.existsSync(computerBSettingsFile)) fs.rmSync(computerBSettingsFile);
 console.log('✓ All verification tests passed successfully!');
-
 
 
 
