@@ -1218,41 +1218,18 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
         }
       }
 
-      // Extract sections
-      const sectionMatches = content.split(/(?=^##\s+)/m);
-      const sections = sectionMatches.map((sec) => {
-        const sLines = sec.trim().split('\n');
-        const firstLine = sLines[0];
-        const isHeader = firstLine.startsWith('#');
-        const title = isHeader ? firstLine.replace(/^#+\s*/, '') : 'Overview';
-        const body = isHeader ? sLines.slice(1).join('\n').trim() : sec.trim();
-        return { title, body };
-      }).filter(s => s.body.length > 0 || s.title !== 'Overview');
-
       days.push({
         date: dateStr,
         exists: true,
-        content,
         tasksTotal,
         tasksCompleted,
-        sections,
         checklistItems,
-      });
-    } else {
-      days.push({
-        date: dateStr,
-        exists: false,
-        content: '',
-        tasksTotal: 0,
-        tasksCompleted: 0,
-        sections: [],
-        checklistItems: [],
       });
     }
   }
 
   // Load and include standalone task documents from vault/tasks
-  const periodTasks: any[] = [];
+  let periodTaskCount = 0;
   const completedTasksList: any[] = [];
   const inProgressTasksList: any[] = [];
   const waitingTasksList: any[] = [];
@@ -1265,7 +1242,7 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
       total: number;
       completed: number;
       inProgress: number;
-      projects: Record<string, { total: number; completed: number; inProgress: number; tasks: any[] }>;
+      projects: Record<string, { total: number; completed: number; inProgress: number }>;
     }
   > = {};
   const projectBreakdown: Record<
@@ -1276,7 +1253,6 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
       total: number;
       completed: number;
       inProgress: number;
-      tasks: any[];
     }
   > = {};
 
@@ -1326,7 +1302,11 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
   try {
     const tasksDir = ensureTasksDir(vaultPath);
     if (fs.existsSync(tasksDir)) {
-      for (const task of await loadAllTasks(tasksDir)) {
+      const taskReads = await readTaskFiles(tasksDir);
+      const taskMetadata = taskReads.map((read) =>
+        buildTaskFromFile(read.filepath, read.filename, read.raw, read.stat, false)
+      );
+      for (const task of taskMetadata) {
         const createdDate = task.created || '';
         const dueDate = task.due || '';
         const startedDate = task.startedDate || '';
@@ -1353,7 +1333,7 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
           wasModifiedInPeriod;
 
         if (inRange) {
-          periodTasks.push(task);
+          periodTaskCount += 1;
           totalTasks += 1;
           if (isDoneOrCancelled) {
             completedTasks += 1;
@@ -1434,7 +1414,6 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
                 total: 0,
                 completed: 0,
                 inProgress: 0,
-                tasks: [],
               };
             }
             projectBreakdown[projectKey].total += 1;
@@ -1444,14 +1423,11 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
             if (isInProgress) {
               projectBreakdown[projectKey].inProgress += 1;
             }
-            projectBreakdown[projectKey].tasks.push(task);
-
             if (!serviceBreakdown[taskArea].projects[taskProject]) {
               serviceBreakdown[taskArea].projects[taskProject] = {
                 total: 0,
                 completed: 0,
                 inProgress: 0,
-                tasks: [],
               };
             }
             serviceBreakdown[taskArea].projects[taskProject].total += 1;
@@ -1461,7 +1437,6 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
             if (isInProgress) {
               serviceBreakdown[taskArea].projects[taskProject].inProgress += 1;
             }
-            serviceBreakdown[taskArea].projects[taskProject].tasks.push(task);
           }
 
           // Priority breakdown
@@ -1489,7 +1464,7 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
     totalTasks,
     completedTasks,
     days,
-    periodTasks,
+    periodTaskCount,
     completedTasksList,
     inProgressTasksList,
     waitingTasksList,
@@ -2424,5 +2399,3 @@ ipcMain.handle('rename-project', async (_event, oldName: string, newProject: any
 
   return { success: true, updatedCount, projects: updatedProjects };
 });
-
-

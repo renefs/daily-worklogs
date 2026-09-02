@@ -24,7 +24,7 @@ import {
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
-import { PeriodSummary, TaskItem, TaskPriority, DailyChecklistItem } from '../../types';
+import { PeriodSummary, TaskMeta, TaskPriority, DailyChecklistItem } from '../../types';
 import { formatLocalizedDateTitle } from '../../utils/dateTemplate';
 import { getTagColor } from '../../utils/tagUtils';
 import {
@@ -36,7 +36,7 @@ import {
 
 interface PeriodTasksBreakdownProps {
   periodSummary: PeriodSummary | null;
-  onOpenTask: (task: TaskItem) => void;
+  onOpenTask: (task: TaskMeta) => void;
 }
 
 /** Left stripe colour encoding task priority on a compact row. */
@@ -85,7 +85,7 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
   };
 
   // Filter tasks by area, project, tag, priority and free text
-  const filterTasks = (taskList: TaskItem[]) => {
+  const filterTasks = (taskList: TaskMeta[]) => {
     const q = query.trim().toLowerCase();
     return taskList.filter((task) => {
       if (selectedPriority !== 'all' && task.priority !== selectedPriority) return false;
@@ -178,7 +178,7 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
   const toggleGroup = (key: string) =>
     setOpenGroups((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
 
-  const totalPeriodTasks = (periodSummary?.periodTasks || []).length;
+  const totalPeriodTasks = periodSummary?.periodTaskCount || 0;
   if (totalPeriodTasks === 0 && dailyChecklists.length === 0) {
     return (
       <Paper withBorder radius="md" p="xl" style={{ textAlign: 'center' }}>
@@ -217,7 +217,7 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
     key: string;
     label: string;
     color: string;
-    tasks: TaskItem[];
+    tasks: TaskMeta[];
     alwaysShow?: boolean;
   }> = [
     { key: 'completed', label: t('reports.completedSection'), color: 'teal', tasks: filteredCompleted, alwaysShow: true },
@@ -704,8 +704,8 @@ const PillRow: React.FC<PillRowProps> = ({ label, emptyLabel, pills }) => (
 /* ------------------------------------------------------------------ */
 
 interface TaskRowProps {
-  task: TaskItem;
-  onOpenTask: (task: TaskItem) => void;
+  task: TaskMeta;
+  onOpenTask: (task: TaskMeta) => void;
   openLabel: string;
   cancelledLabel: string;
   sinceLabel: (date: string) => string;

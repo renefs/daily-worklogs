@@ -202,10 +202,10 @@ export interface DailyChecklistItem {
 export interface WorklogDaySummary {
   date: string;
   exists: boolean;
-  content: string;
+  content?: string;
   tasksTotal: number;
   tasksCompleted: number;
-  sections: Array<{ title: string; body: string }>;
+  sections?: Array<{ title: string; body: string }>;
   checklistItems?: DailyChecklistItem[];
 }
 
@@ -213,7 +213,6 @@ export interface ServiceProjectMetric {
   total: number;
   completed: number;
   inProgress: number;
-  tasks: TaskItem[];
 }
 
 export interface ServiceBreakdownItem {
@@ -233,11 +232,11 @@ export interface PeriodSummary {
   totalTasks: number;
   completedTasks: number;
   days: WorklogDaySummary[];
-  periodTasks?: TaskItem[];
-  completedTasksList?: TaskItem[];
-  inProgressTasksList?: TaskItem[];
-  waitingTasksList?: TaskItem[];
-  backlogTasksList?: TaskItem[];
+  periodTaskCount?: number;
+  completedTasksList?: TaskMeta[];
+  inProgressTasksList?: TaskMeta[];
+  waitingTasksList?: TaskMeta[];
+  backlogTasksList?: TaskMeta[];
   dailyChecklistItems?: DailyChecklistItem[];
   tagBreakdown?: Record<string, { total: number; completed: number; inProgress?: number }>;
   priorityBreakdown?: Record<string, { total: number; completed: number }>;

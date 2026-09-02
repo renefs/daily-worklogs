@@ -30,7 +30,7 @@ import {
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
-import { PeriodSummary, TaskItem } from '../../types';
+import { PeriodSummary, TaskMeta } from '../../types';
 import { ExportModal } from '../modals/ExportModal';
 import { PeriodTasksBreakdown } from './PeriodTasksBreakdown';
 import { PeriodDaysList } from './PeriodDaysList';
@@ -92,7 +92,7 @@ export const YearlyView: React.FC = () => {
     setCurrentYearDate(dayjs().format('YYYY-MM-DD'));
   };
 
-  const handleOpenTask = (task: TaskItem) => {
+  const handleOpenTask = (task: TaskMeta) => {
     openTaskEditor(task, undefined, 'yearly');
   };
 

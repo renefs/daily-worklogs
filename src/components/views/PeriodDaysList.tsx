@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Group,
   Stack,
@@ -48,22 +48,37 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
   const [searchQuery, setSearchQuery] = useState('');
   const [onlyWithNotes, setOnlyWithNotes] = useState(true);
   const [copiedDate, setCopiedDate] = useState<string | null>(null);
+  const [loadedContent, setLoadedContent] = useState<Record<string, string>>({});
 
   const daysList: WorklogDaySummary[] = useMemo(() => {
-    return periodSummary?.days || [];
-  }, [periodSummary]);
+    return (periodSummary?.days || []).map((day) => ({
+      ...day,
+      content: loadedContent[day.date] ?? day.content,
+    }));
+  }, [periodSummary, loadedContent]);
 
   // Track collapsed state per date (default expanded for days with notes)
   const [collapsedMap, setCollapsedMap] = useState<Record<string, boolean>>({});
 
-  const toggleDayCollapse = (date: string) => {
+  const loadDayContent = async (date: string): Promise<string> => {
+    if (loadedContent[date] !== undefined) return loadedContent[date];
+    const note = await window.electronAPI.readNote(date);
+    const content = note?.content || '';
+    setLoadedContent((current) => ({ ...current, [date]: content }));
+    return content;
+  };
+
+  const toggleDayCollapse = async (date: string) => {
+    const isCurrentlyCollapsed = collapsedMap[date] !== false;
+    if (isCurrentlyCollapsed) await loadDayContent(date);
     setCollapsedMap((prev) => ({
       ...prev,
-      [date]: !prev[date],
+      [date]: !isCurrentlyCollapsed,
     }));
   };
 
-  const handleExpandAll = () => {
+  const handleExpandAll = async () => {
+    await Promise.all(daysList.filter((day) => day.exists).map((day) => loadDayContent(day.date)));
     const newMap: Record<string, boolean> = {};
     daysList.forEach((d) => {
       newMap[d.date] = false;
@@ -83,14 +98,14 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
   const filteredDays = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return daysList.filter((day) => {
-      const hasContent = day.exists && day.content.trim().length > 0;
+      const hasContent = day.exists;
       if (onlyWithNotes && !hasContent) {
         return false;
       }
       if (!query) return true;
 
       const dateMatches = day.date.toLowerCase().includes(query);
-      const contentMatches = day.content.toLowerCase().includes(query);
+      const contentMatches = (day.content || '').toLowerCase().includes(query);
       const dayFormatted = dayjs(day.date)
         .locale(i18n.language === 'es' ? 'es' : 'en')
         .format('dddd MMMM D YYYY')
@@ -100,10 +115,15 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
     });
   }, [daysList, onlyWithNotes, searchQuery, i18n.language]);
 
-  const handleCopyDayMarkdown = (day: WorklogDaySummary, e?: React.MouseEvent) => {
+  useEffect(() => {
+    if (!searchQuery.trim()) return;
+    void Promise.all(daysList.filter((day) => day.exists).map((day) => loadDayContent(day.date)));
+  }, [searchQuery, periodSummary]);
+
+  const handleCopyDayMarkdown = async (day: WorklogDaySummary, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
 
-    const markdownToCopy = day.content || '';
+    const markdownToCopy = day.content ?? await loadDayContent(day.date);
     if (!markdownToCopy.trim()) {
       notifications.show({
         title: t('reports.noContentForDay'),
@@ -211,8 +231,8 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
           ) : (
             filteredDays.map((day) => {
               const isToday = day.date === todayStr;
-              const hasContent = day.exists && day.content.trim().length > 0;
-              const isCollapsed = !!collapsedMap[day.date];
+              const hasContent = day.exists && (day.content || '').trim().length > 0;
+              const isCollapsed = collapsedMap[day.date] !== false;
               const isCopied = copiedDate === day.date;
 
               const dayName = formatLocalizedDateTitle(day.date, i18n.language);
@@ -311,7 +331,7 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
                           radius="md"
                           leftSection={isCopied ? <IconCheck size={14} /> : <IconCopy size={14} />}
                           onClick={(e) => handleCopyDayMarkdown(day, e)}
-                          disabled={!hasContent}
+                          disabled={!day.exists}
                         >
                           {isCopied ? t('common.copied') : t('reports.copyDay')}
                         </Button>
@@ -335,7 +355,7 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
                     <div style={{ padding: 12 }}>
                       {hasContent ? (
                         <div style={{ maxHeight: 380, overflowY: 'auto' }}>
-                          <MarkdownViewer content={day.content} allowToggleTasks={false} />
+                          <MarkdownViewer content={day.content || ''} allowToggleTasks={false} />
                         </div>
                       ) : (
                         <Group justify="space-between" align="center" p="xs">
