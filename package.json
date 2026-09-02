@@ -1,6 +1,5 @@
 {
   "name": "daily-worklog",
-  "version": "1.5.0",
   "version": "1.6.0",
   "description": "Cross-platform Daily Worklog Desktop Application",
   "main": "dist-electron/main.js",
@@ -14,6 +13,7 @@
     "build:renderer": "tsc && vite build",
     "typecheck": "tsc --noEmit",
     "test": "node test/verify-worklog.test.mjs",
+    "benchmark:memory": "node --expose-gc scripts/memory-benchmark.mjs",
     "preview": "vite preview"
   },
   "keywords": [

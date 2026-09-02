@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectVaultDirectory: () => ipcRenderer.invoke('select-vault-directory'),
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   getAppInfo: () => ipcRenderer.invoke('get-app-info'),
+  getMemoryMetrics: () => ipcRenderer.invoke('get-memory-metrics'),
   showAboutDialog: () => ipcRenderer.invoke('show-about-dialog'),
   readNote: (date: string) => ipcRenderer.invoke('read-note', date),
   writeNote: (date: string, content: string) => ipcRenderer.invoke('write-note', date, content),

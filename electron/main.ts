@@ -982,6 +982,27 @@ ipcMain.handle('get-app-info', () => {
   };
 });
 
+ipcMain.handle('get-memory-metrics', () => {
+  const memoryUsage = process.memoryUsage();
+  return {
+    capturedAt: new Date().toISOString(),
+    main: {
+      rss: memoryUsage.rss,
+      heapTotal: memoryUsage.heapTotal,
+      heapUsed: memoryUsage.heapUsed,
+      external: memoryUsage.external,
+      arrayBuffers: memoryUsage.arrayBuffers,
+    },
+    processes: app.getAppMetrics().map((metric) => ({
+      pid: metric.pid,
+      type: metric.type,
+      cpuPercent: metric.cpu.percentCPUUsage,
+      workingSetBytes: metric.memory.workingSetSize * 1024,
+      peakWorkingSetBytes: metric.memory.peakWorkingSetSize * 1024,
+    })),
+  };
+});
+
 ipcMain.handle('show-about-dialog', () => {
   showAbout();
   return { success: true };

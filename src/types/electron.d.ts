@@ -12,6 +12,24 @@ export interface AppInfo {
   osRelease?: string;
 }
 
+export interface AppMemoryMetrics {
+  capturedAt: string;
+  main: {
+    rss: number;
+    heapTotal: number;
+    heapUsed: number;
+    external: number;
+    arrayBuffers: number;
+  };
+  processes: Array<{
+    pid: number;
+    type: string;
+    cpuPercent: number;
+    workingSetBytes: number;
+    peakWorkingSetBytes: number;
+  }>;
+}
+
 export interface ElectronAPI {
   platform?: string;
   getSettings: () => Promise<AppSettings>;
@@ -22,6 +40,7 @@ export interface ElectronAPI {
   getDefaultVaultPath: () => Promise<string>;
   getAppVersion: () => Promise<string>;
   getAppInfo: () => Promise<AppInfo>;
+  getMemoryMetrics: () => Promise<AppMemoryMetrics>;
   showAboutDialog: () => Promise<{ success: boolean }>;
   readNote: (date: string) => Promise<DailyNote>;
   writeNote: (date: string, content: string) => Promise<{ success: boolean; filepath: string; lastModified: string }>;
