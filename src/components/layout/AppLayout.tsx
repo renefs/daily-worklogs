@@ -16,18 +16,40 @@ import { MonthlyView } from '../views/MonthlyView';
 import { YearlyView } from '../views/YearlyView';
 import { KanbanView } from '../views/KanbanView';
 import { TaskView } from '../views/TaskView';
-import { SettingsModal } from '../modals/SettingsModal';
-import { TaskModal } from '../modals/TaskModal';
-import { ManageRoutinesModal } from '../modals/ManageRoutinesModal';
-import { OnboardingWizardModal } from '../modals/OnboardingWizardModal';
+
+const SettingsModal = React.lazy(() =>
+  import('../modals/SettingsModal').then((module) => ({ default: module.SettingsModal }))
+);
+const TaskModal = React.lazy(() =>
+  import('../modals/TaskModal').then((module) => ({ default: module.TaskModal }))
+);
+const ManageRoutinesModal = React.lazy(() =>
+  import('../modals/ManageRoutinesModal').then((module) => ({ default: module.ManageRoutinesModal }))
+);
+const OnboardingWizardModal = React.lazy(() =>
+  import('../modals/OnboardingWizardModal').then((module) => ({ default: module.OnboardingWizardModal }))
+);
 
 export const AppLayout: React.FC = () => {
   const { t } = useTranslation();
-  const { currentView, isLoading, openSettings, isSidebarCollapsed } = useAppStoreSelector((state) => ({
+  const {
+    currentView,
+    isLoading,
+    openSettings,
+    isSidebarCollapsed,
+    isSettingsOpen,
+    isTaskModalOpen,
+    isManageRoutinesModalOpen,
+    isOnboardingOpen,
+  } = useAppStoreSelector((state) => ({
     currentView: state.currentView,
     isLoading: state.isLoading,
     openSettings: state.openSettings,
     isSidebarCollapsed: state.isSidebarCollapsed,
+    isSettingsOpen: state.isSettingsOpen,
+    isTaskModalOpen: state.isTaskModalOpen,
+    isManageRoutinesModalOpen: state.isManageRoutinesModalOpen,
+    isOnboardingOpen: state.isOnboardingOpen,
   }));
 
   useEffect(() => {
@@ -88,11 +110,12 @@ export const AppLayout: React.FC = () => {
         {currentView === 'task' && <TaskView />}
       </AppShell.Main>
 
-      {/* Global Modals */}
-      <SettingsModal />
-      <TaskModal />
-      <ManageRoutinesModal />
-      <OnboardingWizardModal />
+      <React.Suspense fallback={null}>
+        {isSettingsOpen && <SettingsModal />}
+        {isTaskModalOpen && <TaskModal />}
+        {isManageRoutinesModalOpen && <ManageRoutinesModal />}
+        {isOnboardingOpen && <OnboardingWizardModal />}
+      </React.Suspense>
     </AppShell>
   );
 };
