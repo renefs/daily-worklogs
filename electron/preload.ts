@@ -4,6 +4,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   platform: process.platform,
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings: any) => ipcRenderer.invoke('save-settings', settings),
+  getRoutineCompletions: (date: string) => ipcRenderer.invoke('get-routine-completions', date),
+  updateRoutineCompletions: (date: string, routineIds: string[]) =>
+    ipcRenderer.invoke('update-routine-completions', date, routineIds),
   selectVaultDirectory: () => ipcRenderer.invoke('select-vault-directory'),
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   getAppInfo: () => ipcRenderer.invoke('get-app-info'),

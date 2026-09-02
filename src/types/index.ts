@@ -183,7 +183,6 @@ export interface AppSettings {
   editorFontSize: number;
   hideCompletedOlderThan30Days?: boolean;
   routines?: DailyRoutine[];
-  routineCompletions?: Record<string, string[]>; // 'YYYY-MM-DD' -> routine ids completed on that date
   showDailyRoutinesPanel?: boolean;
   hasCompletedOnboarding?: boolean;
   tags?: TagDefinition[];

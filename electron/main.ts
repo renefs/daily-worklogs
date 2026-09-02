@@ -333,6 +333,7 @@ function getSystemLanguage(): 'en' | 'es' {
 
 const VAULT_CONFIG_DIR = '.daily-worklogs';
 const VAULT_CONFIG_FILE = 'config.json';
+const ROUTINE_COMPLETIONS_DIR = 'routine-completions';
 
 function getVaultConfigPath(vaultPath: string): string {
   return path.join(vaultPath, VAULT_CONFIG_DIR, VAULT_CONFIG_FILE);
@@ -361,7 +362,7 @@ function writeVaultConfig(vaultPath: string, config: any): void {
     }
     const cfgPath = path.join(configDir, VAULT_CONFIG_FILE);
     // Exclude machine-specific vaultPath from portable vault config
-    const { vaultPath: _ignored, ...portableConfig } = config;
+    const { vaultPath: _ignored, routineCompletions: _legacyCompletions, ...portableConfig } = config;
     const payload = {
       version: 1,
       updatedAt: new Date().toISOString(),
@@ -441,23 +442,59 @@ function saveSettings(newSettings: any) {
   try {
     const current = getSettings();
     const merged = { ...current, ...newSettings };
+    const { routineCompletions: _legacyCompletions, ...settingsWithoutCompletions } = merged;
     fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
-    fs.writeFileSync(settingsPath, JSON.stringify(merged, null, 2), 'utf-8');
+    fs.writeFileSync(settingsPath, JSON.stringify(settingsWithoutCompletions, null, 2), 'utf-8');
     invalidateSettingsCache();
 
     // Sync portable settings to vault folder if vaultPath exists
     if (merged.vaultPath && fs.existsSync(merged.vaultPath)) {
-      writeVaultConfig(merged.vaultPath, merged);
+      writeVaultConfig(merged.vaultPath, settingsWithoutCompletions);
     }
 
     if (merged.colorScheme) {
       nativeTheme.themeSource = merged.colorScheme === 'auto' ? 'system' : merged.colorScheme;
     }
-    return merged;
+    return settingsWithoutCompletions;
   } catch (err) {
     console.error('Error saving settings:', err);
     return getSettings();
   }
+}
+
+function getRoutineCompletionsPath(vaultPath: string, year: string): string {
+  return path.join(vaultPath, VAULT_CONFIG_DIR, ROUTINE_COMPLETIONS_DIR, `${year}.json`);
+}
+
+function readRoutineCompletionsForYear(vaultPath: string, year: string): Record<string, string[]> {
+  try {
+    const filePath = getRoutineCompletionsPath(vaultPath, year);
+    if (fs.existsSync(filePath)) {
+      const parsed = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      return parsed.completions && typeof parsed.completions === 'object' ? parsed.completions : {};
+    }
+  } catch (err) {
+    console.error('Error reading routine completions:', err);
+  }
+
+  const legacy = getSettings().routineCompletions || {};
+  return Object.fromEntries(
+    Object.entries(legacy).filter(([date]) => date.startsWith(`${year}-`))
+  ) as Record<string, string[]>;
+}
+
+function writeRoutineCompletionsForYear(
+  vaultPath: string,
+  year: string,
+  completions: Record<string, string[]>
+): void {
+  const filePath = getRoutineCompletionsPath(vaultPath, year);
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify({ version: 1, year, completions }, null, 2),
+    'utf-8'
+  );
 }
 
 function ensureVaultDir(vaultPath: string) {
@@ -961,6 +998,29 @@ ipcMain.handle('save-settings', (_event, partialSettings) => {
   }
   return updated;
 });
+
+ipcMain.handle('get-routine-completions', (_event, date: string) => {
+  const { vaultPath } = getSettings();
+  const year = getYearFromDate(date);
+  const completions = readRoutineCompletionsForYear(vaultPath, year);
+  return completions[date] || [];
+});
+
+ipcMain.handle(
+  'update-routine-completions',
+  (_event, date: string, routineIds: string[]) => {
+    const settings = getSettings();
+    const year = getYearFromDate(date);
+    const completions = readRoutineCompletionsForYear(settings.vaultPath, year);
+    const uniqueIds = Array.from(new Set((routineIds || []).filter(Boolean)));
+    if (uniqueIds.length > 0) completions[date] = uniqueIds;
+    else delete completions[date];
+    writeRoutineCompletionsForYear(settings.vaultPath, year, completions);
+
+    if (settings.routineCompletions) saveSettings({ routineCompletions: undefined });
+    return uniqueIds;
+  }
+);
 
 ipcMain.handle('get-default-vault-path', () => {
   return defaultVaultPath;

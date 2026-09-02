@@ -35,6 +35,7 @@ export const DailyRoutinesPanel: React.FC = () => {
   const { t } = useTranslation();
   const {
     settings,
+    routineCompletionsByDate,
     selectedDate,
     toggleRoutineCompletion,
     completeAllDailyRoutines,
@@ -63,7 +64,7 @@ export const DailyRoutinesPanel: React.FC = () => {
     return true;
   });
 
-  const completedIds: string[] = settings?.routineCompletions?.[selectedDate] || [];
+  const completedIds: string[] = routineCompletionsByDate[selectedDate] || [];
   const totalCount = activeRoutines.length;
   const completedCount = activeRoutines.filter((r) => completedIds.includes(r.id)).length;
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;

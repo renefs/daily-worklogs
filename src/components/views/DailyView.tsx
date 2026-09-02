@@ -32,6 +32,7 @@ export const DailyView: React.FC = () => {
 
   const {
     settings,
+    routineCompletionsByDate,
     selectedDate,
     setSelectedDate,
     activeNote,
@@ -54,7 +55,7 @@ export const DailyView: React.FC = () => {
     if (Array.isArray(r.schedule)) return r.schedule.includes(currentDayOfWeek);
     return true;
   });
-  const completedIds = settings?.routineCompletions?.[selectedDate] || [];
+  const completedIds = routineCompletionsByDate[selectedDate] || [];
   const totalActiveRoutines = activeRoutines.length;
   const completedRoutinesCount = activeRoutines.filter((r) => completedIds.includes(r.id)).length;
   const isAllDone = totalActiveRoutines > 0 && completedRoutinesCount === totalActiveRoutines;
@@ -275,5 +276,4 @@ export const DailyView: React.FC = () => {
     </div>
   );
 };
-
 

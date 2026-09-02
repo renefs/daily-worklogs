@@ -43,6 +43,7 @@ interface AppState {
 
   // Routines state
   isManageRoutinesModalOpen: boolean;
+  routineCompletionsByDate: Record<string, string[]>;
 
   // Actions
   initApp: () => Promise<void>;
@@ -109,6 +110,7 @@ interface AppState {
 
   // Routine actions
   toggleRoutineCompletion: (date: string, routineId: string) => Promise<void>;
+  loadRoutineCompletions: (date: string) => Promise<void>;
   completeAllDailyRoutines: (date: string, routineIds: string[]) => Promise<void>;
   resetDailyRoutines: (date: string) => Promise<void>;
   saveRoutinesList: (routines: DailyRoutine[]) => Promise<void>;
@@ -149,6 +151,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   allTags: [],
 
   isManageRoutinesModalOpen: false,
+  routineCompletionsByDate: {},
 
   initApp: async () => {
     try {
@@ -168,6 +171,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         await get().refreshNotesList();
         await get().refreshTasksList();
         await get().refreshTagsList();
+        await get().loadRoutineCompletions(get().selectedDate);
         await get().loadNoteForDate(get().selectedDate);
       } else {
         // Fallback for browser testing if opened outside electron
@@ -261,7 +265,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       await get().saveActiveNote();
     }
     set({ selectedDate: date });
-    await get().loadNoteForDate(date);
+    await Promise.all([get().loadNoteForDate(date), get().loadRoutineCompletions(date)]);
   },
 
   setCurrentView: (view: AppViewMode) => {
@@ -722,34 +726,51 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ isTaskDirty: isDirty });
   },
 
+  loadRoutineCompletions: async (date: string) => {
+    if (!window.electronAPI) return;
+    const routineIds = await window.electronAPI.getRoutineCompletions(date);
+    set((state) => ({
+      routineCompletionsByDate: {
+        ...state.routineCompletionsByDate,
+        [date]: routineIds,
+      },
+    }));
+  },
+
   toggleRoutineCompletion: async (date: string, routineId: string) => {
-    const settings = get().settings;
-    if (!settings) return;
-    const currentCompletions = { ...(settings.routineCompletions || {}) };
-    const dateCompletions = new Set(currentCompletions[date] || []);
+    if (!window.electronAPI) return;
+    const dateCompletions = new Set(get().routineCompletionsByDate[date] || []);
     if (dateCompletions.has(routineId)) {
       dateCompletions.delete(routineId);
     } else {
       dateCompletions.add(routineId);
     }
-    currentCompletions[date] = Array.from(dateCompletions);
-    await get().updateSettings({ routineCompletions: currentCompletions });
+    const updated = await window.electronAPI.updateRoutineCompletions(date, Array.from(dateCompletions));
+    set((state) => ({
+      routineCompletionsByDate: { ...state.routineCompletionsByDate, [date]: updated },
+    }));
   },
 
   completeAllDailyRoutines: async (date: string, routineIds: string[]) => {
-    const settings = get().settings;
-    if (!settings) return;
-    const currentCompletions = { ...(settings.routineCompletions || {}) };
-    currentCompletions[date] = Array.from(new Set([...(currentCompletions[date] || []), ...routineIds]));
-    await get().updateSettings({ routineCompletions: currentCompletions });
+    if (!window.electronAPI) return;
+    const current = get().routineCompletionsByDate[date] || [];
+    const updated = await window.electronAPI.updateRoutineCompletions(
+      date,
+      Array.from(new Set([...current, ...routineIds]))
+    );
+    set((state) => ({
+      routineCompletionsByDate: { ...state.routineCompletionsByDate, [date]: updated },
+    }));
   },
 
   resetDailyRoutines: async (date: string) => {
-    const settings = get().settings;
-    if (!settings) return;
-    const currentCompletions = { ...(settings.routineCompletions || {}) };
-    delete currentCompletions[date];
-    await get().updateSettings({ routineCompletions: currentCompletions });
+    if (!window.electronAPI) return;
+    await window.electronAPI.updateRoutineCompletions(date, []);
+    set((state) => {
+      const routineCompletionsByDate = { ...state.routineCompletionsByDate };
+      delete routineCompletionsByDate[date];
+      return { routineCompletionsByDate };
+    });
   },
 
   saveRoutinesList: async (routines: DailyRoutine[]) => {

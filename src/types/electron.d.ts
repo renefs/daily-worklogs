@@ -16,6 +16,8 @@ export interface ElectronAPI {
   platform?: string;
   getSettings: () => Promise<AppSettings>;
   saveSettings: (settings: Partial<AppSettings>) => Promise<AppSettings>;
+  getRoutineCompletions: (date: string) => Promise<string[]>;
+  updateRoutineCompletions: (date: string, routineIds: string[]) => Promise<string[]>;
   selectVaultDirectory: () => Promise<string | null>;
   getDefaultVaultPath: () => Promise<string>;
   getAppVersion: () => Promise<string>;

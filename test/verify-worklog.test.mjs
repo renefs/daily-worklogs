@@ -712,6 +712,20 @@ assert.strictEqual(computerBLoadedSettings.vaultPath, computerBMachineVaultPath,
 
 console.log('✓ Cross-computer vault configuration synchronization (.daily-worklogs/config.json) tests passed');
 
+// Routine completion history is segmented by year instead of growing inside AppSettings.
+const routineHistoryDir = path.join(sharedCloudVault, VAULT_CONFIG_DIR, 'routine-completions');
+const routineHistoryPath = path.join(routineHistoryDir, '2026.json');
+fs.mkdirSync(routineHistoryDir, { recursive: true });
+fs.writeFileSync(
+  routineHistoryPath,
+  JSON.stringify({ version: 1, year: '2026', completions: { '2026-09-02': ['r1', 'r2'] } }),
+  'utf-8'
+);
+const routineHistory = JSON.parse(fs.readFileSync(routineHistoryPath, 'utf-8'));
+assert.deepStrictEqual(routineHistory.completions['2026-09-02'], ['r1', 'r2']);
+assert.strictEqual(savedVaultConfig.routineCompletions, undefined);
+console.log('✓ Year-segmented routine completion storage verified');
+
 // --- Test Tag, Service & Project Hierarchy and Metrics ---
 function parseTagHierarchy(tagName, tagDefinitions = []) {
   if (!tagName) return { service: 'General', project: 'General', isHierarchical: false };
@@ -1092,7 +1106,6 @@ if (fs.existsSync(sharedCloudVault)) fs.rmSync(sharedCloudVault, { recursive: tr
 if (fs.existsSync(computerASettingsFile)) fs.rmSync(computerASettingsFile);
 if (fs.existsSync(computerBSettingsFile)) fs.rmSync(computerBSettingsFile);
 console.log('✓ All verification tests passed successfully!');
-
 
 
 
