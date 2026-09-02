@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
-import { AppSettings, AppViewMode, AreaDefinition, DailyNote, DailyNoteMeta, DailyRoutine, DEFAULT_KANBAN_COLUMNS, ProjectDefinition, TagDefinition, TaskItem, TaskPriority, TaskStatus } from '../types';
+import { AppSettings, AppViewMode, AreaDefinition, DailyNote, DailyNoteMeta, DailyRoutine, DEFAULT_KANBAN_COLUMNS, ProjectDefinition, TagDefinition, TaskItem, TaskMeta, TaskPriority, TaskStatus } from '../types';
 import i18n, { getSystemLanguage } from '../i18n';
 import { formatTemplateContent } from '../utils/dateTemplate';
 import { DEFAULT_AREAS } from '../utils/areaProjectUtils';
@@ -23,7 +23,7 @@ interface AppState {
   isSidebarCollapsed: boolean;
 
   // Tasks state
-  tasks: TaskItem[];
+  tasks: TaskMeta[];
   activeTask: TaskItem | null;
   isTaskModalOpen: boolean;
   taskModalInitialStatus: TaskStatus;
@@ -97,10 +97,10 @@ interface AppState {
   }) => Promise<TaskItem | null>;
   updateTaskStatus: (filename: string, status: TaskStatus) => Promise<void>;
   deleteTask: (filename: string) => Promise<void>;
-  logTaskToDailyNote: (task: TaskItem, targetDate?: string) => Promise<boolean>;
-  openTaskModal: (task?: TaskItem | null, defaultStatus?: TaskStatus) => void;
+  logTaskToDailyNote: (task: TaskMeta, targetDate?: string) => Promise<boolean>;
+  openTaskModal: (task?: TaskMeta | TaskItem | null, defaultStatus?: TaskStatus) => void;
   closeTaskModal: () => void;
-  openTaskEditor: (task?: TaskItem | null, defaultStatus?: TaskStatus, returnView?: AppViewMode) => void;
+  openTaskEditor: (task?: TaskMeta | TaskItem | null, defaultStatus?: TaskStatus, returnView?: AppViewMode) => void;
   closeTaskEditor: () => void;
   setActiveTask: (task: TaskItem | null) => void;
   setTaskEditorLayoutMode: (mode: 'live' | 'split' | 'edit' | 'preview') => void;
@@ -631,7 +631,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  logTaskToDailyNote: async (task: TaskItem, targetDate?: string) => {
+  logTaskToDailyNote: async (task: TaskMeta, targetDate?: string) => {
     if (!window.electronAPI) return false;
     const dateToUse = targetDate || get().selectedDate || dayjs().format('YYYY-MM-DD');
     try {
@@ -659,9 +659,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  openTaskModal: (task = null, defaultStatus = 'todo') => {
+  openTaskModal: async (task = null, defaultStatus = 'todo') => {
+    const detailedTask = task && 'content' in task
+      ? task
+      : task?.filename && window.electronAPI
+        ? await window.electronAPI.readTask(task.filename)
+        : null;
     set({
-      activeTask: task,
+      activeTask: detailedTask,
       taskModalInitialStatus: defaultStatus,
       isTaskModalOpen: true,
     });
@@ -674,11 +679,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
 
-  openTaskEditor: (task = null, defaultStatus = 'todo', returnView) => {
+  openTaskEditor: async (task = null, defaultStatus = 'todo', returnView) => {
     const current = get().currentView;
     const prev = returnView || (current === 'task' ? get().previousView : current);
+    const detailedTask = task && 'content' in task
+      ? task
+      : task?.filename && window.electronAPI
+        ? await window.electronAPI.readTask(task.filename)
+        : null;
     set({
-      activeTask: task,
+      activeTask: detailedTask,
       taskModalInitialStatus: defaultStatus,
       isTaskModalOpen: false,
       previousView: prev,
@@ -774,4 +784,3 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ isManageRoutinesModalOpen: false });
   },
 }));
-

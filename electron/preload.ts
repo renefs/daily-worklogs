@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listNotes: () => ipcRenderer.invoke('list-notes'),
   getNotesRange: (startDate: string, endDate: string) => ipcRenderer.invoke('get-notes-range', startDate, endDate),
   listTasks: () => ipcRenderer.invoke('list-tasks'),
+  searchTaskContents: (query: string) => ipcRenderer.invoke('search-task-contents', query),
   readTask: (filename: string) => ipcRenderer.invoke('read-task', filename),
   writeTask: (task: any) => ipcRenderer.invoke('write-task', task),
   updateTaskStatus: (filename: string, status: string) => ipcRenderer.invoke('update-task-status', filename, status),
@@ -50,4 +51,3 @@ contextBridge.exposeInMainWorld('electronAPI', {
     };
   },
 });
-

@@ -91,7 +91,7 @@ export interface TaskActivityEntry {
   note?: string;
 }
 
-export interface TaskItem {
+export interface TaskMeta {
   id: string; // Filename or identifier without extension
   taskId?: number; // Auto-assigned sequential integer ID (e.g. 1, 2, 3...)
   filename: string; // e.g. "my-task.md"
@@ -106,12 +106,15 @@ export interface TaskItem {
   startedDate?: string; // YYYY-MM-DD
   completedDate?: string; // YYYY-MM-DD
   tags?: string[];
-  content: string; // Markdown body
-  rawContent?: string;
   lastModified?: string;
-  frontmatter?: Record<string, any>;
   checklistTotal?: number;
   checklistCompleted?: number;
+}
+
+export interface TaskItem extends TaskMeta {
+  content: string; // Markdown body, loaded only for the active task or detailed reports
+  rawContent?: string;
+  frontmatter?: Record<string, any>;
   activityLog?: TaskActivityEntry[];
 }
 
@@ -241,4 +244,3 @@ export interface PeriodSummary {
   serviceBreakdown?: Record<string, ServiceBreakdownItem>;
   projectBreakdown?: Record<string, ServiceProjectMetric & { service: string; project: string }>;
 }
-

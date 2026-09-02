@@ -1757,7 +1757,8 @@ function buildTaskFromFile(
   filepath: string,
   filename: string,
   rawContent: string,
-  stat: fs.Stats
+  stat: fs.Stats,
+  includeDetail = true
 ) {
   const parsed = matter(rawContent);
   const data = parsed.data || {};
@@ -1774,7 +1775,7 @@ function buildTaskFromFile(
 
   const { tasksCompleted, tasksTotal } = parseTaskCounts(parsed.content);
 
-  return {
+  const metadata = {
     id: filename.replace(/\.md$/i, ''),
     taskId,
     filename,
@@ -1789,12 +1790,18 @@ function buildTaskFromFile(
     startedDate: data.startedDate || undefined,
     completedDate: data.completedDate || undefined,
     tags: Array.isArray(data.tags) ? data.tags : [],
-    content: parsed.content.trim(),
-    rawContent,
     lastModified: stat.mtime.toISOString(),
-    frontmatter: data,
     checklistTotal: tasksTotal,
     checklistCompleted: tasksCompleted,
+  };
+
+  if (!includeDetail) return metadata;
+
+  return {
+    ...metadata,
+    content: parsed.content.trim(),
+    rawContent,
+    frontmatter: data,
     activityLog: Array.isArray(data.activityLog) ? data.activityLog : [],
   };
 }
@@ -1814,13 +1821,28 @@ ipcMain.handle('list-tasks', async () => {
   const tasksDir = ensureTasksDir(vaultPath);
   try {
     await ensureTasksHaveIds(tasksDir);
-    const tasks = await loadAllTasks(tasksDir);
+    const reads = await readTaskFiles(tasksDir);
+    const tasks = reads.map((read) =>
+      buildTaskFromFile(read.filepath, read.filename, read.raw, read.stat, false)
+    );
 
     return tasks.sort((a, b) => (b.lastModified || '').localeCompare(a.lastModified || ''));
   } catch (err) {
     console.error('Error listing tasks:', err);
     return [];
   }
+});
+
+ipcMain.handle('search-task-contents', async (_event, rawQuery: string) => {
+  const query = String(rawQuery || '').trim().toLocaleLowerCase();
+  if (!query) return [];
+
+  const { vaultPath } = getSettings();
+  const tasksDir = ensureTasksDir(vaultPath);
+  const reads = await readTaskFiles(tasksDir);
+  return reads
+    .filter((read) => read.raw.toLocaleLowerCase().includes(query))
+    .map((read) => read.filename);
 });
 
 ipcMain.handle('read-task', async (_event, filename: string) => {
@@ -2402,7 +2424,5 @@ ipcMain.handle('rename-project', async (_event, oldName: string, newProject: any
 
   return { success: true, updatedCount, projects: updatedProjects };
 });
-
-
 
 

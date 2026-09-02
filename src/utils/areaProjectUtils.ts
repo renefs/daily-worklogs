@@ -1,4 +1,4 @@
-import { AreaDefinition, ProjectDefinition, TagDefinition, TaskItem } from '../types';
+import { AreaDefinition, ProjectDefinition, TagDefinition, TaskMeta } from '../types';
 import { parseTagHierarchy, getTagColor } from './tagUtils';
 
 export const DEFAULT_AREAS: AreaDefinition[] = [
@@ -136,7 +136,7 @@ export interface ResolvedTaskContext {
  * Resolves Area, Project and inherited tags for a Task
  */
 export function resolveTaskContext(
-  task: Partial<TaskItem>,
+  task: Partial<TaskMeta>,
   areas: AreaDefinition[] = [],
   projects: ProjectDefinition[] = [],
   tagDefinitions: TagDefinition[] = []
@@ -213,7 +213,7 @@ export interface ProjectProgressMetrics {
   waiting: number;
   backlog: number;
   percent: number;
-  tasks: TaskItem[];
+  tasks: TaskMeta[];
 }
 
 /**
@@ -222,7 +222,7 @@ export interface ProjectProgressMetrics {
 export function calculateProjectProgress(
   projectName: string,
   areaName: string | undefined,
-  tasks: TaskItem[],
+  tasks: TaskMeta[],
   areas: AreaDefinition[] = [],
   projects: ProjectDefinition[] = [],
   tagDefinitions: TagDefinition[] = [],
@@ -274,7 +274,7 @@ export interface AreaMetrics {
   totalTasks: number;
   completedTasks: number;
   inProgressTasks: number;
-  directTasks: TaskItem[];
+  directTasks: TaskMeta[];
   projectCount: number;
 }
 
@@ -283,7 +283,7 @@ export interface AreaMetrics {
  */
 export function calculateAreaMetrics(
   areaName: string,
-  tasks: TaskItem[],
+  tasks: TaskMeta[],
   projects: ProjectDefinition[] = [],
   areas: AreaDefinition[] = [],
   tagDefinitions: TagDefinition[] = [],

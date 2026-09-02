@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Group,
   Stack,
@@ -33,7 +33,7 @@ import {
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
-import { DEFAULT_KANBAN_COLUMNS, KanbanColumnConfig, TaskItem, TaskPriority } from '../../types';
+import { DEFAULT_KANBAN_COLUMNS, KanbanColumnConfig, TaskMeta, TaskPriority } from '../../types';
 import { getColumnIcon, getColumnTitle } from '../kanban/columnUtils';
 import {
   DEFAULT_AREAS,
@@ -61,6 +61,7 @@ export const KanbanView: React.FC = () => {
   } = useAppStore();
 
   const [search, setSearch] = useState('');
+  const [contentSearchMatches, setContentSearchMatches] = useState<Set<string>>(new Set());
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [tagFilter, setTagFilter] = useState<string>('all');
@@ -89,7 +90,7 @@ export const KanbanView: React.FC = () => {
 
   // Helper to check if a task is closed/completed and older than 30 days
   const isTaskOldClosed = useMemo(() => {
-    return (task: TaskItem) => {
+    return (task: TaskMeta) => {
       const behavior = columnBehaviorMap.get(task.status) || task.status;
       const isClosed =
         behavior === 'done' ||
@@ -123,6 +124,25 @@ export const KanbanView: React.FC = () => {
     return Array.from(tagSet);
   }, [tasks]);
 
+  useEffect(() => {
+    const query = search.trim();
+    if (!query || !window.electronAPI?.searchTaskContents) {
+      setContentSearchMatches(new Set());
+      return;
+    }
+
+    let isCurrent = true;
+    const timer = window.setTimeout(async () => {
+      const filenames = await window.electronAPI.searchTaskContents(query);
+      if (isCurrent) setContentSearchMatches(new Set(filenames));
+    }, 200);
+
+    return () => {
+      isCurrent = false;
+      window.clearTimeout(timer);
+    };
+  }, [search]);
+
   // Filter tasks
   const filteredTasks = useMemo(() => {
     const hideOld = settings?.hideCompletedOlderThan30Days ?? false;
@@ -137,7 +157,7 @@ export const KanbanView: React.FC = () => {
       if (search.trim()) {
         const query = search.toLowerCase().trim();
         const matchesTitle = task.title.toLowerCase().includes(query);
-        const matchesContent = task.content.toLowerCase().includes(query);
+        const matchesContent = contentSearchMatches.has(task.filename);
         const matchesTags = task.tags?.some((tag) => tag.toLowerCase().includes(query));
         const matchesArea = (task.area || '').toLowerCase().includes(query);
         const matchesProject = (task.project || '').toLowerCase().includes(query);
@@ -166,11 +186,11 @@ export const KanbanView: React.FC = () => {
 
       return true;
     });
-  }, [tasks, search, selectedProject, priorityFilter, tagFilter, settings?.hideCompletedOlderThan30Days, isTaskOldClosed, areas, projects, storeAllTags]);
+  }, [tasks, search, contentSearchMatches, selectedProject, priorityFilter, tagFilter, settings?.hideCompletedOlderThan30Days, isTaskOldClosed, areas, projects, storeAllTags]);
 
   // Group tasks by column status
   const tasksByColumn = useMemo(() => {
-    const map: Record<string, TaskItem[]> = {};
+    const map: Record<string, TaskMeta[]> = {};
 
     allColumns.forEach((col) => {
       map[col.id] = [];
@@ -198,7 +218,7 @@ export const KanbanView: React.FC = () => {
   }, [filteredTasks, allColumns, visibleColumns]);
 
   // Drag Handlers
-  const handleDragStart = (e: React.DragEvent, task: TaskItem) => {
+  const handleDragStart = (e: React.DragEvent, task: TaskMeta) => {
     setDraggingTaskId(task.id);
     e.dataTransfer.setData('text/plain', JSON.stringify({ filename: task.filename, status: task.status }));
     e.dataTransfer.effectAllowed = 'move';
