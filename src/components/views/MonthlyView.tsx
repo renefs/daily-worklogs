@@ -73,18 +73,14 @@ export const MonthlyView: React.FC = () => {
     };
   }, [currentMonthDate, i18n.language]);
 
-  const fetchMonthData = async () => {
-    if (!window.electronAPI) return;
-    try {
-      const summary = await window.electronAPI.getNotesRange(monthRange.start, monthRange.end);
-      setPeriodSummary(summary);
-    } catch (err) {
-      console.error('Failed to get month notes:', err);
-    }
-  };
-
   useEffect(() => {
-    fetchMonthData();
+    let current = true;
+    void (async () => {
+      if (!window.electronAPI) return;
+      const summary = await window.electronAPI.getNotesRange(monthRange.start, monthRange.end);
+      if (current) setPeriodSummary(summary);
+    })();
+    return () => { current = false; };
   }, [monthRange.start, monthRange.end, notesList, tasks]);
 
   const handlePrevMonth = () => {

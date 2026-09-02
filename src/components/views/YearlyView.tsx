@@ -66,18 +66,14 @@ export const YearlyView: React.FC = () => {
     };
   }, [currentYearDate, i18n.language]);
 
-  const fetchYearData = async () => {
-    if (!window.electronAPI) return;
-    try {
-      const summary = await window.electronAPI.getNotesRange(yearRange.start, yearRange.end);
-      setPeriodSummary(summary);
-    } catch (err) {
-      console.error('Failed to get year notes:', err);
-    }
-  };
-
   useEffect(() => {
-    fetchYearData();
+    let current = true;
+    void (async () => {
+      if (!window.electronAPI) return;
+      const summary = await window.electronAPI.getNotesRange(yearRange.start, yearRange.end);
+      if (current) setPeriodSummary(summary);
+    })();
+    return () => { current = false; };
   }, [yearRange.start, yearRange.end, notesList, tasks]);
 
   const handlePrevYear = () => {

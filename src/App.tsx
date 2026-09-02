@@ -61,15 +61,20 @@ export const App: React.FC = () => {
   useEffect(() => {
     initApp();
 
+    let focusTimer: number | undefined;
+
     const handleFocus = () => {
-      const { refreshNotesList, refreshTasksList } = useAppStore.getState();
-      refreshNotesList();
-      refreshTasksList();
+      window.clearTimeout(focusTimer);
+      focusTimer = window.setTimeout(() => {
+        const { refreshNotesList, refreshTasksList } = useAppStore.getState();
+        void Promise.all([refreshNotesList(), refreshTasksList()]);
+      }, 250);
     };
 
     window.addEventListener('focus', handleFocus);
     return () => {
       window.removeEventListener('focus', handleFocus);
+      window.clearTimeout(focusTimer);
     };
   }, [initApp]);
 
@@ -123,4 +128,3 @@ export const App: React.FC = () => {
     </MantineProvider>
   );
 };
-

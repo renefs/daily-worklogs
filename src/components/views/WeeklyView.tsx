@@ -65,18 +65,14 @@ export const WeeklyView: React.FC = () => {
     };
   }, [currentWeekDate, settings?.weekStartDay, i18n.language]);
 
-  const fetchWeekData = async () => {
-    if (!window.electronAPI) return;
-    try {
-      const summary = await window.electronAPI.getNotesRange(weekRange.start, weekRange.end);
-      setPeriodSummary(summary);
-    } catch (err) {
-      console.error('Failed to get week notes range:', err);
-    }
-  };
-
   useEffect(() => {
-    fetchWeekData();
+    let current = true;
+    void (async () => {
+      if (!window.electronAPI) return;
+      const summary = await window.electronAPI.getNotesRange(weekRange.start, weekRange.end);
+      if (current) setPeriodSummary(summary);
+    })();
+    return () => { current = false; };
   }, [weekRange.start, weekRange.end, notesList, tasks]);
 
   const handlePrevWeek = () => {

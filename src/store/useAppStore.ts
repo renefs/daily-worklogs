@@ -8,6 +8,21 @@ import { DEFAULT_AREAS } from '../utils/areaProjectUtils';
 
 dayjs.extend(isoWeek);
 
+let notesRefreshGeneration = 0;
+let notesRefreshInFlight: { generation: number; promise: Promise<DailyNoteMeta[]> } | null = null;
+let tasksRefreshGeneration = 0;
+let tasksRefreshInFlight: { generation: number; promise: Promise<TaskMeta[]> } | null = null;
+
+function invalidateNotesRefresh(): void {
+  notesRefreshGeneration += 1;
+  notesRefreshInFlight = null;
+}
+
+function invalidateTasksRefresh(): void {
+  tasksRefreshGeneration += 1;
+  tasksRefreshInFlight = null;
+}
+
 interface AppState {
   settings: AppSettings | null;
   currentView: AppViewMode;
@@ -252,8 +267,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       areas: updated.areas || DEFAULT_AREAS,
       projects: updated.projects || [],
     });
-    await get().refreshNotesList();
     if (partial.vaultPath) {
+      invalidateNotesRefresh();
+      await get().refreshNotesList();
+    }
+    if (partial.vaultPath) {
+      invalidateTasksRefresh();
       await get().refreshTasksList();
       await get().loadNoteForDate(get().selectedDate);
     }
@@ -276,7 +295,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!window.electronAPI) return;
     try {
       const note = await window.electronAPI.readNote(date);
-      set({ activeNote: note, isDirty: false });
+      if (get().selectedDate === date) set({ activeNote: note, isDirty: false });
     } catch (err) {
       console.error('Failed to read note:', err);
     }
@@ -318,6 +337,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             lastModified: res.lastModified,
           },
         });
+        invalidateNotesRefresh();
         await get().refreshNotesList();
       }
     } catch (err) {
@@ -332,6 +352,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!window.electronAPI) return;
     try {
       await window.electronAPI.deleteNote(dateToDelete);
+      invalidateNotesRefresh();
       await get().refreshNotesList();
       if (get().selectedDate === dateToDelete) {
         await get().loadNoteForDate(dateToDelete);
@@ -344,8 +365,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   refreshNotesList: async () => {
     if (!window.electronAPI) return;
     try {
-      const notes = await window.electronAPI.listNotes();
-      set({ notesList: notes });
+      const generation = notesRefreshGeneration;
+      if (!notesRefreshInFlight || notesRefreshInFlight.generation !== generation) {
+        notesRefreshInFlight = { generation, promise: window.electronAPI.listNotes() };
+      }
+      const request = notesRefreshInFlight;
+      const notes = await request.promise;
+      if (request.generation === notesRefreshGeneration) set({ notesList: notes });
+      if (notesRefreshInFlight === request) notesRefreshInFlight = null;
     } catch (err) {
       console.error('Failed to list notes:', err);
     }
@@ -577,8 +604,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!window.electronAPI) return;
     try {
       set({ isTasksLoading: true });
-      const tasks = await window.electronAPI.listTasks();
-      set({ tasks: tasks || [], isTasksLoading: false });
+      const generation = tasksRefreshGeneration;
+      if (!tasksRefreshInFlight || tasksRefreshInFlight.generation !== generation) {
+        tasksRefreshInFlight = { generation, promise: window.electronAPI.listTasks() };
+      }
+      const request = tasksRefreshInFlight;
+      const tasks = await request.promise;
+      if (request.generation === tasksRefreshGeneration) {
+        set({ tasks: tasks || [], isTasksLoading: false });
+      }
+      if (tasksRefreshInFlight === request) tasksRefreshInFlight = null;
     } catch (err) {
       console.error('Failed to list tasks:', err);
       set({ isTasksLoading: false });
@@ -590,6 +625,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const res = await window.electronAPI.writeTask(taskData);
       if (res.success) {
+        invalidateTasksRefresh();
         await get().refreshTasksList();
         return res.task;
       }
@@ -611,6 +647,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const res = await window.electronAPI.updateTaskStatus(filename, status);
       if (res.success) {
+        invalidateTasksRefresh();
         await get().refreshTasksList();
       } else {
         // Rollback on error
@@ -626,6 +663,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!window.electronAPI) return;
     try {
       await window.electronAPI.deleteTask(filename);
+      invalidateTasksRefresh();
       await get().refreshTasksList();
       if (get().activeTask?.filename === filename) {
         set({ activeTask: null, isTaskModalOpen: false });
