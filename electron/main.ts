@@ -22,6 +22,7 @@ import 'dayjs/locale/en';
 import { formatTemplateContent } from '../src/utils/dateTemplate';
 import { mapWithConcurrency } from './utils/async';
 import { requireIsoDate, requireTaskFilename, resolvePathInside } from './utils/security';
+import { atomicWriteFile, atomicWriteFileSync } from './utils/atomicFile';
 
 // Register custom protocol scheme before app ready
 protocol.registerSchemesAsPrivileged([
@@ -335,7 +336,7 @@ function writeVaultConfig(vaultPath: string, config: any): void {
       updatedAt: new Date().toISOString(),
       ...portableConfig,
     };
-    fs.writeFileSync(cfgPath, JSON.stringify(payload, null, 2), 'utf-8');
+    atomicWriteFileSync(cfgPath, JSON.stringify(payload, null, 2));
     invalidateSettingsCache();
   } catch (err) {
     console.error('Error writing vault config:', err);
@@ -411,7 +412,7 @@ function saveSettings(newSettings: any) {
     const merged = { ...current, ...newSettings };
     const { routineCompletions: _legacyCompletions, ...settingsWithoutCompletions } = merged;
     fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
-    fs.writeFileSync(settingsPath, JSON.stringify(settingsWithoutCompletions, null, 2), 'utf-8');
+    atomicWriteFileSync(settingsPath, JSON.stringify(settingsWithoutCompletions, null, 2));
     invalidateSettingsCache();
 
     // Sync portable settings to vault folder if vaultPath exists
@@ -457,10 +458,9 @@ function writeRoutineCompletionsForYear(
 ): void {
   const filePath = getRoutineCompletionsPath(vaultPath, year);
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(
+  atomicWriteFileSync(
     filePath,
-    JSON.stringify({ version: 1, year, completions }, null, 2),
-    'utf-8'
+    JSON.stringify({ version: 1, year, completions }, null, 2)
   );
 }
 
@@ -1068,7 +1068,7 @@ ipcMain.handle('write-note', async (_event, date: string, content: string) => {
   const filename = `${date}.md`;
   const filepath = path.join(yearDir, filename);
 
-  fs.writeFileSync(filepath, content, 'utf-8');
+  await atomicWriteFile(filepath, content);
   const stat = fs.statSync(filepath);
 
   return {
@@ -1965,7 +1965,7 @@ ipcMain.handle('write-task', async (_event, taskData: any) => {
   const content = taskData.content !== undefined ? taskData.content : '';
   const fileContent = matter.stringify(content, frontmatterData);
 
-  fs.writeFileSync(filepath, fileContent, 'utf-8');
+  await atomicWriteFile(filepath, fileContent);
   const savedTask = await parseTaskFile(filepath, filename);
 
   return { success: true, task: savedTask };
@@ -2008,7 +2008,7 @@ ipcMain.handle('update-task-status', async (_event, filename: string, status: st
   }
 
   const updatedRaw = matter.stringify(parsed.content, updatedData);
-  fs.writeFileSync(filepath, updatedRaw, 'utf-8');
+  await atomicWriteFile(filepath, updatedRaw);
   const savedTask = await parseTaskFile(filepath, safeFilename);
 
   return { success: true, task: savedTask };

@@ -5,6 +5,7 @@ import os from 'node:os';
 import matter from 'gray-matter';
 import { mapWithConcurrency } from '../electron/utils/async.ts';
 import { requireIsoDate, requireTaskFilename, resolvePathInside } from '../electron/utils/security.ts';
+import { atomicWriteFile, atomicWriteFileSync } from '../electron/utils/atomicFile.ts';
 
 const testVault = path.join(os.tmpdir(), 'test-daily-worklog-vault');
 if (fs.existsSync(testVault)) {
@@ -24,6 +25,13 @@ assert.throws(() => resolvePathInside('/tmp/vault', '../secret.txt'), /outside t
 const concurrentResults = await mapWithConcurrency([1, 2, 3], 2, async (value) => value * 2);
 assert.deepStrictEqual(concurrentResults, [2, 4, 6]);
 console.log('✓ Production path validation and concurrency utilities verified');
+
+const atomicFilePath = path.join(testVault, 'atomic-write.txt');
+atomicWriteFileSync(atomicFilePath, 'first');
+await atomicWriteFile(atomicFilePath, 'second');
+assert.strictEqual(fs.readFileSync(atomicFilePath, 'utf-8'), 'second');
+assert.deepStrictEqual(fs.readdirSync(testVault).filter((name) => name.endsWith('.tmp')), []);
+console.log('✓ Atomic persistence utility verified');
 
 // Year helper functions under test
 function getYearFromDate(date) {
@@ -1117,6 +1125,5 @@ if (fs.existsSync(sharedCloudVault)) fs.rmSync(sharedCloudVault, { recursive: tr
 if (fs.existsSync(computerASettingsFile)) fs.rmSync(computerASettingsFile);
 if (fs.existsSync(computerBSettingsFile)) fs.rmSync(computerBSettingsFile);
 console.log('✓ All verification tests passed successfully!');
-
 
 

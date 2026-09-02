@@ -13,6 +13,7 @@ let notesRefreshGeneration = 0;
 let notesRefreshInFlight: { generation: number; promise: Promise<DailyNoteMeta[]> } | null = null;
 let tasksRefreshGeneration = 0;
 let tasksRefreshInFlight: { generation: number; promise: Promise<TaskMeta[]> } | null = null;
+let noteEditRevision = 0;
 
 function invalidateNotesRefresh(): void {
   notesRefreshGeneration += 1;
@@ -312,6 +313,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const checked = (content.match(/^[\s]*[-*]\s*\[[xX]\]/gm) || []).length;
     const unchecked = (content.match(/^[\s]*[-*]\s*\[\s\]/gm) || []).length;
 
+    noteEditRevision += 1;
     set({
       activeNote: {
         ...activeNote,
@@ -329,20 +331,29 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     set({ isSaving: true });
     try {
-      const res = await window.electronAPI.writeNote(activeNote.date, activeNote.content);
-      if (res.success) {
+      let noteToSave: DailyNote | null = activeNote;
+      while (noteToSave) {
+        const savingRevision = noteEditRevision;
+        const res = await window.electronAPI.writeNote(noteToSave.date, noteToSave.content);
+        if (!res.success) break;
+
+        const current = get().activeNote;
+        if (!current || current.date !== noteToSave.date) break;
+        const hasNewerEdits = noteEditRevision !== savingRevision;
         set({
-          isDirty: false,
+          isDirty: hasNewerEdits,
           activeNote: {
-            ...activeNote,
+            ...current,
             exists: true,
             filepath: res.filepath,
             lastModified: res.lastModified,
           },
         });
         invalidateNotesRefresh();
-        await get().refreshNotesList();
+        if (!hasNewerEdits) break;
+        noteToSave = get().activeNote;
       }
+      await get().refreshNotesList();
     } catch (err) {
       console.error('Failed to save note:', err);
     } finally {
