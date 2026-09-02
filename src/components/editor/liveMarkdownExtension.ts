@@ -2,9 +2,10 @@ import {
   Decoration,
   DecorationSet,
   EditorView,
+  ViewPlugin,
   WidgetType,
 } from '@codemirror/view';
-import { EditorState, RangeSetBuilder, StateField } from '@codemirror/state';
+import { EditorState, RangeSetBuilder } from '@codemirror/state';
 
 /**
  * Checkbox widget that renders an interactive Mantine-styled checkbox.
@@ -572,7 +573,10 @@ interface QueuedDeco {
 /**
  * Build decorations across the document.
  */
-function buildLiveDecorations(state: EditorState): DecorationSet {
+function buildLiveDecorations(
+  state: EditorState,
+  visibleRanges?: readonly { from: number; to: number }[]
+): DecorationSet {
   const queued: QueuedDeco[] = [];
   const { doc, selection } = state;
   const cursorRanges = selection.ranges;
@@ -587,8 +591,12 @@ function buildLiveDecorations(state: EditorState): DecorationSet {
     return cursorRanges.some((r) => r.from <= lineTo && r.to >= lineFrom);
   };
 
-  const startLine = 1;
-  const endLine = doc.lines;
+  const firstVisibleFrom = visibleRanges?.[0]?.from ?? 0;
+  const lastVisibleTo = visibleRanges?.[visibleRanges.length - 1]?.to ?? doc.length;
+  // Include surrounding lines so tables and block markers entering the viewport
+  // are ready before CodeMirror paints them.
+  const startLine = Math.max(1, doc.lineAt(firstVisibleFrom).number - 2);
+  const endLine = Math.min(doc.lines, doc.lineAt(lastVisibleTo).number + 2);
 
   let l = startLine;
   while (l <= endLine) {
@@ -1312,28 +1320,34 @@ function buildLiveDecorations(state: EditorState): DecorationSet {
 }
 
 /**
- * CodeMirror 6 Live Markdown StateField
- * StateField is required in CodeMirror 6 to provide block widget decorations (e.g. Tables).
+ * View-scoped decorations keep live preview work proportional to what the user
+ * can see instead of rebuilding every decoration in a long document.
  */
-export const liveMarkdownField = StateField.define<DecorationSet>({
-  create(state: EditorState) {
-    return buildLiveDecorations(state);
-  },
-  update(decorations: DecorationSet, tr) {
-    if (tr.docChanged || tr.selection) {
-      return buildLiveDecorations(tr.state);
+export const liveMarkdownPlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+
+    constructor(view: EditorView) {
+      this.decorations = buildLiveDecorations(view.state, view.visibleRanges);
     }
-    return decorations.map(tr.changes);
+
+    update(update: { docChanged: boolean; selectionSet: boolean; viewportChanged: boolean; view: EditorView }) {
+      if (update.docChanged || update.selectionSet || update.viewportChanged) {
+        this.decorations = buildLiveDecorations(update.view.state, update.view.visibleRanges);
+      }
+    }
   },
-  provide: (f) => EditorView.decorations.from(f),
-});
+  {
+    decorations: (plugin) => plugin.decorations,
+  }
+);
 
 /**
  * Returns the extension suite for Obsidian-like Live Preview markdown editing
  */
 export function liveMarkdownExtension() {
   return [
-    liveMarkdownField,
+    liveMarkdownPlugin,
     EditorView.editorAttributes.of({ class: 'cm-live-editor' }),
   ];
 }
