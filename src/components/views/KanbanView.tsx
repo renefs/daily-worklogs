@@ -280,13 +280,14 @@ export const KanbanView: React.FC = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 12 }}>
       {/* Top Header & Toolbar */}
-      <Group justify="space-between" align="center" wrap="nowrap">
-        <Group gap="xs" wrap="nowrap">
+      <Group justify="space-between" align="center" gap="xs">
+        <Group gap="xs" wrap="nowrap" style={{ flex: '1 1 auto', minWidth: 0 }}>
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              flexShrink: 0,
               width: 34,
               height: 34,
               borderRadius: 8,
@@ -296,11 +297,11 @@ export const KanbanView: React.FC = () => {
           >
             <IconLayoutKanban size={18} />
           </div>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <Title order={3} style={{ letterSpacing: '-0.01em', fontSize: 18 }}>
               {t('tasks.title')}
             </Title>
-            <Text size="xs" c="dimmed">
+            <Text size="xs" c="dimmed" truncate>
               {filteredTasks.length} {t('common.tasks').toLowerCase()} · {totalCompleted} {t('dashboard.completedCount', { count: totalCompleted }).toLowerCase()}
             </Text>
           </div>
@@ -344,7 +345,7 @@ export const KanbanView: React.FC = () => {
 
       {/* Filter Bar */}
       <Paper p="xs" withBorder radius="md" style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
-        <Group justify="space-between" wrap="nowrap" gap="xs">
+        <Group justify="space-between" gap="xs">
           <TextInput
             placeholder={t('tasks.searchPlaceholder')}
             leftSection={<IconSearch size={14} style={{ color: 'var(--app-sidebar-text-dimmed)' }} />}
@@ -352,10 +353,10 @@ export const KanbanView: React.FC = () => {
             onChange={(e) => setSearch(e.currentTarget.value)}
             radius="md"
             size="xs"
-            style={{ flex: 1 }}
+            style={{ flex: '1 1 180px', minWidth: 150 }}
           />
 
-          <Group gap="xs" wrap="nowrap">
+          <Group gap="xs">
             {/* Project Filter */}
             <Select
               placeholder={t('dashboard.allProjects', 'All projects')}
@@ -417,10 +418,10 @@ export const KanbanView: React.FC = () => {
         style={{
           flex: 1,
           minHeight: 0,
-          display: 'grid',
-          gridTemplateColumns: `repeat(${visibleColumns.length}, minmax(0, 1fr))`,
+          display: 'flex',
           gap: 12,
           overflowX: 'auto',
+          overflowY: 'hidden',
           paddingBottom: 4,
         }}
       >
@@ -451,7 +452,9 @@ export const KanbanView: React.FC = () => {
                   ? '2px dashed var(--mantine-primary-color-filled)'
                   : '1px solid var(--mantine-color-default-border)',
                 transition: 'all 0.18s ease',
-                minWidth: 220,
+                flex: '1 1 260px',
+                minWidth: 240,
+                maxWidth: 420,
                 overflow: 'hidden',
               }}
             >

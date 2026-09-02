@@ -12,6 +12,7 @@ import {
 } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
+import fsp from 'node:fs/promises';
 import os from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import matter from 'gray-matter';
@@ -367,6 +368,7 @@ function writeVaultConfig(vaultPath: string, config: any): void {
       ...portableConfig,
     };
     fs.writeFileSync(cfgPath, JSON.stringify(payload, null, 2), 'utf-8');
+    invalidateSettingsCache();
   } catch (err) {
     console.error('Error writing vault config:', err);
   }
@@ -379,7 +381,29 @@ function getDefaultSettings() {
   };
 }
 
+// getSettings() is called from nearly every handler and helper - getColumnBehavior()
+// calls it once per task - and each call used to synchronously read the portable config
+// from inside the vault. On a cloud-synced vault that turned one report into dozens of
+// blocking reads. The resolved settings are memoized for a short window instead, and any
+// write invalidates the cache immediately, so cross-machine config changes are still
+// picked up on the next poll without stalling the main process.
+const SETTINGS_CACHE_TTL_MS = 500;
+let settingsCache: { value: any; readAt: number } | null = null;
+
+function invalidateSettingsCache(): void {
+  settingsCache = null;
+}
+
 function getSettings() {
+  if (settingsCache && Date.now() - settingsCache.readAt < SETTINGS_CACHE_TTL_MS) {
+    return settingsCache.value;
+  }
+  const resolved = readSettingsFromDisk();
+  settingsCache = { value: resolved, readAt: Date.now() };
+  return resolved;
+}
+
+function readSettingsFromDisk() {
   let localSettings: any = getDefaultSettings();
   try {
     if (fs.existsSync(settingsPath)) {
@@ -419,6 +443,7 @@ function saveSettings(newSettings: any) {
     const merged = { ...current, ...newSettings };
     fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
     fs.writeFileSync(settingsPath, JSON.stringify(merged, null, 2), 'utf-8');
+    invalidateSettingsCache();
 
     // Sync portable settings to vault folder if vaultPath exists
     if (merged.vaultPath && fs.existsSync(merged.vaultPath)) {
@@ -445,6 +470,88 @@ function getYearFromDate(date: string): string {
   const match = date.match(/^(\d{4})/);
   if (match) return match[1];
   return new Date().getFullYear().toString();
+}
+
+// Whole-directory scans (a year of daily notes, every document in vault/tasks) touch
+// hundreds of files. Doing that with synchronous fs calls blocks the Electron main
+// process, which freezes the whole app - painfully so on cloud-synced vaults (iCloud
+// Drive, Dropbox) where a single read can stall for hundreds of milliseconds while the
+// file is materialized. These helpers keep fan-out scans on async I/O so the event loop
+// stays free to serve IPC and paint.
+const FILE_READ_CONCURRENCY = 16;
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+  const workerCount = Math.max(1, Math.min(limit, items.length));
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (cursor < items.length) {
+        const index = cursor;
+        cursor += 1;
+        results[index] = await fn(items[index], index);
+      }
+    })
+  );
+  return results;
+}
+
+// Resolves which daily notes exist in a date range using one directory listing per
+// involved year (plus the vault root) instead of two existsSync probes per day.
+async function resolveNoteFilesInRange(
+  vaultPath: string,
+  dates: string[]
+): Promise<Map<string, string>> {
+  const listDir = async (dir: string): Promise<Set<string>> => {
+    try {
+      return new Set(await fsp.readdir(dir));
+    } catch {
+      return new Set<string>();
+    }
+  };
+
+  const years = Array.from(new Set(dates.map((date) => getYearFromDate(date))));
+  const rootFiles = await listDir(vaultPath);
+  const yearFiles = new Map<string, Set<string>>();
+  await Promise.all(
+    years.map(async (year) => {
+      yearFiles.set(year, await listDir(path.join(vaultPath, year)));
+    })
+  );
+
+  const resolved = new Map<string, string>();
+  for (const date of dates) {
+    const filename = `${date}.md`;
+    const year = getYearFromDate(date);
+    if (yearFiles.get(year)?.has(filename)) {
+      resolved.set(date, path.join(vaultPath, year, filename));
+    } else if (rootFiles.has(filename)) {
+      resolved.set(date, path.join(vaultPath, filename));
+    }
+  }
+  return resolved;
+}
+
+// Expands an inclusive date range into YYYY-MM-DD strings. Returns an empty list for
+// unparseable bounds rather than looping forever on an Invalid Date comparison.
+function expandDateRange(startDate: string, endDate: string): string[] {
+  const start = dayjs(startDate);
+  const end = dayjs(endDate);
+  if (!start.isValid() || !end.isValid() || start.isAfter(end, 'day')) {
+    return [];
+  }
+
+  const dates: string[] = [];
+  let curr = start;
+  while (!curr.isAfter(end, 'day')) {
+    dates.push(curr.format('YYYY-MM-DD'));
+    curr = curr.add(1, 'day');
+  }
+  return dates;
 }
 
 function ensureYearDir(vaultPath: string, year: string): string {
@@ -970,27 +1077,26 @@ ipcMain.handle('list-notes', async () => {
     const noteFiles: Array<{ date: string; filename: string; filepath: string; relativePath: string; lastModified: string; size: number }> = [];
     const seenDates = new Set<string>();
 
-    const rootEntries = fs.readdirSync(vaultPath, { withFileTypes: true });
+    const rootEntries = await fsp.readdir(vaultPath, { withFileTypes: true });
+
+    // Candidates are collected first so every stat can be issued off the main thread.
+    const candidates: Array<{ date: string; filename: string; filepath: string; relativePath: string }> = [];
 
     // 1. Scan year subdirectories (e.g. 2024, 2025, 2026)
     for (const entry of rootEntries) {
       if (entry.isDirectory() && /^\d{4}$/.test(entry.name)) {
         const yearDir = path.join(vaultPath, entry.name);
         try {
-          const yearFiles = fs.readdirSync(yearDir, { withFileTypes: true });
+          const yearFiles = await fsp.readdir(yearDir, { withFileTypes: true });
           for (const yearFile of yearFiles) {
             if (yearFile.isFile() && dateRegex.test(yearFile.name)) {
-              const filepath = path.join(yearDir, yearFile.name);
-              const stat = fs.statSync(filepath);
               const date = yearFile.name.replace('.md', '');
               seenDates.add(date);
-              noteFiles.push({
+              candidates.push({
                 date,
                 filename: yearFile.name,
-                filepath,
+                filepath: path.join(yearDir, yearFile.name),
                 relativePath: `${entry.name}/${yearFile.name}`,
-                lastModified: stat.mtime.toISOString(),
-                size: stat.size,
               });
             }
           }
@@ -1005,20 +1111,35 @@ ipcMain.handle('list-notes', async () => {
       if (entry.isFile() && dateRegex.test(entry.name)) {
         const date = entry.name.replace('.md', '');
         if (!seenDates.has(date)) {
-          const filepath = path.join(vaultPath, entry.name);
-          const stat = fs.statSync(filepath);
           seenDates.add(date);
-          noteFiles.push({
+          candidates.push({
             date,
             filename: entry.name,
-            filepath,
+            filepath: path.join(vaultPath, entry.name),
             relativePath: entry.name,
-            lastModified: stat.mtime.toISOString(),
-            size: stat.size,
           });
         }
       }
     }
+
+    const stats = await mapWithConcurrency(candidates, FILE_READ_CONCURRENCY, async (candidate) => {
+      try {
+        return await fsp.stat(candidate.filepath);
+      } catch (statErr) {
+        console.warn(`Error reading note metadata for ${candidate.relativePath}:`, statErr);
+        return null;
+      }
+    });
+
+    candidates.forEach((candidate, index) => {
+      const stat = stats[index];
+      if (!stat) return;
+      noteFiles.push({
+        ...candidate,
+        lastModified: stat.mtime.toISOString(),
+        size: stat.size,
+      });
+    });
 
     return noteFiles.sort((a, b) => b.date.localeCompare(a.date));
   } catch (err) {
@@ -1039,15 +1160,31 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
   let activeDays = 0;
   const allDailyChecklistItems: Array<{ date: string; text: string; completed: boolean }> = [];
 
-  let currDate = dayjs(startDate);
-  const endDay = dayjs(endDate);
+  const rangeDates = expandDateRange(startDate, endDate);
+  const noteFilePaths = await resolveNoteFilesInRange(vaultPath, rangeDates);
 
-  while (!currDate.isAfter(endDay, 'day')) {
-    const dateStr = currDate.format('YYYY-MM-DD');
-    const { filepath, exists } = getNoteFilePath(vaultPath, dateStr);
+  // Read every note in the range off the main thread, a bounded batch at a time, so a
+  // slow (or cloud-hydrating) file system cannot freeze the app mid-scan.
+  const noteContents = await mapWithConcurrency(
+    rangeDates,
+    FILE_READ_CONCURRENCY,
+    async (dateStr) => {
+      const filepath = noteFilePaths.get(dateStr);
+      if (!filepath) return null;
+      try {
+        return await fsp.readFile(filepath, 'utf-8');
+      } catch (err) {
+        console.error(`Failed to read note for ${dateStr}:`, err);
+        return null;
+      }
+    }
+  );
 
-    if (exists) {
-      const content = fs.readFileSync(filepath, 'utf-8');
+  for (let dayIndex = 0; dayIndex < rangeDates.length; dayIndex++) {
+    const dateStr = rangeDates[dayIndex];
+    const content = noteContents[dayIndex];
+
+    if (content !== null) {
       const { tasksCompleted, tasksTotal } = parseTaskCounts(content);
       totalTasks += tasksTotal;
       completedTasks += tasksCompleted;
@@ -1107,7 +1244,6 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
         checklistItems: [],
       });
     }
-    currDate = currDate.add(1, 'day');
   }
 
   // Load and include standalone task documents from vault/tasks
@@ -1185,11 +1321,7 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
   try {
     const tasksDir = ensureTasksDir(vaultPath);
     if (fs.existsSync(tasksDir)) {
-      const files = fs.readdirSync(tasksDir);
-      const mdFiles = files.filter((f) => f.toLowerCase().endsWith('.md'));
-      for (const file of mdFiles) {
-        const filepath = path.join(tasksDir, file);
-        const task = parseTaskFile(filepath, file);
+      for (const task of await loadAllTasks(tasksDir)) {
         const createdDate = task.created || '';
         const dueDate = task.due || '';
         const startedDate = task.startedDate || '';
@@ -1461,18 +1593,101 @@ function parseNumericTaskId(data: any): number | undefined {
   return undefined;
 }
 
-// Helper to get highest assigned numeric taskId in tasksDir
-function getMaxTaskId(tasksDir: string): number {
-  if (!fs.existsSync(tasksDir)) return 0;
+// Lists the task documents in the tasks directory.
+async function listTaskFilenames(tasksDir: string): Promise<string[]> {
   try {
-    const files = fs.readdirSync(tasksDir).filter((f) => f.toLowerCase().endsWith('.md'));
-    let maxId = 0;
-    for (const file of files) {
-      const filepath = path.join(tasksDir, file);
+    const files = await fsp.readdir(tasksDir);
+    return files.filter((f) => f.toLowerCase().endsWith('.md'));
+  } catch {
+    return [];
+  }
+}
+
+interface TaskFileRead {
+  filename: string;
+  filepath: string;
+  raw: string;
+  stat: fs.Stats;
+}
+
+// Reads every task document concurrently. Files that cannot be read are skipped rather
+// than failing the whole scan, matching the previous per-file try/catch behaviour.
+async function readTaskFiles(tasksDir: string): Promise<TaskFileRead[]> {
+  const filenames = await listTaskFilenames(tasksDir);
+  const reads = await mapWithConcurrency(
+    filenames,
+    FILE_READ_CONCURRENCY,
+    async (filename): Promise<TaskFileRead | null> => {
+      const filepath = path.join(tasksDir, filename);
       try {
-        const raw = fs.readFileSync(filepath, 'utf-8');
-        const parsed = matter(raw);
-        const taskId = parseNumericTaskId(parsed.data);
+        const [raw, stat] = await Promise.all([
+          fsp.readFile(filepath, 'utf-8'),
+          fsp.stat(filepath),
+        ]);
+        return { filename, filepath, raw, stat };
+      } catch (err) {
+        console.warn(`Could not read task file ${filename}:`, err);
+        return null;
+      }
+    }
+  );
+  return reads.filter((read): read is TaskFileRead => read !== null);
+}
+
+// Loads and parses every task document in the tasks directory.
+async function loadAllTasks(tasksDir: string) {
+  const reads = await readTaskFiles(tasksDir);
+  return reads.map((read) => buildTaskFromFile(read.filepath, read.filename, read.raw, read.stat));
+}
+
+// Applies an in-place frontmatter edit to every task document. The mapper returns the
+// updated frontmatter for files it wants rewritten, or null to leave a file untouched;
+// rewrites are issued concurrently. Resolves to the number of files changed.
+async function updateTaskFrontmatter(
+  tasksDir: string,
+  mapper: (data: Record<string, any>, read: TaskFileRead) => Record<string, any> | null
+): Promise<number> {
+  const reads = await readTaskFiles(tasksDir);
+  const pending: Array<{ filepath: string; filename: string; content: string }> = [];
+
+  for (const read of reads) {
+    try {
+      const parsed = matter(read.raw);
+      const data = parsed.data || {};
+      const updatedData = mapper(data, read);
+      if (updatedData) {
+        pending.push({
+          filepath: read.filepath,
+          filename: read.filename,
+          content: matter.stringify(parsed.content, updatedData),
+        });
+      }
+    } catch (fileErr) {
+      console.warn(`Error updating task file ${read.filename}:`, fileErr);
+    }
+  }
+
+  const written = await mapWithConcurrency(pending, FILE_READ_CONCURRENCY, async (item) => {
+    try {
+      await fsp.writeFile(item.filepath, item.content, 'utf-8');
+      return true;
+    } catch (fileErr) {
+      console.warn(`Error writing task file ${item.filename}:`, fileErr);
+      return false;
+    }
+  });
+
+  return written.filter(Boolean).length;
+}
+
+// Helper to get highest assigned numeric taskId in tasksDir
+async function getMaxTaskId(tasksDir: string): Promise<number> {
+  try {
+    const reads = await readTaskFiles(tasksDir);
+    let maxId = 0;
+    for (const read of reads) {
+      try {
+        const taskId = parseNumericTaskId(matter(read.raw).data);
         if (taskId && taskId > maxId) {
           maxId = taskId;
         }
@@ -1486,59 +1701,59 @@ function getMaxTaskId(tasksDir: string): number {
 }
 
 // Helper to ensure all task files have a persistent numeric ID
-function ensureTasksHaveIds(tasksDir: string): void {
-  if (!fs.existsSync(tasksDir)) return;
+async function ensureTasksHaveIds(tasksDir: string): Promise<void> {
   try {
-    const files = fs.readdirSync(tasksDir).filter((f) => f.toLowerCase().endsWith('.md'));
-    const unassignedFiles: { file: string; filepath: string; createdTime: number }[] = [];
+    const reads = await readTaskFiles(tasksDir);
+    const unassignedFiles: Array<{ read: TaskFileRead; createdTime: number }> = [];
     let maxId = 0;
 
-    for (const file of files) {
-      const filepath = path.join(tasksDir, file);
+    for (const read of reads) {
       try {
-        const stat = fs.statSync(filepath);
-        const raw = fs.readFileSync(filepath, 'utf-8');
-        const parsed = matter(raw);
+        const parsed = matter(read.raw);
         const taskId = parseNumericTaskId(parsed.data);
         if (taskId) {
           if (taskId > maxId) maxId = taskId;
         } else {
           const createdTime = parsed.data?.created
             ? new Date(parsed.data.created).getTime()
-            : stat.birthtimeMs || stat.mtimeMs;
-          unassignedFiles.push({ file, filepath, createdTime });
+            : read.stat.birthtimeMs || read.stat.mtimeMs;
+          unassignedFiles.push({ read, createdTime });
         }
       } catch {}
     }
 
-    if (unassignedFiles.length > 0) {
-      // Sort oldest unassigned files first
-      unassignedFiles.sort((a, b) => a.createdTime - b.createdTime || a.file.localeCompare(b.file));
-      for (const item of unassignedFiles) {
-        maxId++;
-        try {
-          const raw = fs.readFileSync(item.filepath, 'utf-8');
-          const parsed = matter(raw);
-          const updatedData = {
-            ...parsed.data,
-            id: maxId,
-          };
-          const updatedContent = matter.stringify(parsed.content, updatedData);
-          fs.writeFileSync(item.filepath, updatedContent, 'utf-8');
-        } catch (e) {
-          console.warn('Could not auto-assign ID to task file:', item.file, e);
-        }
+    if (unassignedFiles.length === 0) return;
+
+    // Assign ids oldest unassigned file first, then persist the rewrites concurrently.
+    unassignedFiles.sort(
+      (a, b) => a.createdTime - b.createdTime || a.read.filename.localeCompare(b.read.filename)
+    );
+    const assignments = unassignedFiles.map((item) => {
+      maxId++;
+      return { read: item.read, id: maxId };
+    });
+
+    await mapWithConcurrency(assignments, FILE_READ_CONCURRENCY, async ({ read, id }) => {
+      try {
+        const parsed = matter(read.raw);
+        const updatedContent = matter.stringify(parsed.content, { ...parsed.data, id });
+        await fsp.writeFile(read.filepath, updatedContent, 'utf-8');
+      } catch (e) {
+        console.warn('Could not auto-assign ID to task file:', read.filename, e);
       }
-    }
+    });
   } catch (err) {
     console.error('Error ensuring task IDs:', err);
   }
 }
 
-// Helper to parse a task file with frontmatter
-function parseTaskFile(filepath: string, filename: string) {
-  const rawContent = fs.readFileSync(filepath, 'utf-8');
-  const stat = fs.statSync(filepath);
+// Helper to build a task object from an already-read task file
+function buildTaskFromFile(
+  filepath: string,
+  filename: string,
+  rawContent: string,
+  stat: fs.Stats
+) {
   const parsed = matter(rawContent);
   const data = parsed.data || {};
 
@@ -1579,18 +1794,22 @@ function parseTaskFile(filepath: string, filename: string) {
   };
 }
 
+// Helper to parse a task file with frontmatter
+async function parseTaskFile(filepath: string, filename: string) {
+  const [rawContent, stat] = await Promise.all([
+    fsp.readFile(filepath, 'utf-8'),
+    fsp.stat(filepath),
+  ]);
+  return buildTaskFromFile(filepath, filename, rawContent, stat);
+}
+
 // Task IPC Handlers
 ipcMain.handle('list-tasks', async () => {
   const { vaultPath } = getSettings();
   const tasksDir = ensureTasksDir(vaultPath);
   try {
-    ensureTasksHaveIds(tasksDir);
-    const files = fs.readdirSync(tasksDir);
-    const mdFiles = files.filter((f) => f.toLowerCase().endsWith('.md'));
-    const tasks = mdFiles.map((file) => {
-      const filepath = path.join(tasksDir, file);
-      return parseTaskFile(filepath, file);
-    });
+    await ensureTasksHaveIds(tasksDir);
+    const tasks = await loadAllTasks(tasksDir);
 
     return tasks.sort((a, b) => (b.lastModified || '').localeCompare(a.lastModified || ''));
   } catch (err) {
@@ -1606,7 +1825,7 @@ ipcMain.handle('read-task', async (_event, filename: string) => {
   const filepath = path.join(tasksDir, safeFilename);
 
   if (fs.existsSync(filepath)) {
-    return parseTaskFile(filepath, safeFilename);
+    return await parseTaskFile(filepath, safeFilename);
   }
   return null;
 });
@@ -1645,7 +1864,7 @@ ipcMain.handle('write-task', async (_event, taskData: any) => {
   // Determine taskId: preserve existing or allocate next maxId + 1
   let taskId = parseNumericTaskId(taskData) || parseNumericTaskId(existingData);
   if (!taskId) {
-    const maxId = getMaxTaskId(tasksDir);
+    const maxId = await getMaxTaskId(tasksDir);
     taskId = maxId + 1;
   }
 
@@ -1719,7 +1938,7 @@ ipcMain.handle('write-task', async (_event, taskData: any) => {
   const fileContent = matter.stringify(content, frontmatterData);
 
   fs.writeFileSync(filepath, fileContent, 'utf-8');
-  const savedTask = parseTaskFile(filepath, filename);
+  const savedTask = await parseTaskFile(filepath, filename);
 
   return { success: true, task: savedTask };
 });
@@ -1762,7 +1981,7 @@ ipcMain.handle('update-task-status', async (_event, filename: string, status: st
 
   const updatedRaw = matter.stringify(parsed.content, updatedData);
   fs.writeFileSync(filepath, updatedRaw, 'utf-8');
-  const savedTask = parseTaskFile(filepath, safeFilename);
+  const savedTask = await parseTaskFile(filepath, safeFilename);
 
   return { success: true, task: savedTask };
 });
@@ -1927,11 +2146,7 @@ ipcMain.handle('get-all-tags', async () => {
   try {
     const tasksDir = ensureTasksDir(settings.vaultPath);
     if (fs.existsSync(tasksDir)) {
-      const files = fs.readdirSync(tasksDir);
-      for (const file of files) {
-        if (!file.toLowerCase().endsWith('.md')) continue;
-        const filepath = path.join(tasksDir, file);
-        const task = parseTaskFile(filepath, file);
+      for (const task of await loadAllTasks(tasksDir)) {
         if (task.tags && Array.isArray(task.tags)) {
           for (const rawTag of task.tags) {
             const trimmed = String(rawTag).trim();
@@ -2016,38 +2231,22 @@ ipcMain.handle('rename-tag', async (_event, oldName: string, newName: string) =>
   let updatedCount = 0;
   try {
     const tasksDir = ensureTasksDir(settings.vaultPath);
-    if (fs.existsSync(tasksDir)) {
-      const files = fs.readdirSync(tasksDir);
-      for (const file of files) {
-        if (!file.toLowerCase().endsWith('.md')) continue;
-        const filepath = path.join(tasksDir, file);
-        try {
-          const raw = fs.readFileSync(filepath, 'utf-8');
-          const parsed = matter(raw);
-          const data = parsed.data || {};
-          if (Array.isArray(data.tags)) {
-            let modified = false;
-            const newTags = data.tags.map((tg: string) => {
-              if (String(tg).toLowerCase() === cleanOld.toLowerCase()) {
-                modified = true;
-                return cleanNew;
-              }
-              return tg;
-            });
+    updatedCount = await updateTaskFrontmatter(tasksDir, (data) => {
+      if (!Array.isArray(data.tags)) return null;
 
-            if (modified) {
-              // Deduplicate
-              const dedupedTags = Array.from(new Set(newTags));
-              const newRaw = matter.stringify(parsed.content, { ...data, tags: dedupedTags });
-              fs.writeFileSync(filepath, newRaw, 'utf-8');
-              updatedCount++;
-            }
-          }
-        } catch (fileErr) {
-          console.warn(`Error updating tag in task file ${file}:`, fileErr);
+      let modified = false;
+      const newTags = data.tags.map((tg: string) => {
+        if (String(tg).toLowerCase() === cleanOld.toLowerCase()) {
+          modified = true;
+          return cleanNew;
         }
-      }
-    }
+        return tg;
+      });
+      if (!modified) return null;
+
+      // Deduplicate
+      return { ...data, tags: Array.from(new Set(newTags)) };
+    });
   } catch (err) {
     console.error('Error scanning task files during tag rename:', err);
   }
@@ -2068,26 +2267,17 @@ ipcMain.handle('delete-tag', async (_event, tagName: string, removeFromTasks: bo
   if (removeFromTasks) {
     try {
       const tasksDir = ensureTasksDir(settings.vaultPath);
-      if (fs.existsSync(tasksDir)) {
-        const files = fs.readdirSync(tasksDir);
-        for (const file of files) {
-          if (!file.toLowerCase().endsWith('.md')) continue;
-          const filepath = path.join(tasksDir, file);
-          try {
-            const raw = fs.readFileSync(filepath, 'utf-8');
-            const parsed = matter(raw);
-            const data = parsed.data || {};
-            if (Array.isArray(data.tags) && data.tags.some((tg: string) => String(tg).toLowerCase() === cleanName)) {
-              const newTags = data.tags.filter((tg: string) => String(tg).toLowerCase() !== cleanName);
-              const newRaw = matter.stringify(parsed.content, { ...data, tags: newTags });
-              fs.writeFileSync(filepath, newRaw, 'utf-8');
-              updatedCount++;
-            }
-          } catch (fileErr) {
-            console.warn(`Error deleting tag from task file ${file}:`, fileErr);
-          }
-        }
-      }
+      updatedCount = await updateTaskFrontmatter(tasksDir, (data) => {
+        const hasTag =
+          Array.isArray(data.tags) &&
+          data.tags.some((tg: string) => String(tg).toLowerCase() === cleanName);
+        if (!hasTag) return null;
+
+        return {
+          ...data,
+          tags: data.tags.filter((tg: string) => String(tg).toLowerCase() !== cleanName),
+        };
+      });
     } catch (err) {
       console.error('Error scanning task files during tag delete:', err);
     }
@@ -2137,25 +2327,12 @@ ipcMain.handle('rename-area', async (_event, oldName: string, newArea: any) => {
   if (cleanOld.toLowerCase() !== cleanNew.toLowerCase()) {
     try {
       const tasksDir = ensureTasksDir(settings.vaultPath);
-      if (fs.existsSync(tasksDir)) {
-        const files = fs.readdirSync(tasksDir);
-        for (const file of files) {
-          if (!file.toLowerCase().endsWith('.md')) continue;
-          const filepath = path.join(tasksDir, file);
-          try {
-            const raw = fs.readFileSync(filepath, 'utf-8');
-            const parsed = matter(raw);
-            const data = parsed.data || {};
-            if (data.area && String(data.area).toLowerCase() === cleanOld.toLowerCase()) {
-              const newRaw = matter.stringify(parsed.content, { ...data, area: cleanNew });
-              fs.writeFileSync(filepath, newRaw, 'utf-8');
-              updatedCount++;
-            }
-          } catch (fileErr) {
-            console.warn(`Error updating area in task file ${file}:`, fileErr);
-          }
+      updatedCount = await updateTaskFrontmatter(tasksDir, (data) => {
+        if (!data.area || String(data.area).toLowerCase() !== cleanOld.toLowerCase()) {
+          return null;
         }
-      }
+        return { ...data, area: cleanNew };
+      });
     } catch (err) {
       console.error('Error scanning task files during area rename:', err);
     }
@@ -2200,32 +2377,19 @@ ipcMain.handle('rename-project', async (_event, oldName: string, newProject: any
   if (isNameChanged || isAreaChanged) {
     try {
       const tasksDir = ensureTasksDir(settings.vaultPath);
-      if (fs.existsSync(tasksDir)) {
-        const files = fs.readdirSync(tasksDir);
-        for (const file of files) {
-          if (!file.toLowerCase().endsWith('.md')) continue;
-          const filepath = path.join(tasksDir, file);
-          try {
-            const raw = fs.readFileSync(filepath, 'utf-8');
-            const parsed = matter(raw);
-            const data = parsed.data || {};
-            const matchesProject = data.project && String(data.project).toLowerCase() === cleanOld.toLowerCase();
-            const matchesArea = !oldAreaName || (data.area && String(data.area).toLowerCase() === oldAreaName.toLowerCase());
+      updatedCount = await updateTaskFrontmatter(tasksDir, (data) => {
+        const matchesProject =
+          data.project && String(data.project).toLowerCase() === cleanOld.toLowerCase();
+        const matchesArea =
+          !oldAreaName || (data.area && String(data.area).toLowerCase() === oldAreaName.toLowerCase());
+        if (!matchesProject || !matchesArea) return null;
 
-            if (matchesProject && matchesArea) {
-              const updatedData: Record<string, any> = { ...data, project: cleanNew };
-              if (newProject.areaName) {
-                updatedData.area = newProject.areaName;
-              }
-              const newRaw = matter.stringify(parsed.content, updatedData);
-              fs.writeFileSync(filepath, newRaw, 'utf-8');
-              updatedCount++;
-            }
-          } catch (fileErr) {
-            console.warn(`Error updating project in task file ${file}:`, fileErr);
-          }
+        const updatedData: Record<string, any> = { ...data, project: cleanNew };
+        if (newProject.areaName) {
+          updatedData.area = newProject.areaName;
         }
-      }
+        return updatedData;
+      });
     } catch (err) {
       console.error('Error scanning task files during project rename:', err);
     }
