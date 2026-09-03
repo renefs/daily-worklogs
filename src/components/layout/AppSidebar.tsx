@@ -148,8 +148,7 @@ export const AppSidebar: React.FC = () => {
   };
 
   // Render Collapsed Slim Rail (58px)
-  const isEffectiveCollapsed = isSidebarCollapsed || currentView === 'task';
-  if (isEffectiveCollapsed) {
+  if (isSidebarCollapsed) {
     return (
       <div
         style={{

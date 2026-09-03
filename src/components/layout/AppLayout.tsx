@@ -75,8 +75,7 @@ export const AppLayout: React.FC = () => {
     );
   }
 
-  const isEffectiveCollapsed = isSidebarCollapsed || currentView === 'task';
-  const sidebarWidth = isEffectiveCollapsed ? 58 : 280;
+  const sidebarWidth = isSidebarCollapsed ? 58 : 280;
 
   return (
     <AppShell

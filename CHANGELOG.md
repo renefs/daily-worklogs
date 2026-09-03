@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-09-03
+
+### Fixed
+- **Task Sidebar Expansion**: The sidebar can now be expanded while editing a task and restores its previous collapsed state when leaving the task editor.
+
 ## [1.9.0] - 2026-09-02
 
 ### Added
