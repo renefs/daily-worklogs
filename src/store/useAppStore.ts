@@ -39,7 +39,6 @@ interface AppState {
   isLoading: boolean;
   isOnboardingOpen: boolean;
   isSidebarCollapsed: boolean;
-  sidebarCollapsedBeforeTask: boolean | null;
 
   // Tasks state
   tasks: TaskMeta[];
@@ -156,7 +155,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   isLoading: true,
   isOnboardingOpen: false,
   isSidebarCollapsed: false,
-  sidebarCollapsedBeforeTask: null,
 
   tasks: [],
   activeTask: null,
@@ -299,17 +297,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   setCurrentView: (view: AppViewMode) => {
-    const state = get();
-    const isLeavingTask = state.currentView === 'task' && view !== 'task';
-    set({
-      currentView: view,
-      ...(isLeavingTask && state.sidebarCollapsedBeforeTask !== null
-        ? {
-            isSidebarCollapsed: state.sidebarCollapsedBeforeTask,
-            sidebarCollapsedBeforeTask: null,
-          }
-        : {}),
-    });
+    set({ currentView: view });
   },
 
   loadNoteForDate: async (date: string) => {
@@ -797,9 +785,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   openTaskEditor: async (task = null, defaultStatus = 'todo', returnView) => {
     const current = get().currentView;
     const prev = returnView || (current === 'task' ? get().previousView : current);
-    const sidebarCollapsedBeforeTask = current === 'task'
-      ? get().sidebarCollapsedBeforeTask
-      : get().isSidebarCollapsed;
     const detailedTask = task && 'content' in task
       ? task
       : task?.filename && window.electronAPI
@@ -811,22 +796,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       isTaskModalOpen: false,
       previousView: prev,
       currentView: 'task',
-      isSidebarCollapsed: true,
-      sidebarCollapsedBeforeTask,
       isTaskDirty: false,
     });
   },
 
   closeTaskEditor: () => {
-    const state = get();
-    const prev = state.previousView || 'tasks';
+    const prev = get().previousView || 'tasks';
     set({
       currentView: prev,
       activeTask: null,
-      ...(state.sidebarCollapsedBeforeTask !== null
-        ? { isSidebarCollapsed: state.sidebarCollapsedBeforeTask }
-        : {}),
-      sidebarCollapsedBeforeTask: null,
       isTaskDirty: false,
     });
   },
