@@ -452,17 +452,15 @@ export const TaskView: React.FC = () => {
 
   return (
     <div className="task-view-container">
-      {/* 1. UNIFIED SINGLE HEADER BAR */}
+      {/* Compact task header: title first, supporting controls second */}
       <div className="task-header-unified">
-        <Group justify="space-between" align="center" wrap="nowrap" gap="xs">
-          {/* Left: Back Button + Task ID Badge + Editable Title */}
-          <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+        <div className="task-header-primary">
+          <div className="task-header-title-group">
             <Tooltip label={t('tasks.backToTasks', 'Back to Tasks')} withArrow>
-              <Button
+              <ActionIcon
                 variant="subtle"
                 color="gray"
-                size="xs"
-                leftSection={<IconArrowLeft size={16} />}
+                size="md"
                 onClick={() => {
                   if (isDirty) {
                     handleSave();
@@ -470,13 +468,12 @@ export const TaskView: React.FC = () => {
                   closeTaskEditor();
                 }}
                 radius="md"
-                style={{ flexShrink: 0, fontWeight: 600 }}
+                aria-label={t('tasks.backToTasks', 'Back to Tasks')}
               >
-                {t('tasks.backToTasks', 'Back to Tasks')}
-              </Button>
+                <IconArrowLeft size={18} />
+              </ActionIcon>
             </Tooltip>
 
-            {/* Task #ID Badge */}
             {activeTask && (activeTask.taskId !== undefined || activeTask.id) && (
               <Tooltip
                 label={
@@ -490,13 +487,13 @@ export const TaskView: React.FC = () => {
                 <Badge
                   variant="light"
                   color="gray"
-                  size="md"
+                  size="sm"
                   radius="sm"
                   style={{
                     flexShrink: 0,
                     fontFamily: 'var(--font-mono)',
                     fontWeight: 700,
-                    fontSize: 13,
+                    fontSize: 12,
                     cursor: 'default',
                   }}
                 >
@@ -514,25 +511,96 @@ export const TaskView: React.FC = () => {
               }}
               placeholder={t('tasks.titlePlaceholder', 'What needs to be done?')}
               variant="unstyled"
-              style={{ flex: 1, minWidth: 120 }}
+              className="task-title-input"
               styles={{
                 input: {
-                  fontSize: 18,
+                  fontSize: 20,
                   fontWeight: 750,
                   letterSpacing: '-0.02em',
                   fontFamily: 'var(--font-display)',
                   color: isDark ? 'var(--mantine-color-white)' : 'var(--mantine-color-dark-9)',
-                  padding: '2px 6px',
+                  padding: '2px 4px',
                   height: 'auto',
                   textDecoration: isClosed ? 'line-through' : 'none',
                   opacity: isClosed ? 0.85 : 1,
                 },
               }}
             />
-          </Group>
+          </div>
 
-          {/* Right: Quick Status Action, Save Indicator, Layout Modes, Properties Toggle & 3-dots */}
-          <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
+          <Group gap={6} wrap="nowrap" className="task-header-primary-actions">
+            {/* Save status stays visible without competing with the title. */}
+            {isSaving ? (
+              <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+                {t('editor.saving')}
+              </Text>
+            ) : isDirty ? (
+              <Badge color="yellow" variant="light" size="xs">
+                {t('editor.unsaved')}
+              </Badge>
+            ) : (
+              <Tooltip label={t('editor.saved')} withArrow>
+                <span className="task-save-indicator">
+                  <IconCheck size={16} stroke={2.2} />
+                </span>
+              </Tooltip>
+            )}
+
+            <Tooltip label={t('tasks.toggleProperties', 'Task Properties')} withArrow>
+              <ActionIcon
+                variant={isTaskPropertiesPanelOpen ? 'light' : 'subtle'}
+                color={isTaskPropertiesPanelOpen ? 'primary' : 'gray'}
+                size="md"
+                radius="md"
+                onClick={toggleTaskPropertiesPanel}
+              >
+                {isTaskPropertiesPanelOpen ? (
+                  <IconLayoutSidebarRightCollapse size={17} />
+                ) : (
+                  <IconLayoutSidebarRight size={17} />
+                )}
+              </ActionIcon>
+            </Tooltip>
+
+            {/* 3-Dots More Actions Menu */}
+            <Menu position="bottom-end" shadow="md" width={200} withinPortal>
+              <Menu.Target>
+                <ActionIcon variant="subtle" size="md" color="gray" radius="md">
+                  <IconDotsVertical size={16} />
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item leftSection={<IconCalendarPlus size={15} />} onClick={handleLogToDaily} disabled={isLogging}>
+                  {t('tasks.logToDailyNote')}
+                </Menu.Item>
+                <Menu.Item leftSection={<IconFileExport size={15} />} onClick={() => setIsExportModalOpen(true)}>
+                  {t('editor.exportNote')}
+                </Menu.Item>
+                {window.electronAPI && activeTask?.filepath && (
+                  <Menu.Item leftSection={<IconFolderOpen size={15} />} onClick={handleOpenFileInFileManager}>
+                    {t('tasks.openInFileManager')}
+                  </Menu.Item>
+                )}
+                {isCompleted ? (
+                  <Menu.Item leftSection={<IconRotateClockwise size={15} />} onClick={() => handleStatusChange(availableColumns[0]?.id || 'todo')}>
+                    {t('tasks.reopenTask', 'Reopen Task')}
+                  </Menu.Item>
+                ) : (
+                  <Menu.Item leftSection={<IconCheck size={15} />} color="teal" onClick={() => handleStatusChange('done')}>
+                    {t('tasks.markAsCompleted', 'Mark as Done')}
+                  </Menu.Item>
+                )}
+                <Menu.Divider />
+                <Menu.Item color="red" leftSection={<IconTrash size={15} />} onClick={() => setIsDeleteModalOpen(true)}>
+                  {t('tasks.deleteTask')}
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          </Group>
+        </div>
+
+        <div className="task-header-secondary">
+          <div className="task-metadata-strip">
             {/* Quick Contextual Status Badge / Reopen Action */}
             {isClosed ? (
               <Button
@@ -582,25 +650,40 @@ export const TaskView: React.FC = () => {
               </Menu>
             )}
 
-            {/* Discrete Save Status Indicator */}
-            {isSaving ? (
-              <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
-                {t('editor.saving')}
-              </Text>
-            ) : isDirty ? (
-              <Badge color="yellow" variant="light" size="xs">
-                {t('editor.unsaved')}
-              </Badge>
-            ) : (
-              <Group gap={4} wrap="nowrap" style={{ color: 'var(--mantine-color-teal-filled)' }}>
-                <IconCheck size={14} stroke={2.2} />
-                <Text size="xs" c="teal.7" fw={500} style={{ whiteSpace: 'nowrap' }}>
-                  {t('editor.saved')}
-                </Text>
-              </Group>
+            <span className="task-metadata-separator">•</span>
+            <span className="task-metadata-item">
+              <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: `var(--mantine-color-${currentPriorityObj.color}-filled)` }} />
+              <Text size="xs" c="dimmed">{currentPriorityObj.label}</Text>
+            </span>
+
+            {area && (
+              <>
+                <span className="task-metadata-separator">•</span>
+                <span className="task-metadata-item">
+                  <IconFolder size={13} style={{ color: `var(--mantine-color-${currentAreaColor}-filled)` }} />
+                  <Text size="xs" fw={500} style={{ color: 'var(--app-text-secondary)' }}>{area}</Text>
+                </span>
+              </>
             )}
 
-            {/* Layout Mode Switcher */}
+            {project && <Badge size="xs" color={currentProjectColor} variant="light" radius="sm">{project}</Badge>}
+            {dateRangeStr && (
+              <span className="task-metadata-item">
+                <IconCalendar size={13} />
+                <Text size="xs" c="dimmed">{dateRangeStr}</Text>
+              </span>
+            )}
+            {resolvedInheritedContext.allEffectiveTags.length > 0 && (
+              <Group gap={2} wrap="nowrap" className="task-header-tags">
+                {resolvedInheritedContext.allEffectiveTags.slice(0, 2).map((tag) => (
+                  <Badge key={tag} size="xs" color="gray" variant="subtle">#{tag}</Badge>
+                ))}
+                {resolvedInheritedContext.allEffectiveTags.length > 2 && <Text size="xs" c="dimmed">+{resolvedInheritedContext.allEffectiveTags.length - 2}</Text>}
+              </Group>
+            )}
+          </div>
+
+          <div className="task-header-view-modes">
             <SegmentedControl
               value={taskEditorLayoutMode}
               onChange={(val) => setTaskEditorLayoutMode(val as any)}
@@ -647,170 +730,7 @@ export const TaskView: React.FC = () => {
                 },
               ]}
             />
-
-            {/* Properties Inspector Toggle */}
-            <Tooltip label={t('tasks.toggleProperties', 'Task Properties')} withArrow>
-              <ActionIcon
-                variant={isTaskPropertiesPanelOpen ? 'light' : 'default'}
-                color={isTaskPropertiesPanelOpen ? 'primary' : 'gray'}
-                size="md"
-                radius="md"
-                onClick={toggleTaskPropertiesPanel}
-              >
-                {isTaskPropertiesPanelOpen ? (
-                  <IconLayoutSidebarRightCollapse size={17} />
-                ) : (
-                  <IconLayoutSidebarRight size={17} />
-                )}
-              </ActionIcon>
-            </Tooltip>
-
-            {/* 3-Dots More Actions Menu */}
-            <Menu position="bottom-end" shadow="md" width={200} withinPortal>
-              <Menu.Target>
-                <ActionIcon variant="subtle" size="md" color="gray" radius="md">
-                  <IconDotsVertical size={16} />
-                </ActionIcon>
-              </Menu.Target>
-              <Menu.Dropdown>
-                <Menu.Item
-                  leftSection={<IconCalendarPlus size={15} />}
-                  onClick={handleLogToDaily}
-                  disabled={isLogging}
-                >
-                  {t('tasks.logToDailyNote')}
-                </Menu.Item>
-                <Menu.Item
-                  leftSection={<IconFileExport size={15} />}
-                  onClick={() => setIsExportModalOpen(true)}
-                >
-                  {t('editor.exportNote')}
-                </Menu.Item>
-                {window.electronAPI && activeTask?.filepath && (
-                  <Menu.Item
-                    leftSection={<IconFolderOpen size={15} />}
-                    onClick={handleOpenFileInFileManager}
-                  >
-                    {t('tasks.openInFileManager')}
-                  </Menu.Item>
-                )}
-                {isCompleted ? (
-                  <Menu.Item
-                    leftSection={<IconRotateClockwise size={15} />}
-                    onClick={() => handleStatusChange(availableColumns[0]?.id || 'todo')}
-                  >
-                    {t('tasks.reopenTask', 'Reopen Task')}
-                  </Menu.Item>
-                ) : (
-                  <Menu.Item
-                    leftSection={<IconCheck size={15} />}
-                    color="teal"
-                    onClick={() => handleStatusChange('done')}
-                  >
-                    {t('tasks.markAsCompleted', 'Mark as Done')}
-                  </Menu.Item>
-                )}
-                <Menu.Divider />
-                <Menu.Item
-                  color="red"
-                  leftSection={<IconTrash size={15} />}
-                  onClick={() => setIsDeleteModalOpen(true)}
-                >
-                  {t('tasks.deleteTask')}
-                </Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
-          </Group>
-        </Group>
-
-        {/* 2. METADATA SUMMARY STRIP (Single Line Below Title) */}
-        <div className="task-metadata-strip">
-          {/* Status Indicator */}
-          <span className="task-metadata-item">
-            <span
-              style={{
-                width: 7,
-                height: 7,
-                borderRadius: '50%',
-                backgroundColor: `var(--mantine-color-${currentStatusObj?.color || 'blue'}-filled)`,
-              }}
-            />
-            <Text size="xs" fw={600} style={{ color: 'var(--app-text-primary)' }}>
-              {currentStatusObj?.label || status}
-            </Text>
-          </span>
-
-          <span className="task-metadata-separator">•</span>
-
-          {/* Priority */}
-          <span className="task-metadata-item">
-            <span
-              style={{
-                width: 7,
-                height: 7,
-                borderRadius: '50%',
-                backgroundColor: `var(--mantine-color-${currentPriorityObj.color}-filled)`,
-              }}
-            />
-            <Text size="xs" c="dimmed">
-              {currentPriorityObj.label}
-            </Text>
-          </span>
-
-          {/* Area / Service */}
-          {area && (
-            <>
-              <span className="task-metadata-separator">•</span>
-              <span className="task-metadata-item">
-                <IconFolder size={13} style={{ color: `var(--mantine-color-${currentAreaColor}-filled)` }} />
-                <Text size="xs" fw={500} style={{ color: 'var(--app-text-secondary)' }}>
-                  {area}
-                </Text>
-              </span>
-            </>
-          )}
-
-          {/* Project */}
-          {project && (
-            <>
-              <span className="task-metadata-separator">•</span>
-              <Badge size="xs" color={currentProjectColor} variant="light" radius="sm">
-                {project}
-              </Badge>
-            </>
-          )}
-
-          {/* Date range */}
-          {dateRangeStr && (
-            <>
-              <span className="task-metadata-separator">•</span>
-              <span className="task-metadata-item">
-                <IconCalendar size={13} style={{ color: 'var(--app-sidebar-text-dimmed)' }} />
-                <Text size="xs" c="dimmed">
-                  {dateRangeStr}
-                </Text>
-              </span>
-            </>
-          )}
-
-          {/* Tags & Inherited Context */}
-          {resolvedInheritedContext.allEffectiveTags.length > 0 && (
-            <>
-              <span className="task-metadata-separator">•</span>
-              <Group gap={4} wrap="nowrap">
-                {resolvedInheritedContext.allEffectiveTags.slice(0, 3).map((tg) => (
-                  <Badge key={tg} size="xs" color="gray" variant="subtle" style={{ padding: '0 4px', fontSize: 11 }}>
-                    #{tg}
-                  </Badge>
-                ))}
-                {resolvedInheritedContext.allEffectiveTags.length > 3 && (
-                  <Text size="xs" c="dimmed">
-                    +{resolvedInheritedContext.allEffectiveTags.length - 3}
-                  </Text>
-                )}
-              </Group>
-            </>
-          )}
+          </div>
         </div>
       </div>
 
