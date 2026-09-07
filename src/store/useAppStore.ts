@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
+import React from 'react';
+import { notifications } from '@mantine/notifications';
+import { IconCheck } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import { AppSettings, AppViewMode, AreaDefinition, DailyNote, DailyNoteMeta, DailyRoutine, DEFAULT_KANBAN_COLUMNS, ProjectDefinition, TagDefinition, TaskItem, TaskMeta, TaskPriority, TaskStatus } from '../types';
@@ -71,7 +74,7 @@ interface AppState {
   setCurrentView: (view: AppViewMode) => void;
   loadNoteForDate: (date: string) => Promise<void>;
   setNoteContent: (content: string) => void;
-  saveActiveNote: () => Promise<void>;
+  saveActiveNote: (options?: { showNotification?: boolean; force?: boolean }) => Promise<void>;
   handleExternalNoteChange: (change: { date: string; content: string; lastModified?: string; exists: boolean }) => void;
   acceptExternalNote: () => void;
   keepLocalNote: () => Promise<void>;
@@ -330,17 +333,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
 
-  saveActiveNote: async () => {
+  saveActiveNote: async (options?: { showNotification?: boolean; force?: boolean }) => {
     const { activeNote, isSaving } = get();
     if (!activeNote || !window.electronAPI || isSaving) return;
 
     set({ isSaving: true });
+    let savedSuccessfully = false;
+    let savedDate = activeNote.date;
     try {
       let noteToSave: DailyNote | null = activeNote;
       while (noteToSave) {
         const savingRevision = noteEditRevision;
         const res = await window.electronAPI.writeNote(noteToSave.date, noteToSave.content);
         if (!res.success) break;
+        savedSuccessfully = true;
+        savedDate = noteToSave.date;
 
         const current = get().activeNote;
         if (!current || current.date !== noteToSave.date) break;
@@ -359,6 +366,21 @@ export const useAppStore = create<AppState>((set, get) => ({
         noteToSave = get().activeNote;
       }
       await get().refreshNotesList();
+
+      if (options?.showNotification && savedSuccessfully) {
+        try {
+          notifications.show({
+            id: 'note-saved',
+            title: i18n.t('editor.noteSaved') || 'Note saved successfully',
+            message: `${savedDate}.md`,
+            color: 'teal',
+            icon: React.createElement(IconCheck, { size: 16 }),
+            autoClose: 2000,
+          });
+        } catch {
+          // ignore in non-browser environments
+        }
+      }
     } catch (err) {
       console.error('Failed to save note:', err);
     } finally {

@@ -279,7 +279,7 @@ export const TaskView: React.FC = () => {
     }
   };
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (options?: { showNotification?: boolean }) => {
     if (isSavingRef.current) return null;
 
     const savingDraftSignature = draftSignature;
@@ -309,10 +309,28 @@ export const TaskView: React.FC = () => {
 
       if (result) {
         setIsDirty(latestDraftSignatureRef.current !== savingDraftSignature);
+        if (options?.showNotification) {
+          notifications.show({
+            id: 'task-saved',
+            title: t('tasks.taskSaved') || 'Task saved successfully!',
+            message: result.title || trimmedTitle,
+            color: 'teal',
+            icon: <IconCheck size={16} />,
+            autoClose: 2000,
+          });
+        }
       }
       return result;
     } catch (err) {
       console.error('Failed to save task from TaskView:', err);
+      if (options?.showNotification) {
+        notifications.show({
+          id: 'task-save-error',
+          title: t('common.error') || 'Error',
+          message: t('tasks.errorSaving') || 'Failed to save task',
+          color: 'red',
+        });
+      }
       return null;
     } finally {
       isSavingRef.current = false;
@@ -346,6 +364,17 @@ export const TaskView: React.FC = () => {
     }, settings.autoSaveDelay || 1000);
     return () => clearTimeout(timer);
   }, [isDirty, isSaving, settings?.autoSave, settings?.autoSaveDelay, handleSave]);
+
+  // Listen to global app save trigger (Cmd+S, File -> Save menu)
+  useEffect(() => {
+    const handleAppSave = () => {
+      void handleSave({ showNotification: true });
+    };
+    window.addEventListener('app:save', handleAppSave);
+    return () => {
+      window.removeEventListener('app:save', handleAppSave);
+    };
+  }, [handleSave]);
 
   const handleLogToDaily = async () => {
     if (!activeTask && !title.trim()) return;

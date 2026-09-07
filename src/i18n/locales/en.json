@@ -122,6 +122,8 @@
     "write": "Code",
     "live": "Live",
     "saved": "All changes saved",
+    "noteSaved": "Note saved successfully",
+    "fileSaved": "File saved successfully",
     "saving": "Saving...",
     "unsaved": "Unsaved changes",
     "newNoteNotice": "This note has not been created on disk yet. It will be saved automatically when you write.",

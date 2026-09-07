@@ -7,7 +7,9 @@ import {
   Text,
 } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
-import { useAppStoreSelector } from '../../store/useAppStore';
+import { notifications } from '@mantine/notifications';
+import { IconCheck } from '@tabler/icons-react';
+import { useAppStore, useAppStoreSelector } from '../../store/useAppStore';
 import { AppHeader } from './AppHeader';
 import { AppSidebar } from './AppSidebar';
 
@@ -61,6 +63,52 @@ export const AppLayout: React.FC = () => {
       return unsub;
     }
   }, [openSettings]);
+
+  useEffect(() => {
+    let lastSaveTime = 0;
+    const handleAppSave = () => {
+      const now = Date.now();
+      if (now - lastSaveTime < 300) return;
+      lastSaveTime = now;
+
+      const state = useAppStore.getState();
+      // If we are currently in task view, TaskView handles its own save
+      if (state.currentView === 'task') return;
+
+      if (state.activeNote) {
+        void state.saveActiveNote({ showNotification: true, force: true });
+      } else {
+        notifications.show({
+          id: 'changes-saved',
+          title: t('editor.saved', 'All changes saved'),
+          message: t('editor.fileSaved', 'File saved successfully'),
+          color: 'teal',
+          icon: <IconCheck size={16} />,
+          autoClose: 2000,
+        });
+      }
+    };
+
+    window.addEventListener('app:save', handleAppSave);
+
+    const unsubTriggerSave = window.electronAPI?.onTriggerSave?.(() => {
+      window.dispatchEvent(new CustomEvent('app:save'));
+    });
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('app:save'));
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('app:save', handleAppSave);
+      window.removeEventListener('keydown', handleKeyDown);
+      unsubTriggerSave?.();
+    };
+  }, [t]);
 
   if (isLoading) {
     return (

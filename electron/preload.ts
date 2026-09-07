@@ -78,4 +78,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.removeListener('open-settings', handler);
     };
   },
+  onTriggerSave: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('trigger-save', handler);
+    return () => {
+      ipcRenderer.removeListener('trigger-save', handler);
+    };
+  },
 });

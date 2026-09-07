@@ -41,7 +41,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppStoreSelector } from '../../store/useAppStore';
 import { formatTemplateContent } from '../../utils/dateTemplate';
 
-import { EditorView } from '@codemirror/view';
+import { EditorView, keymap } from '@codemirror/view';
 import { liveMarkdownExtension } from './liveMarkdownExtension';
 import { createTagAutocompleteExtension } from './tagAutocompleteExtension';
 
@@ -328,6 +328,15 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       syntaxHighlighting(editorHighlightStyle, { fallback: true }),
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       createTagAutocompleteExtension(() => allTagsRef.current),
+      keymap.of([
+        {
+          key: 'Mod-s',
+          run: () => {
+            window.dispatchEvent(new CustomEvent('app:save'));
+            return true;
+          },
+        },
+      ]),
       EditorView.lineWrapping,
     ];
     if (isLivePreview) {
@@ -470,7 +479,21 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                 <Menu.Dropdown>
                   <Menu.Item
                     leftSection={<IconDeviceFloppy size={14} />}
-                    onClick={effectiveOnSave}
+                    onClick={async () => {
+                      if (isControlled) {
+                        await effectiveOnSave();
+                        notifications.show({
+                          id: 'manual-save',
+                          title: t('editor.saved') || 'All changes saved',
+                          message: t('editor.fileSaved') || 'File saved successfully',
+                          color: 'teal',
+                          icon: <IconCheck size={16} />,
+                          autoClose: 2000,
+                        });
+                      } else {
+                        window.dispatchEvent(new CustomEvent('app:save'));
+                      }
+                    }}
                     disabled={!effectiveIsDirty}
                   >
                     {t('common.save')}

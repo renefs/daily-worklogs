@@ -105,6 +105,7 @@ export interface ElectronAPI {
   onNoteFileChanged: (callback: (data: { date: string; content: string; lastModified?: string; exists: boolean }) => void) => () => void;
   onVaultFilesChanged: (callback: (data: { relativePath: string }) => void) => () => void;
   onOpenSettings?: (callback: (tab?: string) => void) => () => void;
+  onTriggerSave?: (callback: () => void) => () => void;
 }
 
 declare global {

@@ -122,6 +122,8 @@
     "write": "Código",
     "live": "En vivo",
     "saved": "Cambios guardados",
+    "noteSaved": "Nota guardada con éxito",
+    "fileSaved": "Archivo guardado con éxito",
     "saving": "Guardando...",
     "unsaved": "Cambios sin guardar",
     "newNoteNotice": "Esta nota aún no existe en el disco. Se creará automáticamente al escribir.",

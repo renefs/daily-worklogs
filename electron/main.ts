@@ -722,10 +722,20 @@ function setupApplicationMenu() {
       label: 'File',
       submenu: [
         {
+          label: 'Save',
+          accelerator: 'CmdOrCtrl+S',
+          click: () => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('trigger-save');
+            }
+          },
+        },
+        { type: 'separator' as const },
+        {
           label: 'Preferences...',
           accelerator: 'CmdOrCtrl+,',
           click: () => {
-            if (mainWindow) {
+            if (mainWindow && !mainWindow.isDestroyed()) {
               mainWindow.webContents.send('open-settings');
             }
           },

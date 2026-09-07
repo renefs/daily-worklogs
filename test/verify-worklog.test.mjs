@@ -1075,6 +1075,25 @@ assert.strictEqual(parsedB.data.id, 5, 'Next unassigned task should be assigned 
 
 console.log('✓ Automatic sequential task IDs (GitHub-style #1, #2...) parsing, auto-assignment, and persistence tests passed');
 
+// 19. Application Menu and Save Shortcut & Notification Verification
+const mainTsPath = path.resolve('electron/main.ts');
+const mainTsContent = fs.readFileSync(mainTsPath, 'utf-8');
+assert.strictEqual(
+  mainTsContent.includes("label: 'Save'") && mainTsContent.includes("accelerator: 'CmdOrCtrl+S'"),
+  true,
+  'Application File menu must include Save option with CmdOrCtrl+S accelerator'
+);
+
+const enJson = JSON.parse(fs.readFileSync(path.resolve('src/i18n/locales/en.json'), 'utf-8'));
+const esJson = JSON.parse(fs.readFileSync(path.resolve('src/i18n/locales/es.json'), 'utf-8'));
+assert.strictEqual(typeof enJson.editor?.noteSaved, 'string', 'en.json must have editor.noteSaved');
+assert.strictEqual(typeof esJson.editor?.noteSaved, 'string', 'es.json must have editor.noteSaved');
+assert.strictEqual(typeof enJson.editor?.fileSaved, 'string', 'en.json must have editor.fileSaved');
+assert.strictEqual(typeof esJson.editor?.fileSaved, 'string', 'es.json must have editor.fileSaved');
+assert.strictEqual(typeof enJson.tasks?.taskSaved, 'string', 'en.json must have tasks.taskSaved');
+assert.strictEqual(typeof esJson.tasks?.taskSaved, 'string', 'es.json must have tasks.taskSaved');
+console.log('✓ File -> Save application menu item and save notification translations verified');
+
 // Cleanup
 fs.rmSync(testVault, { recursive: true });
 if (fs.existsSync(sharedCloudVault)) fs.rmSync(sharedCloudVault, { recursive: true });
