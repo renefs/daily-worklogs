@@ -31,7 +31,7 @@ This document defines the architecture, design principles, domain models, techno
 | **State Management** | Zustand 5 (with persistent store and reactive auto-save) |
 | **Internationalization** | `i18next`, `react-i18next` (Translations in `src/i18n/locales/`) |
 | **Date Manipulation** | `dayjs` |
-| **Testing** | Node.js native test runner (`test/verify-worklog.test.mjs`), TypeScript compiler verification (`tsc --noEmit`) |
+| **Testing** | Vitest 5, React Testing Library, Node.js test runner (`test/verify-worklog.test.mjs`), TypeScript compiler verification (`tsc --noEmit`) |
 
 ---
 
