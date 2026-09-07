@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-09-07
+
+### Added
+- **Global Save & Shortcut Support**: Implemented manual save functionality accessible via `Cmd+S` / `Ctrl+S`, the application `File -> Save` menu item, and an IPC bridge to persist daily notes and task drafts immediately.
+- **Save Feedback Notifications**: Added localized toast notifications confirming successful note and task saves along with error reporting.
+
+### Changed
+- **Task Header Layout**: Enhanced task editor header layout and styling for improved usability and alignment.
+
 ## [1.9.1] - 2026-09-03
 
 ### Fixed
