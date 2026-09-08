@@ -7,8 +7,6 @@ import {
   Text,
 } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
-import { notifications } from '@mantine/notifications';
-import { IconCheck } from '@tabler/icons-react';
 import { useAppStore, useAppStoreSelector } from '../../store/useAppStore';
 import { AppHeader } from './AppHeader';
 import { AppSidebar } from './AppSidebar';
@@ -76,16 +74,7 @@ export const AppLayout: React.FC = () => {
       if (state.currentView === 'task') return;
 
       if (state.activeNote) {
-        void state.saveActiveNote({ showNotification: true, force: true });
-      } else {
-        notifications.show({
-          id: 'changes-saved',
-          title: t('editor.saved', 'All changes saved'),
-          message: t('editor.fileSaved', 'File saved successfully'),
-          color: 'teal',
-          icon: <IconCheck size={16} />,
-          autoClose: 2000,
-        });
+        void state.saveActiveNote({ force: true });
       }
     };
 

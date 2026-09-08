@@ -1,8 +1,6 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import React from 'react';
 import { notifications } from '@mantine/notifications';
-import { IconCheck } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import { AppSettings, AppViewMode, AreaDefinition, DailyNote, DailyNoteMeta, DailyRoutine, DEFAULT_KANBAN_COLUMNS, ProjectDefinition, TagDefinition, TaskItem, TaskMeta, TaskPriority, TaskStatus } from '../types';
@@ -35,6 +33,7 @@ interface AppState {
   activeNote: DailyNote | null;
   isSaving: boolean;
   isDirty: boolean;
+  noteSaveError: string | null;
   externalNoteConflict: { date: string; content: string; lastModified?: string; exists: boolean } | null;
   notesList: DailyNoteMeta[];
   isSettingsOpen: boolean;
@@ -74,7 +73,7 @@ interface AppState {
   setCurrentView: (view: AppViewMode) => void;
   loadNoteForDate: (date: string) => Promise<void>;
   setNoteContent: (content: string) => void;
-  saveActiveNote: (options?: { showNotification?: boolean; force?: boolean }) => Promise<void>;
+  saveActiveNote: (options?: { force?: boolean }) => Promise<void>;
   handleExternalNoteChange: (change: { date: string; content: string; lastModified?: string; exists: boolean }) => void;
   acceptExternalNote: () => void;
   keepLocalNote: () => Promise<void>;
@@ -151,6 +150,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeNote: null,
   isSaving: false,
   isDirty: false,
+  noteSaveError: null,
   externalNoteConflict: null,
   notesList: [],
   isSettingsOpen: false,
@@ -307,7 +307,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!window.electronAPI) return;
     try {
       const note = await window.electronAPI.readNote(date);
-      if (get().selectedDate === date) set({ activeNote: note, isDirty: false });
+      if (get().selectedDate === date) set({ activeNote: note, isDirty: false, noteSaveError: null });
     } catch (err) {
       console.error('Failed to read note:', err);
     }
@@ -333,21 +333,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
 
-  saveActiveNote: async (options?: { showNotification?: boolean; force?: boolean }) => {
+  saveActiveNote: async (_options?: { force?: boolean }) => {
     const { activeNote, isSaving } = get();
     if (!activeNote || !window.electronAPI || isSaving) return;
 
-    set({ isSaving: true });
-    let savedSuccessfully = false;
-    let savedDate = activeNote.date;
+    set({ isSaving: true, noteSaveError: null });
     try {
       let noteToSave: DailyNote | null = activeNote;
       while (noteToSave) {
         const savingRevision = noteEditRevision;
         const res = await window.electronAPI.writeNote(noteToSave.date, noteToSave.content);
-        if (!res.success) break;
-        savedSuccessfully = true;
-        savedDate = noteToSave.date;
+        if (!res.success) throw new Error('The note could not be written to disk');
 
         const current = get().activeNote;
         if (!current || current.date !== noteToSave.date) break;
@@ -366,23 +362,22 @@ export const useAppStore = create<AppState>((set, get) => ({
         noteToSave = get().activeNote;
       }
       await get().refreshNotesList();
-
-      if (options?.showNotification && savedSuccessfully) {
-        try {
-          notifications.show({
-            id: 'note-saved',
-            title: i18n.t('editor.noteSaved') || 'Note saved successfully',
-            message: `${savedDate}.md`,
-            color: 'teal',
-            icon: React.createElement(IconCheck, { size: 16 }),
-            autoClose: 2000,
-          });
-        } catch {
-          // ignore in non-browser environments
-        }
-      }
+      notifications.hide('note-save-error');
     } catch (err) {
       console.error('Failed to save note:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown save error';
+      set({ noteSaveError: errorMessage, isDirty: true });
+      try {
+        notifications.show({
+          id: 'note-save-error',
+          title: i18n.t('editor.saveFailed') || 'The note could not be saved',
+          message: i18n.t('editor.saveFailedDescription') || 'Your changes are still available. Try saving again.',
+          color: 'red',
+          autoClose: false,
+        });
+      } catch {
+        // ignore in non-browser environments
+      }
     } finally {
       set({ isSaving: false });
     }
@@ -405,6 +400,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         lastModified: change.lastModified,
       },
       isDirty: false,
+      noteSaveError: null,
       externalNoteConflict: null,
     });
   },
@@ -421,6 +417,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         lastModified: externalNoteConflict.lastModified,
       },
       isDirty: false,
+      noteSaveError: null,
       externalNoteConflict: null,
     });
   },

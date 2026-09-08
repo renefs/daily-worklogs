@@ -599,6 +599,24 @@ textarea {
   height: 26px;
 }
 
+.note-save-status {
+  min-width: 22px;
+  min-height: 26px;
+  color: var(--app-text-secondary);
+}
+
+.note-save-status-label {
+  white-space: nowrap;
+}
+
+.note-save-status-unsaved {
+  color: var(--mantine-color-yellow-6);
+}
+
+.note-save-status-saved {
+  color: var(--mantine-color-teal-filled);
+}
+
 .task-metadata-strip {
   display: flex;
   align-items: center;

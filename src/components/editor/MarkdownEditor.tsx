@@ -14,6 +14,7 @@ import {
   Menu,
   Button,
   Text,
+  Loader,
   SegmentedControl,
   useComputedColorScheme,
 } from '@mantine/core';
@@ -35,6 +36,8 @@ import {
   IconFileExport,
   IconPhoto,
   IconDotsVertical,
+  IconAlertCircle,
+  IconCircleFilled,
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
@@ -90,6 +93,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   content,
   onChange,
   onSave,
+  isSaving: customIsSaving,
   isDirty: customIsDirty,
   onExportClick,
   onDeleteClick,
@@ -110,7 +114,9 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     activeNote,
     setNoteContent,
     saveActiveNote,
+    isSaving: storeIsSaving,
     isDirty: storeIsDirty,
+    noteSaveError,
     settings,
     selectedDate,
     allTags,
@@ -118,7 +124,9 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     activeNote: state.activeNote,
     setNoteContent: state.setNoteContent,
     saveActiveNote: state.saveActiveNote,
+    isSaving: state.isSaving,
     isDirty: state.isDirty,
+    noteSaveError: state.noteSaveError,
     settings: state.settings,
     selectedDate: state.selectedDate,
     allTags: state.allTags,
@@ -128,7 +136,21 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const effectiveContent = isControlled ? content : activeNote?.content || '';
   const effectiveOnChange = isControlled ? (onChange || (() => {})) : setNoteContent;
   const effectiveOnSave = isControlled ? (onSave || (() => {})) : saveActiveNote;
+  const effectiveIsSaving = customIsSaving !== undefined ? customIsSaving : storeIsSaving;
   const effectiveIsDirty = customIsDirty !== undefined ? customIsDirty : storeIsDirty;
+  const effectiveSaveError = isControlled ? null : noteSaveError;
+  const [showSavedConfirmation, setShowSavedConfirmation] = React.useState(false);
+  const wasSavingRef = useRef(false);
+
+  useEffect(() => {
+    const saveJustFinished = wasSavingRef.current && !effectiveIsSaving;
+    wasSavingRef.current = effectiveIsSaving;
+    if (!saveJustFinished || effectiveIsDirty || effectiveSaveError) return;
+
+    setShowSavedConfirmation(true);
+    const timer = window.setTimeout(() => setShowSavedConfirmation(false), 2000);
+    return () => window.clearTimeout(timer);
+  }, [effectiveIsDirty, effectiveIsSaving, effectiveSaveError]);
 
   const allTagsRef = useRef(allTags);
   useEffect(() => {
@@ -468,6 +490,45 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                   ]}
                 />
               )}
+
+              <Group gap={5} wrap="nowrap" role="status" aria-live="polite" className="note-save-status">
+                {effectiveSaveError ? (
+                  <Button
+                    variant="subtle"
+                    color="red"
+                    size="compact-xs"
+                    leftSection={<IconAlertCircle size={14} />}
+                    onClick={() => void effectiveOnSave()}
+                  >
+                    {t('editor.retrySave')}
+                  </Button>
+                ) : effectiveIsSaving ? (
+                  <>
+                    <Loader size={13} color="gray" />
+                    <Text size="xs" c="dimmed" className="note-save-status-label">
+                      {t('editor.saving')}
+                    </Text>
+                  </>
+                ) : effectiveIsDirty ? (
+                  <>
+                    <IconCircleFilled size={8} className="note-save-status-unsaved" />
+                    <Text size="xs" c="dimmed" className="note-save-status-label">
+                      {t('editor.unsaved')}
+                    </Text>
+                  </>
+                ) : (
+                  <Tooltip label={t('editor.saved')} withArrow>
+                    <Group gap={5} wrap="nowrap">
+                      <IconCheck size={16} className="note-save-status-saved" />
+                      {showSavedConfirmation && (
+                        <Text size="xs" c="dimmed" className="note-save-status-label">
+                          {t('editor.saved')}
+                        </Text>
+                      )}
+                    </Group>
+                  </Tooltip>
+                )}
+              </Group>
 
               {/* 3-dots actions menu */}
               <Menu position="bottom-end" shadow="md" withinPortal>

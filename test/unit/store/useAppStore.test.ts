@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useAppStore } from '../../../src/store/useAppStore';
 
 describe('useAppStore', () => {
@@ -13,6 +13,10 @@ describe('useAppStore', () => {
       isSidebarCollapsed: false,
       tasks: [],
       activeTask: null,
+      activeNote: null,
+      isSaving: false,
+      isDirty: false,
+      noteSaveError: null,
     });
   });
 
@@ -72,5 +76,50 @@ describe('useAppStore', () => {
     useAppStore.getState().toggleSidebarCollapse();
     expect(useAppStore.getState().isSidebarCollapsed).toBe(false);
   });
-});
 
+  it('clears the dirty state after saving a note successfully', async () => {
+    vi.mocked(window.electronAPI.writeNote).mockResolvedValueOnce({
+      success: true,
+      filepath: '/mock/vault/2026/2026-09-07.md',
+      lastModified: '2026-09-07T12:00:00.000Z',
+    });
+    useAppStore.setState({
+      activeNote: {
+        date: '2026-09-07',
+        filename: '2026-09-07.md',
+        filepath: '',
+        content: 'Saved content',
+        exists: false,
+      },
+      isDirty: true,
+      noteSaveError: 'Previous error',
+    });
+
+    await useAppStore.getState().saveActiveNote();
+
+    expect(useAppStore.getState().isDirty).toBe(false);
+    expect(useAppStore.getState().isSaving).toBe(false);
+    expect(useAppStore.getState().noteSaveError).toBeNull();
+    expect(useAppStore.getState().activeNote?.exists).toBe(true);
+  });
+
+  it('keeps note changes dirty and exposes an error when saving fails', async () => {
+    vi.mocked(window.electronAPI.writeNote).mockRejectedValueOnce(new Error('Disk unavailable'));
+    useAppStore.setState({
+      activeNote: {
+        date: '2026-09-07',
+        filename: '2026-09-07.md',
+        filepath: '',
+        content: 'Unsaved content',
+        exists: false,
+      },
+      isDirty: true,
+    });
+
+    await useAppStore.getState().saveActiveNote();
+
+    expect(useAppStore.getState().isDirty).toBe(true);
+    expect(useAppStore.getState().isSaving).toBe(false);
+    expect(useAppStore.getState().noteSaveError).toBe('Disk unavailable');
+  });
+});
