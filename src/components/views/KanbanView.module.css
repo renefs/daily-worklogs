@@ -1,0 +1,20 @@
+/* Kanban Board Styling */
+.taskCard {
+  user-select: none;
+  cursor: grab;
+  position: relative;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease !important;
+  background-color: var(--app-card-bg) !important;
+  border-color: var(--app-card-border) !important;
+}
+
+.taskCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06) !important;
+  border-color: var(--mantine-primary-color-filled) !important;
+}
+
+.taskCard:active {
+  cursor: grabbing;
+}
+
