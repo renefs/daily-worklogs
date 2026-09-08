@@ -174,7 +174,7 @@ export const AppSidebar: React.FC = () => {
             </ActionIcon>
           </Tooltip>
 
-          {/* Quick Create Today */}
+          {/* Quick access to today's note */}
           <Tooltip label={t('nav.newToday')} position="right">
             <ActionIcon
               variant={todayNoteExists ? 'light' : 'filled'}
@@ -297,7 +297,7 @@ export const AppSidebar: React.FC = () => {
         gap: '10px',
       }}
     >
-      {/* Top Action Row: Create Today's Note + Collapse Button */}
+      {/* Top Action Row: Open Today's Note + Collapse Button */}
       <Group justify="space-between" gap="xs" wrap="nowrap">
         <Button
           fullWidth
