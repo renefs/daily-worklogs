@@ -9,13 +9,12 @@
 .headerUnified {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   padding: 0 2px 7px;
   border-bottom: 1px solid var(--app-card-border);
 }
 
-.headerPrimary,
-.headerSecondary {
+.headerPrimary {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -33,64 +32,118 @@
 
 .titleInput {
   flex: 1;
-  min-width: 240px;
+  min-width: 200px;
 }
 
-.primaryActions,
-.viewModes {
+.headerMetaRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   flex-shrink: 0;
 }
 
-.saveIndicator {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--mantine-color-teal-filled);
-  width: 26px;
-  height: 26px;
-}
-
-.metadataStrip {
+.contextGroup {
   display: flex;
   align-items: center;
+  gap: 6px;
   flex-wrap: wrap;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--app-text-secondary);
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
 }
 
-.metadataItem {
-  display: inline-flex;
+.headerControls {
+  display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
-.metadataSeparator {
-  color: var(--app-sidebar-text-dimmed);
-  opacity: 0.5;
-  user-select: none;
+.navSegmentedControl {
+  background-color: var(--app-subtle-bg) !important;
+  border: 1px solid var(--app-header-border) !important;
+  padding: 2px !important;
 }
 
-.headerTags {
-  min-width: 0;
-  overflow: hidden;
+.navSegmentedControl :global(button) {
+  padding: 3px 8px !important;
+  font-size: 12px !important;
+  transition: all 0.15s ease !important;
+  color: var(--app-text-secondary) !important;
 }
 
-@media (max-width: 1100px) {
-  .headerSecondary {
-    align-items: flex-start;
+.navSegmentedControl :global(button[data-active="true"]) {
+  background-color: var(--app-card-bg) !important;
+  color: var(--app-text-primary) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+@media (max-width: 1050px) {
+  .headerPrimary {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
   }
 
-  .metadataStrip {
-    flex-wrap: nowrap;
+  .headerMetaRow {
+    justify-content: space-between;
+    width: 100%;
   }
 
-  .viewModes :global(.mantine-SegmentedControl-label) span {
+  .navSegmentedControl :global(.mantine-SegmentedControl-label) span {
     display: none;
   }
+}
+
+.workspace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.editorCanvas {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.splitLayout {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.splitPane {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.previewPane {
+  border-left: 1px solid var(--app-card-border);
+  padding-left: 12px;
+}
+
+.renderedContainer {
+  height: 100%;
+  overflow-y: auto;
+  padding: 12px 16px;
+  background-color: var(--app-card-bg);
+  border-radius: 8px;
+  border: 1px solid var(--app-card-border);
+}
+
+.previewOnlyContainer {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
 }
 
 .inspectorPanel {
@@ -117,36 +170,6 @@
 .inspectorSection {
   padding: 10px 14px;
   border-bottom: 1px solid var(--app-subtle-border);
-}
-
-.inspectorRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 5px 8px;
-  border-radius: 6px;
-  transition: background-color 0.12s ease;
-}
-
-.inspectorRow:hover {
-  background-color: var(--app-sidebar-hover);
-}
-
-.inspectorKey {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--app-text-secondary);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.inspectorVal {
-  font-size: 12px;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
 }
 
 .tocItem {
