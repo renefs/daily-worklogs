@@ -8,6 +8,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-09-08
+
+### Changed
+- **Architectural Decomposition of UI Components**: Decomposed monolithic views and modals into modular, focused components adhering to the Single Responsibility Principle:
+  - **Settings Modal**: Extracted isolated tab components (`GeneralSettingsTab`, `AppearanceSettingsTab`, `TemplatesSettingsTab`, `KanbanSettingsTab`, `AboutSettingsTab`) and dedicated `KanbanColumnModal`.
+  - **Kanban Board**: Separated board orchestrator into modular units (`KanbanColumn`, `KanbanCard`, `KanbanFilterBar`).
+  - **Onboarding Wizard**: Split into dedicated step components (`StepWelcome`, `StepVault`, `StepSchedule`, `StepAppearance`, `StepLanguage`, `StepFinish`).
+  - **Markdown Editor**: Extracted isolated editor header actions (`EditorHeaderActions`) and toolbar formatting tools (`EditorToolbar`).
+  - **Task View & Modal**: Unified task management domain components into shared reusable units (`TaskPropertiesForm`, `TaskInspector`, `TaskHeader`, `TaskChecklistProgress`, `TaskOutline`, `TaskDeleteModal`).
+  - **Areas & Projects Manager**: Extracted creation and editing dialogs into dedicated `AreaEditorModal` and `ProjectEditorModal` components.
+  - **Period Views**: Modularized `WeeklyView`, `MonthlyView`, and `PeriodTasksBreakdown` using reusable period units (`PeriodHeaderNav`, `PeriodKpiCards`, `PeriodFilterChip`, `PeriodDistributionRows`, `TaskBreakdownRow`).
+- **CSS Modules & Mantine Styling Modernization**: Migrated over 400 lines of global styles from `app.css` into colocated CSS Modules with PostCSS and Mantine styling props, establishing strict styling encapsulation for layout, navigation, Kanban cards, period views, and editor interfaces.
+
+### Fixed
+- **TaskView Split-Pane Layout & Header Synchronization**: Restored missing layout styles, split-pane constraints, and control alignment across decomposed task views.
+- **Kanban Card Style Colocation**: Colocated task card interactive styles (hover, grab, and active dragging states) within `KanbanCard.module.css`.
+
 ## [1.11.1] - 2026-09-08
 
 ### Fixed
