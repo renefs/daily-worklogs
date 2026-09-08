@@ -1,0 +1,189 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.headerUnified {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 0 2px 7px;
+  border-bottom: 1px solid var(--app-card-border);
+}
+
+.headerPrimary,
+.headerSecondary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.titleGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.titleInput {
+  flex: 1;
+  min-width: 240px;
+}
+
+.primaryActions,
+.viewModes {
+  flex-shrink: 0;
+}
+
+.saveIndicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mantine-color-teal-filled);
+  width: 26px;
+  height: 26px;
+}
+
+.metadataStrip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--app-text-secondary);
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.metadataItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.metadataSeparator {
+  color: var(--app-sidebar-text-dimmed);
+  opacity: 0.5;
+  user-select: none;
+}
+
+.headerTags {
+  min-width: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 1100px) {
+  .headerSecondary {
+    align-items: flex-start;
+  }
+
+  .metadataStrip {
+    flex-wrap: nowrap;
+  }
+
+  .viewModes :global(.mantine-SegmentedControl-label) span {
+    display: none;
+  }
+}
+
+.inspectorPanel {
+  width: 320px;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--app-subtle-bg);
+  border: 1px solid var(--app-card-border);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.inspectorHeader {
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--app-card-border);
+  background-color: var(--app-card-bg);
+}
+
+.inspectorSection {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--app-subtle-border);
+}
+
+.inspectorRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 8px;
+  border-radius: 6px;
+  transition: background-color 0.12s ease;
+}
+
+.inspectorRow:hover {
+  background-color: var(--app-sidebar-hover);
+}
+
+.inspectorKey {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--app-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inspectorVal {
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tocItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--app-text-primary);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+}
+
+.tocItem:hover {
+  background-color: var(--app-sidebar-hover);
+  color: var(--mantine-primary-color-filled);
+}
+
+.tocItem.level1 {
+  font-weight: 600;
+  padding-left: 8px;
+}
+
+.tocItem.level2 {
+  padding-left: 18px;
+  color: var(--app-text-secondary);
+}
+
+.tocItem.level3 {
+  padding-left: 28px;
+  font-size: 11px;
+  color: var(--app-sidebar-text-dimmed);
+}
+
