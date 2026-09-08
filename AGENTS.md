@@ -31,7 +31,7 @@ This document defines the architecture, design principles, domain models, techno
 | **State Management** | Zustand 5 (with persistent store and reactive auto-save) |
 | **Internationalization** | `i18next`, `react-i18next` (Translations in `src/i18n/locales/`) |
 | **Date Manipulation** | `dayjs` |
-| **Testing** | Vitest 5, React Testing Library, Node.js test runner (`test/verify-worklog.test.mjs`), TypeScript compiler verification (`tsc --noEmit`) |
+| **Testing** | Vitest 5, React Testing Library, Playwright (Electron E2E), Node.js test runner (`test/verify-worklog.test.mjs`), TypeScript compiler verification (`tsc --noEmit`) |
 
 ---
 
@@ -170,10 +170,13 @@ Before finalizing any code modifications or introducing new features, always run
 # 1. Typecheck the entire TypeScript codebase
 npm run typecheck
 
-# 2. Run the automated logic verification test suite
+# 2. Run the automated unit and component test suite (Vitest)
 npm test
 
-# 3. Test building the renderer
+# 3. Run Electron End-to-End tests (Playwright)
+npm run test:e2e
+
+# 4. Test building the renderer
 npm run build:renderer
 ```
 

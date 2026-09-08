@@ -1,0 +1,69 @@
+import { test as base, _electron as electron, ElectronApplication, Page } from '@playwright/test';
+import path from 'node:path';
+import fs from 'node:fs';
+import os from 'node:os';
+
+interface ElectronAppFixture {
+  electronApp: ElectronApplication;
+  page: Page;
+  testVaultDir: string;
+  testUserDataDir: string;
+}
+
+export const test = base.extend<ElectronAppFixture>({
+  testUserDataDir: async ({}, use) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dw-e2e-user-data-'));
+    await use(dir);
+    fs.rmSync(dir, { recursive: true, force: true });
+  },
+
+  testVaultDir: async ({}, use) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dw-e2e-vault-'));
+    await use(dir);
+    fs.rmSync(dir, { recursive: true, force: true });
+  },
+
+  electronApp: async ({ testUserDataDir, testVaultDir }, use) => {
+    // Seed settings.json so Electron boots straight into the test vault without onboarding modal
+    const initialSettings = {
+      vaultPath: testVaultDir,
+      hasCompletedOnboarding: true,
+      colorScheme: 'light',
+      language: 'en',
+      themeColor: 'indigo',
+      autoSave: true,
+      autoSaveDelay: 500,
+    };
+    fs.writeFileSync(
+      path.join(testUserDataDir, 'settings.json'),
+      JSON.stringify(initialSettings, null, 2),
+      'utf-8'
+    );
+
+    // Clean env to avoid ELECTRON_RUN_AS_NODE breaking the Electron renderer process
+    const cleanEnv = { ...process.env };
+    delete cleanEnv.ELECTRON_RUN_AS_NODE;
+
+    // Launch Electron application pointing to current repository
+    const app = await electron.launch({
+      args: ['.', `--user-data-dir=${testUserDataDir}`],
+      env: {
+        ...cleanEnv,
+        NODE_ENV: 'test',
+      },
+    });
+
+    await use(app);
+
+    await app.close();
+  },
+
+  page: async ({ electronApp }, use) => {
+    const page = await electronApp.firstWindow();
+    await page.waitForLoadState('domcontentloaded');
+    await use(page);
+  },
+});
+
+export { expect } from '@playwright/test';
+
