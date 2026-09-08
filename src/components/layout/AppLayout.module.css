@@ -1,0 +1,25 @@
+.shell {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.header {
+  background-color: var(--app-header-bg) !important;
+  border-bottom: 1px solid var(--app-header-border) !important;
+}
+
+.sidebarNavbar {
+  background-color: var(--app-sidebar-bg) !important;
+  border-right: 1px solid var(--app-sidebar-border) !important;
+}
+
+.mainContent {
+  height: calc(100vh - 48px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--app-main-bg) !important;
+}
+

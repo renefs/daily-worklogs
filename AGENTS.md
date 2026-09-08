@@ -25,7 +25,7 @@ This document defines the architecture, design principles, domain models, techno
 | **Runtime & Platform** | Electron 34+, Node.js 18+, `electron-builder` |
 | **Frontend Framework** | React 18, TypeScript 5, Vite 6 (`vite-plugin-electron`, `vite-plugin-electron-renderer`) |
 | **UI Components & Theme** | Mantine UI v7 (`@mantine/core`, `@mantine/hooks`, `@mantine/dates`, `@mantine/notifications`, `@mantine/spotlight`), Tabler Icons (`@tabler/icons-react`), Lucide React |
-| **Styling** | Mantine CSS styling system, CSS Modules, PostCSS with `postcss-preset-mantine` (Avoid TailwindCSS) |
+| **Styling** | Mantine CSS styling system, CSS Modules (`*.module.css`), PostCSS with `postcss-preset-mantine` (Avoid TailwindCSS) |
 | **Markdown Editor** | CodeMirror 6 (`@codemirror/state`, `@codemirror/view`, `@codemirror/lang-markdown`, `@uiw/react-codemirror`), Live Markdown decoration extensions, Tag autocomplete extension |
 | **Markdown AST / Parser** | `react-markdown`, `remark-gfm`, `rehype-highlight`, `rehype-raw`, `rehype-sanitize`, `gray-matter` |
 | **State Management** | Zustand 5 (with persistent store and reactive auto-save) |
@@ -152,10 +152,14 @@ When a user selects a vault folder, the application structures and persists file
 ### 6.1. Coding Standards
 1. **Language**: All code, identifiers, types, logs, comments, and commit messages MUST be in **English**.
 2. **Type Safety**: Strictly adhere to TypeScript. Do NOT use `any` unless absolutely unavoidable for third-party interop. Keep interfaces updated in `src/types/index.ts`.
-3. **Mantine UI v7**:
+3. **Mantine UI v7 & Styling Architecture**:
    - Use Mantine UI components and hooks (`useMantineTheme`, `useMantineColorScheme`, `useMantineColor`).
-   - Maintain a polished, modern, user-friendly UI.
-   - Do NOT install or use TailwindCSS.
+   - **CSS Modules as Standard**: All component-specific styling must be encapsulated in colocated `[Component].module.css` files (e.g. `TaskView.module.css`, `AppHeader.module.css`).
+   - **Mantine Style Props**: Use for standard spacing, layout, and theming (`p="md"`, `gap="xs"`, `radius="sm"`, `c="dimmed"`).
+   - **No TailwindCSS**: Do NOT install or use TailwindCSS. It clashes with Mantine's preflight resets, duplicates design tokens, and conflicts with theme color schemes.
+   - **PostCSS Preset Mantine**: Take advantage of `postcss-preset-mantine` functions in CSS Modules (`rem()`, `em()`, `light-dark()`, breakpoint mixins).
+   - **Avoid Arbitrary Inline Styles**: Avoid repetitive `style={{ ... }}` objects in JSX. Extract them into semantic CSS module classes.
+   - **Global CSS Scope**: Keep `src/styles/app.css` strictly for root CSS variables (`:root`, `[data-mantine-color-scheme="dark"]`), global resets/scrollbars, CodeMirror base classes, and rendered Markdown typography AST styles (`.markdown-body`).
 4. **Electron Security & IPC**:
    - Context isolation must remain enabled (`contextIsolation: true`, `nodeIntegration: false`).
    - All filesystem operations and native dialogs must go through IPC handlers in `electron/main.ts` and be exposed typed via `electron/preload.ts` and `src/types/electron.d.ts`.
@@ -163,7 +167,21 @@ When a user selects a vault folder, the application structures and persists file
    - Never hardcode user-facing strings in UI components.
    - Always add translation keys to both `src/i18n/locales/en.json` (English) and `src/i18n/locales/es.json` (Spanish).
 
-### 6.2. Development & Verification Workflow
+### 6.2. React & Frontend Guidelines
+- **Component Boundaries & Modularity:** Pure client-side React 18 SPA within Electron. Structure components hierarchically, separating presentational/leaf components from stateful container views (`src/components/views/`).
+- **Avoid Oversized Components (Target: < 300-400 lines):**
+  - **Single Responsibility Principle (SRP):** Each component must have a single, well-defined responsibility. Avoid monolithic components that bundle data fetching, state orchestration, layout, complex sub-dialogs, and multiple UI sections into a single file.
+  - **Decomposition Threshold:** Aim for **150–300 lines of code** for typical components. Components exceeding **400 lines** are prime candidates for refactoring and decomposition into smaller units.
+  - **Tab & Wizard Decomposition:** Multi-tab modals (such as `SettingsModal`) and multi-step wizards (`OnboardingWizardModal`) MUST have each tab or step extracted into its own subcomponent located in a dedicated subfolder (e.g., `src/components/modals/settings/`, `src/components/modals/onboarding/`).
+  - **Form & Properties Extraction:** Complex forms and sidebars (e.g., Task Properties, Kanban Cards/Columns, Filter Bars, Editor Toolbars) should be isolated into dedicated presentational components with clean TypeScript prop interfaces.
+  - **Domain Component Reuse:** Shared domain UI (such as task property pickers, priority chips, checklist summaries, tag selectors) should be extracted into shared components reused across views (e.g., shared between `TaskView` and `TaskModal`).
+- **Styling:** Use Mantine UI v7 and CSS Modules (`*.module.css`) exclusively with `postcss-preset-mantine`. Avoid runtime CSS-in-JS (`styled-components`, Emotion) and do NOT use or install Tailwind CSS.
+- **Data & File System Operations:** Never use `useEffect` for data loading or syncing state. Manage all note, task, and settings operations through the central Zustand store (`src/store/useAppStore.ts`) and typed Electron IPC (`window.electronAPI`).
+- **State:** Derive state during render or via store selectors instead of syncing via effects. Keep ephemeral state colocated to the consuming component.
+- **Optimization:** Do not prematurely add `useCallback` or `useMemo` unless handling heavy computational work, large lists, or profiling dictates it.
+- **Typing:** Strict TypeScript only. No `any` or untyped props. Ensure all component props and callbacks have explicit, descriptive TypeScript interfaces.
+
+### 6.3. Development & Verification Workflow
 Before finalizing any code modifications or introducing new features, always run the verification steps:
 
 ```bash
@@ -180,7 +198,7 @@ npm run test:e2e
 npm run build:renderer
 ```
 
-### 6.3. Adding New Features Checklist
+### 6.4. Adding New Features Checklist
 When implementing new features or refactoring existing ones:
 - [ ] Update domain models in `src/types/index.ts`.
 - [ ] If IPC or file system actions are involved, update `electron/main.ts`, `electron/preload.ts`, and `src/types/electron.d.ts`.

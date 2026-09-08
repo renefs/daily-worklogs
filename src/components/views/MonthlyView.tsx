@@ -2,30 +2,18 @@ import React, { useEffect, useState, useMemo } from 'react';
 import {
   Group,
   Stack,
-  Title,
   Text,
-  Button,
-  ActionIcon,
   Paper,
   SimpleGrid,
-  RingProgress,
   UnstyledButton,
-  Menu,
   Tooltip,
   useComputedColorScheme,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
-  IconChevronLeft,
-  IconChevronRight,
-  IconCopy,
-  IconFileExport,
   IconCheck,
-  IconCalendarMonth,
-  IconDotsVertical,
   IconInfoCircle,
   IconChevronRight as IconArrowRight,
-  IconCalendar,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
@@ -34,6 +22,8 @@ import { PeriodSummary, TaskMeta } from '../../types';
 import { ExportModal } from '../modals/ExportModal';
 import { PeriodTasksBreakdown } from './PeriodTasksBreakdown';
 import { PeriodDaysList } from './PeriodDaysList';
+import { PeriodHeaderNav } from './period/PeriodHeaderNav';
+import { PeriodKpiCards } from './period/PeriodKpiCards';
 
 export const MonthlyView: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -263,174 +253,53 @@ export const MonthlyView: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 14 }}>
-      {/* Sub-Header & Navigation */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <Group justify="space-between" align="flex-start" wrap="nowrap">
-          <div>
-            <Title order={2} style={{ letterSpacing: '-0.02em', fontSize: 22, fontWeight: 700 }}>
-              {t('dashboard.monthlySummary', 'Monthly summary')}
-            </Title>
-          </div>
-
-          <Group gap="xs" wrap="nowrap">
-            <Button
-              variant="default"
-              size="xs"
-              leftSection={<IconFileExport size={14} />}
-              onClick={() => setIsExportModalOpen(true)}
-              radius="md"
-            >
-              {t('weekly.exportReport', 'Export report')}
-            </Button>
-
-            <Menu position="bottom-end" shadow="md" width={180}>
-              <Menu.Target>
-                <ActionIcon variant="default" size="sm" radius="md">
-                  <IconDotsVertical size={16} />
-                </ActionIcon>
-              </Menu.Target>
-              <Menu.Dropdown>
-                <Menu.Item leftSection={<IconCopy size={14} />} onClick={handleCopyReport}>
-                  {t('weekly.copyReport', 'Copy report')}
-                </Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
-          </Group>
-        </Group>
-
-        {/* Period Navigation Controls: Previous | Period Picker | Next | Current Period */}
-        <Group gap={6} wrap="nowrap">
-          <ActionIcon variant="default" size="sm" onClick={handlePrevMonth} radius="md">
-            <IconChevronLeft size={16} />
-          </ActionIcon>
-          <Button
-            variant="default"
-            size="xs"
-            radius="md"
-            leftSection={<IconCalendar size={14} />}
-            style={{ fontWeight: 500 }}
-          >
-            {monthRange.shortMonthTitle}
-          </Button>
-          <ActionIcon variant="default" size="sm" onClick={handleNextMonth} radius="md">
-            <IconChevronRight size={16} />
-          </ActionIcon>
-          <Button
-            variant="default"
-            size="xs"
-            onClick={handleThisMonth}
-            radius="md"
-            style={{ fontWeight: 500 }}
-          >
-            {t('monthly.thisMonth', 'This month')}
-          </Button>
-        </Group>
-      </div>
-
-      {/* Underline Sub-Navigation Tabs: Overview | Entries | Task breakdown */}
-      <div style={{ display: 'flex', gap: 24, borderBottom: '1px solid var(--app-card-border)', paddingBottom: 0 }}>
-        {[
-          { key: 'dashboard', label: t('dashboard.summary', 'Overview') },
-          { key: 'days', label: t('reports.entriesTab', 'Entries') },
-          { key: 'tasks', label: t('reports.taskBreakdownTab', 'Task breakdown') },
-        ].map((tab) => {
-          const isActive = activeTab === tab.key;
-          return (
-            <UnstyledButton
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
-              style={{
-                padding: '6px 2px 10px 2px',
-                fontSize: 14,
-                fontWeight: isActive ? 600 : 500,
-                color: isActive ? 'var(--mantine-primary-color-filled)' : 'var(--app-text-secondary)',
-                borderBottom: isActive ? '2px solid var(--mantine-primary-color-filled)' : '2px solid transparent',
-                marginBottom: -1,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {tab.label}
-            </UnstyledButton>
-          );
-        })}
-      </div>
+      <PeriodHeaderNav
+        title={t('dashboard.monthlySummary', 'Monthly summary')}
+        pickerLabel={monthRange.shortMonthTitle}
+        onPrev={handlePrevMonth}
+        onNext={handleNextMonth}
+        onCurrent={handleThisMonth}
+        currentPeriodLabel={t('monthly.thisMonth', 'This month')}
+        onExport={() => setIsExportModalOpen(true)}
+        onCopyReport={handleCopyReport}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
 
       {/* Main Content Area */}
       <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
         {activeTab === 'dashboard' ? (
           <Stack gap={14}>
-            {/* 3 Equal KPI Summary Cards with Internal Deltas */}
-            <SimpleGrid cols={{ base: 1, sm: 3, md: 3 }} spacing="md">
-              {/* Card 1: Days logged */}
-              <Paper p="md" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
-                <Group gap="md" align="flex-start" wrap="nowrap">
-                  <ThemeIconWrapper color="blue">
-                    <IconCalendarMonth size={20} />
-                  </ThemeIconWrapper>
-                  <div style={{ flex: 1 }}>
-                    <Text size="xs" c="dimmed" style={{ fontSize: 12, fontWeight: 500 }}>
-                      {t('dashboard.daysLogged', 'Days logged')}
-                    </Text>
-                    <Group gap={4} align="baseline" mt={2}>
-                      <Text fw={800} size="xl" style={{ fontSize: 24, lineHeight: 1.2 }}>
-                        {activeDaysCount}
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        of {monthRange.daysInMonth} days
-                      </Text>
-                    </Group>
-                    <Text size="xs" c="teal.7" fw={600} mt={6} style={{ fontSize: 11 }}>
-                      vs {monthRange.prevMonthName} <span style={{ fontWeight: 700 }}>+1 day</span>
-                    </Text>
-                  </div>
+            <PeriodKpiCards
+              calendarIconType="month"
+              daysLoggedContent={
+                <Group gap={4} align="baseline" mt={2}>
+                  <Text fw={800} size="xl" style={{ fontSize: 24, lineHeight: 1.2 }}>
+                    {activeDaysCount}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    of {monthRange.daysInMonth} days
+                  </Text>
                 </Group>
-              </Paper>
-
-              {/* Card 2: Tasks completed */}
-              <Paper p="md" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
-                <Group gap="md" align="flex-start" wrap="nowrap">
-                  <ThemeIconWrapper color="teal">
-                    <IconCheck size={20} />
-                  </ThemeIconWrapper>
-                  <div style={{ flex: 1 }}>
-                    <Text size="xs" c="dimmed" style={{ fontSize: 12, fontWeight: 500 }}>
-                      {t('dashboard.tasksCompleted', 'Tasks completed')}
-                    </Text>
-                    <Text fw={800} size="xl" style={{ fontSize: 24, lineHeight: 1.2, marginTop: 2 }}>
-                      {completedTasksCount} of {totalTasksCount}
-                    </Text>
-                    <Text size="xs" c="teal.7" fw={600} mt={6} style={{ fontSize: 11 }}>
-                      vs {monthRange.prevMonthName} <span style={{ fontWeight: 700 }}>+2</span>
-                    </Text>
-                  </div>
-                </Group>
-              </Paper>
-
-              {/* Card 3: Completion rate */}
-              <Paper p="md" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
-                <Group gap="md" align="flex-start" wrap="nowrap">
-                  <RingProgress
-                    size={48}
-                    roundCaps
-                    thickness={4}
-                    sections={[{ value: completionPercent, color: 'primary' }]}
-                    style={{ flexShrink: 0, marginTop: 2 }}
-                  />
-                  <div style={{ flex: 1 }}>
-                    <Text size="xs" c="dimmed" style={{ fontSize: 12, fontWeight: 500 }}>
-                      {t('dashboard.completionRate', 'Completion rate')}
-                    </Text>
-                    <Text fw={800} size="xl" style={{ fontSize: 24, lineHeight: 1.2, marginTop: 2 }}>
-                      {completionPercent}%
-                    </Text>
-                    <Text size="xs" c="teal.7" fw={600} mt={6} style={{ fontSize: 11 }}>
-                      vs {monthRange.prevMonthName} <span style={{ fontWeight: 700 }}>+40 pp</span>
-                    </Text>
-                  </div>
-                </Group>
-              </Paper>
-            </SimpleGrid>
+              }
+              daysLoggedDelta={
+                <>
+                  vs {monthRange.prevMonthName} <span style={{ fontWeight: 700 }}>+1 day</span>
+                </>
+              }
+              tasksCompletedValue={`${completedTasksCount} of ${totalTasksCount}`}
+              tasksCompletedDelta={
+                <>
+                  vs {monthRange.prevMonthName} <span style={{ fontWeight: 700 }}>+2</span>
+                </>
+              }
+              completionRatePercent={completionPercent}
+              completionRateDelta={
+                <>
+                  vs {monthRange.prevMonthName} <span style={{ fontWeight: 700 }}>+40 pp</span>
+                </>
+              }
+            />
 
             {/* Slim Informational Banner replacing 4th card */}
             <Paper
@@ -805,29 +674,6 @@ export const MonthlyView: React.FC = () => {
           defaultFileName={`monthly-report-${monthRange.start}-to-${monthRange.end}`}
         />
       )}
-    </div>
-  );
-};
-
-const ThemeIconWrapper: React.FC<{ color: string; children: React.ReactNode }> = ({
-  color,
-  children,
-}) => {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: 36,
-        height: 36,
-        borderRadius: 8,
-        backgroundColor: `var(--mantine-color-${color}-light)`,
-        color: `var(--mantine-color-${color}-filled)`,
-        flexShrink: 0,
-      }}
-    >
-      {children}
     </div>
   );
 };

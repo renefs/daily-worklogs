@@ -11,6 +11,8 @@ import { useAppStore, useAppStoreSelector } from '../../store/useAppStore';
 import { AppHeader } from './AppHeader';
 import { AppSidebar } from './AppSidebar';
 import { flushTaskEditor } from '../../services/editorSession';
+import classes from './AppLayout.module.css';
+import clsx from 'clsx';
 
 const DailyView = React.lazy(() => import('../views/DailyView').then((module) => ({ default: module.DailyView })));
 const WeeklyView = React.lazy(() => import('../views/WeeklyView').then((module) => ({ default: module.WeeklyView })));
@@ -150,26 +152,17 @@ export const AppLayout: React.FC = () => {
       header={{ height: 48 }}
       navbar={{ width: sidebarWidth, breakpoint: 'sm' }}
       padding="md"
-      style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+      className={classes.shell}
     >
-      <AppShell.Header className="app-header">
+      <AppShell.Header className={clsx(classes.header, 'app-header')}>
         <AppHeader />
       </AppShell.Header>
 
-      <AppShell.Navbar className="app-sidebar-navbar">
+      <AppShell.Navbar className={clsx(classes.sidebarNavbar, 'app-sidebar-navbar')}>
         <AppSidebar />
       </AppShell.Navbar>
 
-      <AppShell.Main
-        className="app-main-content"
-        style={{
-          height: 'calc(100vh - 48px)',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          backgroundColor: 'var(--app-main-bg)',
-        }}
-      >
+      <AppShell.Main className={clsx(classes.mainContent, 'app-main-content')}>
         <React.Suspense fallback={<Center h="100%"><Loader size="md" /></Center>}>
           {currentView === 'daily' && <DailyView />}
           {currentView === 'weekly' && <WeeklyView />}

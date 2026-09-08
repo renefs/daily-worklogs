@@ -37,9 +37,11 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
+import clsx from 'clsx';
 import { useAppStoreSelector } from '../../store/useAppStore';
 import { DailyNoteMeta } from '../../types';
 import { capitalizeFirstLetter, formatTemplateDate } from '../../utils/dateTemplate';
+import classes from './AppSidebar.module.css';
 
 export const AppSidebar: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -330,7 +332,7 @@ export const AppSidebar: React.FC = () => {
       </Group>
 
       {/* Mini Date Picker */}
-      <Paper p="xs" radius="md" className="sidebar-datepicker-container">
+      <Paper p="xs" radius="md" className={clsx(classes.datepickerContainer, 'sidebar-datepicker-container')}>
         <DatePicker
           locale={i18n.language === 'es' ? 'es' : 'en'}
           value={dayjs(selectedDate).toDate()}
@@ -461,7 +463,7 @@ export const AppSidebar: React.FC = () => {
                                 note,
                               });
                             }}
-                            className="sidebar-note-btn"
+                            className={clsx(classes.noteButton, 'sidebar-note-btn')}
                             data-active={isSelected ? 'true' : undefined}
                           >
                             <Group justify="space-between" wrap="nowrap">
@@ -623,7 +625,7 @@ export const AppSidebar: React.FC = () => {
         <Paper
           p="xs"
           radius="md"
-          className="sidebar-workspace-badge"
+          className={clsx(classes.workspaceBadge, 'sidebar-workspace-badge')}
           onClick={() => {
             if (window.electronAPI && settings?.vaultPath) {
               window.electronAPI.openInFileManager(settings.vaultPath);

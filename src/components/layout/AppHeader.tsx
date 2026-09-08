@@ -13,8 +13,10 @@ import {
   IconBook2,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
+import clsx from 'clsx';
 import { useAppStoreSelector } from '../../store/useAppStore';
 import { AppViewMode } from '../../types';
+import classes from './AppHeader.module.css';
 
 export const AppHeader: React.FC = () => {
   const { t } = useTranslation();
@@ -44,55 +46,24 @@ export const AppHeader: React.FC = () => {
       align="center"
       justify="space-between"
       wrap="nowrap"
-      className="app-drag-region"
-      style={{
-        borderBottom: '1px solid var(--app-header-border)',
-        backgroundColor: 'var(--app-header-bg)',
-        transition: 'background-color 0.2s ease, border-color 0.2s ease',
-      }}
+      className={clsx('app-drag-region', classes.headerGroup)}
     >
       {/* App Branding */}
       <Group gap={8} wrap="nowrap" align="center" className="app-no-drag" style={{ flexShrink: 0 }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 24,
-            height: 24,
-            borderRadius: 6,
-            backgroundColor: 'var(--mantine-primary-color-filled)',
-            color: '#fff',
-            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.15)',
-          }}
-        >
+        <div className={classes.brandingIcon}>
           <IconBook2 size={15} stroke={2.2} />
         </div>
         <Text
           fw={700}
           size="sm"
-          style={{
-            fontFamily: 'var(--font-display)',
-            letterSpacing: '-0.02em',
-            whiteSpace: 'nowrap',
-            fontSize: 13.5,
-          }}
+          className={classes.brandingTitle}
         >
           Worklog
         </Text>
       </Group>
 
       {/* Center View Selector: Compact Segmented Time Navigation + Visually Separated Tasks */}
-      <div
-        className="app-no-drag"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-          gap: 8,
-        }}
-      >
+      <div className={clsx('app-no-drag', classes.centerNav)}>
         <SegmentedControl
           value={isTimeViewActive ? currentView : ''}
           onChange={(val: string) => {
@@ -100,7 +71,7 @@ export const AppHeader: React.FC = () => {
           }}
           size="xs"
           radius="md"
-          className="header-segmented-control"
+          className={clsx(classes.segmentedControl, 'header-segmented-control')}
           transitionDuration={160}
           data={[
             { label: t('nav.daily'), value: 'daily' },
@@ -111,35 +82,13 @@ export const AppHeader: React.FC = () => {
         />
 
         {/* Visual separator before Tasks */}
-        <div
-          style={{
-            width: 1,
-            height: 16,
-            backgroundColor: 'var(--app-header-border)',
-            margin: '0 2px',
-          }}
-        />
+        <div className={classes.tasksSeparator} />
 
         {/* Visually separated Tasks button */}
         <UnstyledButton
           onClick={() => setCurrentView('tasks')}
-          className="header-tasks-button"
+          className={clsx(classes.tasksButton, 'header-tasks-button')}
           data-active={isTasksActive ? 'true' : undefined}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 5,
-            padding: '3px 8px',
-            borderRadius: 6,
-            fontSize: 12,
-            fontWeight: isTasksActive ? 600 : 500,
-            color: isTasksActive ? 'var(--mantine-primary-color-filled)' : 'var(--app-text-secondary)',
-            backgroundColor: isTasksActive ? 'var(--mantine-primary-color-light)' : 'transparent',
-            border: isTasksActive ? '1px solid var(--mantine-primary-color-filled)' : '1px solid transparent',
-            transition: 'all 0.15s ease',
-            cursor: 'pointer',
-            userSelect: 'none',
-          }}
         >
           <IconCheckbox size={14} stroke={isTasksActive ? 2.2 : 1.8} />
           <span>{t('nav.tasks')}</span>
@@ -156,7 +105,7 @@ export const AppHeader: React.FC = () => {
             color="gray"
             onClick={() => setIsSettingsOpen(true)}
             aria-label="Open settings"
-            style={{ color: 'var(--app-sidebar-text-dimmed)' }}
+            className={classes.settingsButton}
           >
             <IconSettings size={16} stroke={1.8} />
           </ActionIcon>

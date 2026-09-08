@@ -1,0 +1,129 @@
+.filterbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 8px;
+  border-radius: 9px;
+  background-color: var(--app-subtle-bg);
+  border: 1px solid var(--app-card-border);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border-radius: 7px;
+  border: 1px dashed var(--app-subtle-border);
+  background-color: var(--app-card-bg);
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+  transition: border-color 0.12s ease, background-color 0.12s ease, color 0.12s ease;
+}
+
+.chip:hover {
+  border-color: var(--mantine-primary-color-filled);
+  color: var(--app-text-primary);
+}
+
+.chip.chipActive,
+.chipActive {
+  border-style: solid;
+  border-color: var(--mantine-primary-color-filled);
+  background-color: var(--mantine-primary-color-light);
+  color: var(--mantine-primary-color-filled);
+}
+
+.chipVal {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stripHead,
+.groupHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  background-color: var(--app-subtle-bg);
+  transition: background-color 0.12s ease;
+}
+
+.stripHead:hover,
+.groupHead:hover {
+  background-color: var(--app-sidebar-hover);
+}
+
+.caret {
+  margin-left: auto;
+  display: inline-flex;
+  color: var(--app-text-secondary);
+  transition: transform 0.18s ease;
+}
+
+.caret.caretOpen,
+.caretOpen {
+  transform: rotate(180deg);
+}
+
+.brow {
+  display: grid;
+  grid-template-columns: 1fr 64px 44px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 4px 6px;
+  border-radius: 6px;
+  text-align: left;
+  transition: background-color 0.12s ease;
+}
+
+.brow:hover {
+  background-color: var(--app-sidebar-hover);
+}
+
+.brow.browActive,
+.browActive {
+  background-color: var(--mantine-primary-color-light);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px 6px 8px;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid var(--app-card-border);
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.row:hover {
+  background-color: var(--app-sidebar-hover);
+}
+
+.row:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -2px;
+}
+
+.rowEdit {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.row:hover .rowEdit,
+.row:focus-within .rowEdit {
+  opacity: 1;
+}
+

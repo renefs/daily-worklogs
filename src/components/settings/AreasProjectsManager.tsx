@@ -5,36 +5,23 @@ import {
   Text,
   Button,
   TextInput,
-  Select,
   Badge,
   Paper,
   ActionIcon,
   Tooltip,
   Modal,
-  ColorSwatch,
-  CheckIcon,
   ThemeIcon,
   Progress,
-  SimpleGrid,
-  TagsInput,
   useComputedColorScheme,
 } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
 import {
   IconPlus,
   IconSearch,
   IconEdit,
   IconTrash,
   IconFolders,
-  IconCheck,
   IconFolder,
-  IconBroadcast,
-  IconVideo,
-  IconMicrophone,
-  IconServer,
-  IconCode,
-  IconFlame,
-  IconBriefcase,
+  IconCheck,
   IconTarget,
   IconCalendar,
   IconTag,
@@ -43,9 +30,8 @@ import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import { useAppStoreSelector } from '../../store/useAppStore';
-import { AreaDefinition, ProjectDefinition, ProjectStatus } from '../../types';
+import { AreaDefinition, ProjectDefinition } from '../../types';
 import {
-  AREA_COLOR_PALETTE,
   DEFAULT_AREAS,
   getAreaColor,
   getAreaIcon,
@@ -53,38 +39,8 @@ import {
   calculateProjectProgress,
   calculateAreaMetrics,
 } from '../../utils/areaProjectUtils';
-
-const AVAILABLE_ICONS = [
-  { value: 'folder', label: 'Folder', icon: <IconFolder size={16} /> },
-  { value: 'broadcast', label: 'Broadcast / Webcast', icon: <IconBroadcast size={16} /> },
-  { value: 'video', label: 'Video / VC', icon: <IconVideo size={16} /> },
-  { value: 'microphone', label: 'Audio / ASR', icon: <IconMicrophone size={16} /> },
-  { value: 'server', label: 'Server / Infra', icon: <IconServer size={16} /> },
-  { value: 'code', label: 'Code / Dev', icon: <IconCode size={16} /> },
-  { value: 'briefcase', label: 'Briefcase / Ops', icon: <IconBriefcase size={16} /> },
-  { value: 'flame', label: 'Flame / Urgent', icon: <IconFlame size={16} /> },
-];
-
-function renderIconByName(name?: string, size = 16) {
-  switch (name) {
-    case 'broadcast':
-      return <IconBroadcast size={size} />;
-    case 'video':
-      return <IconVideo size={size} />;
-    case 'microphone':
-      return <IconMicrophone size={size} />;
-    case 'server':
-      return <IconServer size={size} />;
-    case 'code':
-      return <IconCode size={size} />;
-    case 'briefcase':
-      return <IconBriefcase size={size} />;
-    case 'flame':
-      return <IconFlame size={size} />;
-    default:
-      return <IconFolder size={size} />;
-  }
-}
+import { AreaEditorModal, renderIconByName } from './areas/AreaEditorModal';
+import { ProjectEditorModal } from './areas/ProjectEditorModal';
 
 export const AreasProjectsManager: React.FC = () => {
   const { t } = useTranslation();
@@ -116,22 +72,11 @@ export const AreasProjectsManager: React.FC = () => {
   // Area modal state
   const [isAreaModalOpen, setIsAreaModalOpen] = useState(false);
   const [editingArea, setEditingArea] = useState<AreaDefinition | null>(null);
-  const [areaName, setAreaName] = useState('');
-  const [areaColor, setAreaColor] = useState('indigo');
-  const [areaIcon, setAreaIcon] = useState('folder');
-  const [areaDescription, setAreaDescription] = useState('');
-  const [areaDefaultTags, setAreaDefaultTags] = useState<string[]>([]);
 
   // Project modal state
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<ProjectDefinition | null>(null);
-  const [projectName, setProjectName] = useState('');
-  const [projectAreaName, setProjectAreaName] = useState('');
-  const [projectColor, setProjectColor] = useState('teal');
-  const [projectDescription, setProjectDescription] = useState('');
-  const [projectTargetDate, setProjectTargetDate] = useState<Date | null>(null);
-  const [projectStatus, setProjectStatus] = useState<ProjectStatus>('active');
-  const [projectTags, setProjectTags] = useState<string[]>([]);
+  const [projectDefaultArea, setProjectDefaultArea] = useState<string | undefined>(undefined);
 
   // Delete modal state
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'area' | 'project'; item: any } | null>(null);
@@ -170,44 +115,20 @@ export const AreasProjectsManager: React.FC = () => {
 
   const handleOpenAddArea = () => {
     setEditingArea(null);
-    setAreaName('');
-    setAreaColor('indigo');
-    setAreaIcon('folder');
-    setAreaDescription('');
-    setAreaDefaultTags([]);
     setIsAreaModalOpen(true);
   };
 
   const handleOpenEditArea = (area: AreaDefinition) => {
     setEditingArea(area);
-    setAreaName(area.name);
-    setAreaColor(area.color || 'indigo');
-    setAreaIcon(area.icon || 'folder');
-    setAreaDescription(area.description || '');
-    setAreaDefaultTags(area.defaultTags || []);
     setIsAreaModalOpen(true);
   };
 
-  const handleSaveArea = async () => {
-    const cleanName = areaName.trim();
-    if (!cleanName) return;
-
-    await saveArea(
-      {
-        id: editingArea?.id || cleanName.toLowerCase().replace(/\s+/g, '-'),
-        name: cleanName,
-        color: areaColor,
-        icon: areaIcon,
-        description: areaDescription.trim() || undefined,
-        defaultTags: areaDefaultTags,
-      },
-      editingArea?.name
-    );
-
+  const handleSaveArea = async (areaData: AreaDefinition, oldName?: string) => {
+    await saveArea(areaData, oldName);
     setIsAreaModalOpen(false);
     notifications.show({
       title: t('areas.areaSaved', 'Area saved successfully'),
-      message: cleanName,
+      message: areaData.name,
       color: 'teal',
       icon: <IconCheck size={16} />,
     });
@@ -215,51 +136,26 @@ export const AreasProjectsManager: React.FC = () => {
 
   const handleOpenAddProject = (defaultAreaName?: string) => {
     setEditingProject(null);
-    setProjectName('');
-    setProjectAreaName(defaultAreaName || areas[0]?.name || 'General');
-    setProjectColor(defaultAreaName ? getAreaColor(defaultAreaName, areas) : 'teal');
-    setProjectDescription('');
-    setProjectTargetDate(null);
-    setProjectStatus('active');
-    setProjectTags([]);
+    setProjectDefaultArea(defaultAreaName || areas[0]?.name || 'General');
     setIsProjectModalOpen(true);
   };
 
   const handleOpenEditProject = (proj: ProjectDefinition) => {
     setEditingProject(proj);
-    setProjectName(proj.name);
-    setProjectAreaName(proj.areaName);
-    setProjectColor(proj.color || getProjectColor(proj.name, proj.areaName, projects, areas));
-    setProjectDescription(proj.description || '');
-    setProjectTargetDate(proj.targetDate ? dayjs(proj.targetDate).toDate() : null);
-    setProjectStatus(proj.status || 'active');
-    setProjectTags(proj.tags || []);
+    setProjectDefaultArea(undefined);
     setIsProjectModalOpen(true);
   };
 
-  const handleSaveProject = async () => {
-    const cleanName = projectName.trim();
-    if (!cleanName || !projectAreaName) return;
-
-    await saveProject(
-      {
-        id: editingProject?.id || cleanName.toLowerCase().replace(/\s+/g, '-'),
-        name: cleanName,
-        areaName: projectAreaName,
-        color: projectColor,
-        description: projectDescription.trim() || undefined,
-        targetDate: projectTargetDate ? dayjs(projectTargetDate).format('YYYY-MM-DD') : undefined,
-        status: projectStatus,
-        tags: projectTags,
-      },
-      editingProject?.name,
-      editingProject?.areaName
-    );
-
+  const handleSaveProject = async (
+    projData: ProjectDefinition,
+    oldName?: string,
+    oldAreaName?: string
+  ) => {
+    await saveProject(projData, oldName, oldAreaName);
     setIsProjectModalOpen(false);
     notifications.show({
       title: t('areas.projectSaved', 'Project saved successfully'),
-      message: cleanName,
+      message: projData.name,
       color: 'teal',
       icon: <IconCheck size={16} />,
     });
@@ -627,208 +523,23 @@ export const AreasProjectsManager: React.FC = () => {
       )}
 
       {/* Area Create / Edit Modal */}
-      <Modal
+      <AreaEditorModal
         opened={isAreaModalOpen}
         onClose={() => setIsAreaModalOpen(false)}
-        title={
-          <Group gap="xs">
-            <ThemeIcon color={areaColor} variant="light" size="md" radius="md">
-              {renderIconByName(areaIcon, 18)}
-            </ThemeIcon>
-            <Text fw={700}>
-              {editingArea
-                ? t('areas.editAreaTitle', 'Edit Area')
-                : t('areas.createAreaTitle', 'Create Permanent Area')}
-            </Text>
-          </Group>
-        }
-        size="md"
-        radius="md"
-      >
-        <Stack gap="md">
-          <TextInput
-            label={t('areas.areaName', 'Area Name')}
-            placeholder="e.g. Webcast, VC, ASR, Infra, Marketing..."
-            required
-            value={areaName}
-            onChange={(e) => setAreaName(e.currentTarget.value)}
-            data-autofocus
-          />
-
-          <Select
-            label={t('areas.areaIcon', 'Area Icon')}
-            value={areaIcon}
-            onChange={(val) => setAreaIcon(val || 'folder')}
-            data={AVAILABLE_ICONS.map((i) => ({
-              value: i.value,
-              label: i.label,
-            }))}
-            leftSection={renderIconByName(areaIcon, 16)}
-          />
-
-          <div>
-            <Text size="sm" fw={500} mb={6}>
-              {t('areas.areaColor', 'Area Color')}
-            </Text>
-            <Group gap="xs">
-              {AREA_COLOR_PALETTE.map((c) => (
-                <Tooltip key={c} label={c} withArrow>
-                  <ColorSwatch
-                    color={`var(--mantine-color-${c}-6)`}
-                    size={28}
-                    radius="md"
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => setAreaColor(c)}
-                  >
-                    {areaColor === c && <CheckIcon size={12} color="#fff" />}
-                  </ColorSwatch>
-                </Tooltip>
-              ))}
-            </Group>
-          </div>
-
-          <TagsInput
-            label={t('areas.defaultInheritedTags', 'Default Inherited Tags')}
-            description={t('areas.defaultTagsHelp', 'All tasks created inside this Area will automatically inherit these tags')}
-            placeholder="e.g. webcast, streaming (press enter)"
-            value={areaDefaultTags}
-            onChange={setAreaDefaultTags}
-            clearable
-          />
-
-          <TextInput
-            label={t('areas.description', 'Description')}
-            placeholder="Continuous domain of responsibility..."
-            value={areaDescription}
-            onChange={(e) => setAreaDescription(e.currentTarget.value)}
-          />
-
-          <Group justify="flex-end" mt="md">
-            <Button variant="default" onClick={() => setIsAreaModalOpen(false)}>
-              {t('common.cancel', 'Cancel')}
-            </Button>
-            <Button color="indigo" onClick={handleSaveArea} disabled={!areaName.trim()}>
-              {t('common.save', 'Save Area')}
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+        editingArea={editingArea}
+        onSave={handleSaveArea}
+      />
 
       {/* Project Create / Edit Modal */}
-      <Modal
+      <ProjectEditorModal
         opened={isProjectModalOpen}
         onClose={() => setIsProjectModalOpen(false)}
-        title={
-          <Group gap="xs">
-            <ThemeIcon color={projectColor} variant="light" size="md" radius="md">
-              <IconTarget size={18} />
-            </ThemeIcon>
-            <Text fw={700}>
-              {editingProject
-                ? t('areas.editProjectTitle', 'Edit Project')
-                : t('areas.createProjectTitle', 'Create Finite Project')}
-            </Text>
-          </Group>
-        }
-        size="md"
-        radius="md"
-      >
-        <Stack gap="md">
-          <TextInput
-            label={t('areas.projectName', 'Project Name')}
-            placeholder="e.g. Migración Wowza, Renovación Sala 1..."
-            required
-            value={projectName}
-            onChange={(e) => setProjectName(e.currentTarget.value)}
-            data-autofocus
-          />
-
-          <Select
-            label={t('areas.parentArea', 'Parent Area')}
-            description={t('areas.parentAreaHelp', 'The continuous service / area this project belongs to')}
-            required
-            value={projectAreaName}
-            onChange={(val) => {
-              if (val) {
-                setProjectAreaName(val);
-                setProjectColor(getAreaColor(val, areas));
-              }
-            }}
-            data={areas.map((a) => ({
-              value: a.name,
-              label: a.name,
-            }))}
-          />
-
-          <SimpleGrid cols={2} spacing="md">
-            <Select
-              label={t('areas.status', 'Project Status')}
-              value={projectStatus}
-              onChange={(val) => setProjectStatus((val as ProjectStatus) || 'active')}
-              data={[
-                { value: 'active', label: t('areas.statusActive', 'Active') },
-                { value: 'on_hold', label: t('areas.statusOnHold', 'On Hold') },
-                { value: 'completed', label: t('areas.statusCompleted', 'Completed') },
-                { value: 'archived', label: t('areas.statusArchived', 'Archived') },
-              ]}
-            />
-
-            <DatePickerInput
-              label={t('areas.targetDate', 'Target / Due Date')}
-              placeholder="Select target deadline"
-              value={projectTargetDate}
-              onChange={setProjectTargetDate}
-              clearable
-              leftSection={<IconCalendar size={16} />}
-            />
-          </SimpleGrid>
-
-          <div>
-            <Text size="sm" fw={500} mb={6}>
-              {t('areas.projectColor', 'Project Color')}
-            </Text>
-            <Group gap="xs">
-              {AREA_COLOR_PALETTE.map((c) => (
-                <Tooltip key={c} label={c} withArrow>
-                  <ColorSwatch
-                    color={`var(--mantine-color-${c}-6)`}
-                    size={28}
-                    radius="md"
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => setProjectColor(c)}
-                  >
-                    {projectColor === c && <CheckIcon size={12} color="#fff" />}
-                  </ColorSwatch>
-                </Tooltip>
-              ))}
-            </Group>
-          </div>
-
-          <TagsInput
-            label={t('areas.projectTags', 'Project Tags')}
-            placeholder="Tags specific to this project (press enter)"
-            value={projectTags}
-            onChange={setProjectTags}
-            clearable
-          />
-
-          <TextInput
-            label={t('areas.description', 'Description')}
-            placeholder="Goal, deliverable or scope..."
-            value={projectDescription}
-            onChange={(e) => setProjectDescription(e.currentTarget.value)}
-          />
-
-          <Group justify="flex-end" mt="md">
-            <Button variant="default" onClick={() => setIsProjectModalOpen(false)}>
-              {t('common.cancel', 'Cancel')}
-            </Button>
-            <Button color="indigo" onClick={handleSaveProject} disabled={!projectName.trim() || !projectAreaName}>
-              {t('common.save', 'Save Project')}
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+        editingProject={editingProject}
+        defaultAreaName={projectDefaultArea}
+        areas={areas}
+        projects={projects}
+        onSave={handleSaveProject}
+      />
 
       {/* Delete Confirmation Modal */}
       <Modal

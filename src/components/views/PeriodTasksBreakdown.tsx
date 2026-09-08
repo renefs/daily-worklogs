@@ -6,20 +6,15 @@ import {
   Paper,
   Progress,
   SimpleGrid,
-  ActionIcon,
-  Tooltip,
   Checkbox,
-  Menu,
   Divider,
   Collapse,
   TextInput,
   UnstyledButton,
-  ScrollArea,
 } from '@mantine/core';
 import {
   IconChevronDown,
   IconSearch,
-  IconEdit,
   IconX,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
@@ -33,19 +28,16 @@ import {
   getProjectColor,
   resolveTaskContext,
 } from '../../utils/areaProjectUtils';
+import { PeriodFilterChip as FilterChip } from './period/PeriodFilterChip';
+import { TaskBreakdownRow as TaskRow } from './period/TaskBreakdownRow';
+import { MetricRows, PillRow } from './period/PeriodDistributionRows';
+import clsx from 'clsx';
+import classes from './PeriodTasksBreakdown.module.css';
 
 interface PeriodTasksBreakdownProps {
   periodSummary: PeriodSummary | null;
   onOpenTask: (task: TaskMeta) => void;
 }
-
-/** Left stripe colour encoding task priority on a compact row. */
-const PRIORITY_STRIPE: Record<TaskPriority, string> = {
-  urgent: 'var(--mantine-color-red-6)',
-  high: 'var(--mantine-color-orange-6)',
-  medium: 'var(--mantine-color-blue-5)',
-  low: 'var(--mantine-color-gray-4)',
-};
 
 export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
   periodSummary,
@@ -233,7 +225,7 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
   return (
     <Stack gap="sm">
       {/* 1 · Single control bar: text filter + four dropdown chips */}
-      <div className="pbd-filterbar">
+      <div className={clsx(classes.filterbar, 'pbd-filterbar')}>
         <TextInput
           value={query}
           onChange={(e) => setQuery(e.currentTarget.value)}
@@ -292,7 +284,7 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
       {(sortedAreas.length > 0 || sortedProjects.length > 0) && (
         <Paper withBorder radius="md" style={{ overflow: 'hidden' }}>
           <UnstyledButton
-            className="pbd-strip-head"
+            className={clsx(classes.stripHead, 'pbd-strip-head')}
             onClick={() => setBreakdownOpen((o) => !o)}
             aria-expanded={breakdownOpen}
           >
@@ -318,7 +310,7 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
                 {t('areas.projectsLabel')}
               </Text>
             </Group>
-            <span className={`pbd-caret${breakdownOpen ? ' open' : ''}`}>
+            <span className={clsx(classes.caret, breakdownOpen && classes.caretOpen, 'pbd-caret', breakdownOpen && 'open')}>
               <IconChevronDown size={14} />
             </span>
           </UnstyledButton>
@@ -404,7 +396,7 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
         return (
           <Paper key={group.key} withBorder radius="md" style={{ overflow: 'hidden' }}>
             <UnstyledButton
-              className="pbd-group-head"
+              className={clsx(classes.groupHead, 'pbd-group-head')}
               onClick={() => toggleGroup(group.key)}
               aria-expanded={isOpen}
             >
@@ -422,7 +414,7 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
               <Text size="xs" c="dimmed" ff="var(--font-mono)">
                 {group.tasks.length}
               </Text>
-              <span className={`pbd-caret${isOpen ? ' open' : ''}`}>
+              <span className={clsx(classes.caret, isOpen && classes.caretOpen, 'pbd-caret', isOpen && 'open')}>
                 <IconChevronDown size={14} />
               </span>
             </UnstyledButton>
@@ -454,7 +446,7 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
       {checklistsByDate.size > 0 && (
         <Paper withBorder radius="md" style={{ overflow: 'hidden' }}>
           <UnstyledButton
-            className="pbd-group-head"
+            className={clsx(classes.groupHead, 'pbd-group-head')}
             onClick={() => toggleGroup('daily_checklists')}
             aria-expanded={openGroups.includes('daily_checklists')}
           >
@@ -472,7 +464,7 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
             <Text size="xs" c="dimmed" ff="var(--font-mono)">
               {dailyChecklists.filter((c) => c.completed).length}/{dailyChecklists.length}
             </Text>
-            <span className={`pbd-caret${openGroups.includes('daily_checklists') ? ' open' : ''}`}>
+            <span className={clsx(classes.caret, openGroups.includes('daily_checklists') && classes.caretOpen, 'pbd-caret', openGroups.includes('daily_checklists') && 'open')}>
               <IconChevronDown size={14} />
             </span>
           </UnstyledButton>
@@ -513,305 +505,3 @@ export const PeriodTasksBreakdown: React.FC<PeriodTasksBreakdownProps> = ({
   );
 };
 
-/* ------------------------------------------------------------------ */
-/* Filter chip                                                         */
-/* ------------------------------------------------------------------ */
-
-interface FilterChipProps {
-  label: string;
-  value: string;
-  displayValue?: string;
-  options: Array<{ value: string; label: string; hint?: string }>;
-  allLabel: string;
-  emptyLabel?: string;
-  onChange: (value: string) => void;
-}
-
-const FilterChip: React.FC<FilterChipProps> = ({
-  label,
-  value,
-  displayValue,
-  options,
-  allLabel,
-  emptyLabel,
-  onChange,
-}) => {
-  const isActive = value !== 'all';
-  const shown =
-    displayValue ?? (isActive ? options.find((o) => o.value === value)?.label || value : undefined);
-
-  return (
-    <Menu shadow="md" width={260} position="bottom-start" withinPortal>
-      <Menu.Target>
-        <UnstyledButton className={`pbd-chip${isActive ? ' active' : ''}`}>
-          <Text span size="xs" fw={500} inherit>
-            {label}
-          </Text>
-          {shown && (
-            <Text span size="xs" fw={700} className="pbd-chip-val" inherit>
-              {shown}
-            </Text>
-          )}
-          <IconChevronDown size={11} />
-        </UnstyledButton>
-      </Menu.Target>
-      <Menu.Dropdown>
-        <Menu.Item onClick={() => onChange('all')} fw={value === 'all' ? 700 : 400}>
-          <Text size="xs">{allLabel}</Text>
-        </Menu.Item>
-        {options.length === 0 ? (
-          <Menu.Item disabled>
-            <Text size="xs" c="dimmed">
-              {emptyLabel || allLabel}
-            </Text>
-          </Menu.Item>
-        ) : (
-          <>
-            <Menu.Divider />
-            <ScrollArea.Autosize mah={260} type="auto">
-              {options.map((opt) => (
-                <Menu.Item
-                  key={opt.value}
-                  onClick={() => onChange(opt.value)}
-                  fw={value === opt.value ? 700 : 400}
-                  rightSection={
-                    opt.hint ? (
-                      <Text size="xs" c="dimmed" ff="var(--font-mono)">
-                        {opt.hint}
-                      </Text>
-                    ) : undefined
-                  }
-                >
-                  <Text size="xs" truncate>
-                    {opt.label}
-                  </Text>
-                </Menu.Item>
-              ))}
-            </ScrollArea.Autosize>
-          </>
-        )}
-      </Menu.Dropdown>
-    </Menu>
-  );
-};
-
-/* ------------------------------------------------------------------ */
-/* Breakdown strip internals                                           */
-/* ------------------------------------------------------------------ */
-
-interface MetricRowsProps {
-  label: string;
-  rows: Array<{
-    key: string;
-    name: string;
-    hint?: string;
-    completed: number;
-    total: number;
-    color: string;
-    selected: boolean;
-    onToggle: () => void;
-  }>;
-}
-
-const MetricRows: React.FC<MetricRowsProps> = ({ label, rows }) => {
-  if (rows.length === 0) return null;
-  return (
-    <Stack gap={2}>
-      <Text size="xs" fw={700} tt="uppercase" c="dimmed" style={{ letterSpacing: '0.08em' }}>
-        {label}
-      </Text>
-      {rows.map((row) => {
-        const pct = Math.round((row.completed / (row.total || 1)) * 100);
-        return (
-          <UnstyledButton
-            key={row.key}
-            className={`pbd-brow${row.selected ? ' active' : ''}`}
-            onClick={row.onToggle}
-            aria-pressed={row.selected}
-          >
-            <Text size="xs" truncate>
-              {row.name}
-              {row.hint && (
-                <Text span size="xs" c="dimmed" inherit>
-                  {' · '}
-                  {row.hint}
-                </Text>
-              )}
-            </Text>
-            <Progress value={pct} size={4} radius="xl" color={pct === 100 ? 'teal' : row.color} />
-            <Text size="xs" c="dimmed" ta="right" ff="var(--font-mono)">
-              {row.completed}/{row.total}
-            </Text>
-          </UnstyledButton>
-        );
-      })}
-    </Stack>
-  );
-};
-
-interface PillRowProps {
-  label: string;
-  emptyLabel?: string;
-  pills: Array<{
-    key: string;
-    label: string;
-    color: string;
-    selected: boolean;
-    onToggle: () => void;
-  }>;
-}
-
-const PillRow: React.FC<PillRowProps> = ({ label, emptyLabel, pills }) => (
-  <Stack gap={4} mt="xs">
-    <Text size="xs" fw={700} tt="uppercase" c="dimmed" style={{ letterSpacing: '0.08em' }}>
-      {label}
-    </Text>
-    {pills.length === 0 ? (
-      <Text size="xs" c="dimmed">
-        {emptyLabel}
-      </Text>
-    ) : (
-      <Group gap={6} wrap="wrap">
-        {pills.map((pill) => (
-          <UnstyledButton
-            key={pill.key}
-            onClick={pill.onToggle}
-            aria-pressed={pill.selected}
-            style={{
-              fontSize: 11,
-              fontFamily: 'var(--font-mono)',
-              padding: '2px 7px',
-              borderRadius: 5,
-              border: `1px solid ${
-                pill.selected
-                  ? `var(--mantine-color-${pill.color}-6)`
-                  : 'var(--app-subtle-border)'
-              }`,
-              backgroundColor: pill.selected
-                ? `var(--mantine-color-${pill.color}-light)`
-                : 'transparent',
-              color: pill.selected
-                ? `var(--mantine-color-${pill.color}-filled)`
-                : 'var(--app-text-secondary)',
-            }}
-          >
-            {pill.label}
-          </UnstyledButton>
-        ))}
-      </Group>
-    )}
-  </Stack>
-);
-
-/* ------------------------------------------------------------------ */
-/* Task row                                                            */
-/* ------------------------------------------------------------------ */
-
-interface TaskRowProps {
-  task: TaskMeta;
-  onOpenTask: (task: TaskMeta) => void;
-  openLabel: string;
-  cancelledLabel: string;
-  sinceLabel: (date: string) => string;
-  dueLabel: (date: string) => string;
-}
-
-const TaskRow: React.FC<TaskRowProps> = ({
-  task,
-  onOpenTask,
-  openLabel,
-  cancelledLabel,
-  sinceLabel,
-  dueLabel,
-}) => {
-  const isCancelled = task.status === 'cancelled';
-  const isDone = task.status === 'done' || isCancelled || !!task.completedDate;
-  const stripe = task.priority ? PRIORITY_STRIPE[task.priority] : 'transparent';
-  const checklistPct =
-    task.checklistTotal && task.checklistTotal > 0
-      ? Math.round(((task.checklistCompleted || 0) / task.checklistTotal) * 100)
-      : null;
-
-  const open = () => onOpenTask(task);
-
-  return (
-    <div
-      className="pbd-row"
-      style={{ borderLeftColor: stripe }}
-      role="button"
-      tabIndex={0}
-      onClick={open}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          open();
-        }
-      }}
-    >
-      <Text size="xs" c="dimmed" ff="var(--font-mono)">
-        #{task.taskId ?? task.id}
-      </Text>
-
-      <Text
-        size="sm"
-        truncate
-        style={{
-          textDecoration: isDone ? 'line-through' : 'none',
-          color: isDone ? 'var(--mantine-color-dimmed)' : undefined,
-        }}
-      >
-        {task.title}
-      </Text>
-
-      <Group gap={10} wrap="nowrap" justify="flex-end">
-        {checklistPct !== null && (
-          <Group gap={5} wrap="nowrap">
-            <Progress value={checklistPct} size={4} radius="xl" color="teal" w={34} />
-            <Text size="xs" c="dimmed" ff="var(--font-mono)">
-              {task.checklistCompleted || 0}/{task.checklistTotal}
-            </Text>
-          </Group>
-        )}
-        {(task.tags || []).slice(0, 2).map((tag) => (
-          <Text key={tag} size="xs" c="dimmed" ff="var(--font-mono)" visibleFrom="md">
-            #{tag}
-          </Text>
-        ))}
-        {isCancelled && (
-          <Text size="xs" c="red.6">
-            {cancelledLabel}
-          </Text>
-        )}
-        {task.completedDate && !isCancelled && (
-          <Text size="xs" c="dimmed">
-            {task.completedDate}
-          </Text>
-        )}
-        {!task.completedDate && task.startedDate && (
-          <Text size="xs" c="dimmed">
-            {sinceLabel(task.startedDate)}
-          </Text>
-        )}
-        {!task.completedDate && !task.startedDate && task.due && (
-          <Text size="xs" c="dimmed">
-            {dueLabel(task.due)}
-          </Text>
-        )}
-        <Tooltip label={openLabel} withArrow>
-          <ActionIcon
-            className="pbd-row-edit"
-            variant="subtle"
-            color="gray"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              open();
-            }}
-          >
-            <IconEdit size={14} />
-          </ActionIcon>
-        </Tooltip>
-      </Group>
-    </div>
-  );
-};
