@@ -8,6 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-09-08
+
+### Changed
+- **Architectural Decomposition of Zustand Store**: Modularized monolithic `useAppStore.ts` (977 lines) into focused domain slices adhering to the Single Responsibility Principle:
+  - **Types & Contracts (`src/store/types.ts`)**: Extracted explicit slice interfaces (`UiSlice`, `SettingsSlice`, `NotesSlice`, `TasksSlice`, `AreasProjectsSlice`, `TagsSlice`, `RoutinesSlice`) and composite `AppState`.
+  - **UI & Navigation Slice (`uiSlice.ts`)**: Encapsulated view routing, date switching, onboarding wizard, sidebar toggling, and modal management.
+  - **Daily Notes & Editor Slice (`notesSlice.ts`)**: Encapsulated active note state, autosave queue concurrency, template rendering, and external conflict detection.
+  - **Tasks & Kanban Slice (`tasksSlice.ts`)**: Encapsulated task CRUD, optimistic drag-and-drop status changes, editor layout, and daily note logging.
+  - **Areas & Projects Slice (`areasProjectsSlice.ts`)**: Encapsulated Area and Project definitions with cascading renames.
+  - **Tags Slice (`tagsSlice.ts`)**: Encapsulated tag taxonomy indexing, renaming, and removal cascades.
+  - **Daily Routines Slice (`routinesSlice.ts`)**: Encapsulated date-specific routine completion tracking and checklist controls.
+  - **Root Composition (`useAppStore.ts`)**: Reduced root store from 977 to 26 lines while maintaining 100% backward compatibility for all existing components and tests.
+
 ## [1.12.0] - 2026-09-08
 
 ### Changed
