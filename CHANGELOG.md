@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.11.1] - 2026-09-08
+
+### Fixed
+- **External Note Conflict False Positives**: Resolved false conflict prompts triggered while typing immediately after an auto-save or manual save by ignoring duplicate watcher events for already persisted revisions (`lastModified`).
+- **Vault Watcher Internal Write Suppression**: Adjusted internal write cleanup timing in the Electron main watcher to preserve internal write tracking during asynchronous file verification, preventing rapid consecutive file system notifications from being misidentified as external edits.
+
+### Testing
+- Added unit tests verifying duplicate watcher events for recent note saves are ignored while active edits continue, while genuine external modifications are still detected and flagged as conflicts.
+
 ## [1.11.0] - 2026-09-08
 
 ### Added

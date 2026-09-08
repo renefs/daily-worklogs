@@ -18,6 +18,7 @@ describe('useAppStore', () => {
       isSaving: false,
       isDirty: false,
       noteSaveError: null,
+      externalNoteConflict: null,
     });
   });
 
@@ -178,5 +179,54 @@ describe('useAppStore', () => {
     expect(window.electronAPI.writeNote).toHaveBeenNthCalledWith(1, '2026-09-07', 'First revision');
     expect(window.electronAPI.writeNote).toHaveBeenNthCalledWith(2, '2026-09-07', 'Newest revision');
     expect(useAppStore.getState().selectedDate).toBe('2026-09-08');
+  });
+
+  it('ignores repeated watcher events for the last saved note revision while typing', () => {
+    useAppStore.setState({
+      activeNote: {
+        date: '2026-09-07',
+        filename: '2026-09-07.md',
+        filepath: '/mock/vault/2026/2026-09-07.md',
+        content: 'New unsaved text',
+        exists: true,
+        lastModified: '2026-09-07T12:00:00.000Z',
+      },
+      isDirty: true,
+    });
+
+    useAppStore.getState().handleExternalNoteChange({
+      date: '2026-09-07',
+      content: 'Last saved text',
+      exists: true,
+      lastModified: '2026-09-07T12:00:00.000Z',
+    });
+
+    expect(useAppStore.getState().externalNoteConflict).toBeNull();
+    expect(useAppStore.getState().activeNote?.content).toBe('New unsaved text');
+    expect(useAppStore.getState().isDirty).toBe(true);
+  });
+
+  it('still reports a genuinely newer external revision while typing', () => {
+    useAppStore.setState({
+      activeNote: {
+        date: '2026-09-07',
+        filename: '2026-09-07.md',
+        filepath: '/mock/vault/2026/2026-09-07.md',
+        content: 'New unsaved text',
+        exists: true,
+        lastModified: '2026-09-07T12:00:00.000Z',
+      },
+      isDirty: true,
+    });
+
+    useAppStore.getState().handleExternalNoteChange({
+      date: '2026-09-07',
+      content: 'Changed in another editor',
+      exists: true,
+      lastModified: '2026-09-07T12:01:00.000Z',
+    });
+
+    expect(useAppStore.getState().externalNoteConflict?.content).toBe('Changed in another editor');
+    expect(useAppStore.getState().activeNote?.content).toBe('New unsaved text');
   });
 });

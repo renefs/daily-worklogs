@@ -426,6 +426,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { activeNote, isDirty } = get();
     if (!activeNote || activeNote.date !== change.date) return;
     if (activeNote.content === change.content && change.exists) return;
+    // A single atomic save can produce several delayed watcher events. Once the
+    // save response has updated the note metadata, ignore duplicate events for
+    // that exact on-disk revision even if the user has already typed more text.
+    if (change.exists && activeNote.lastModified && change.lastModified === activeNote.lastModified) return;
     if (isDirty) {
       set({ externalNoteConflict: change });
       return;
