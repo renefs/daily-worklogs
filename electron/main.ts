@@ -724,7 +724,7 @@ function showAbout() {
       type: 'info',
       title: 'About Daily Worklog',
       message: 'Daily Worklog',
-      detail: `Version: ${app.getVersion() || '1.10.0'}\nElectron: ${process.versions.electron}\nChromium: ${process.versions.chrome}\nNode.js: ${process.versions.node}\nOS: ${os.type()} ${os.release()} (${os.arch()})\n\nCross-platform Daily Worklog Desktop Application`,
+      detail: `Version: ${app.getVersion() || '1.11.0'}\nElectron: ${process.versions.electron}\nChromium: ${process.versions.chrome}\nNode.js: ${process.versions.node}\nOS: ${os.type()} ${os.release()} (${os.arch()})\n\nCross-platform Daily Worklog Desktop Application`,
       buttons: ['OK'],
     });
   }
@@ -875,8 +875,8 @@ app.whenReady().then(() => {
 
   app.setAboutPanelOptions({
     applicationName: 'Daily Worklog',
-    applicationVersion: app.getVersion() || '1.10.0',
-    version: app.getVersion() || '1.10.0',
+    applicationVersion: app.getVersion() || '1.11.0',
+    version: app.getVersion() || '1.11.0',
     copyright: 'Copyright © 2026 Daily Worklog',
     authors: ['Daily Worklog Team'],
     website: 'https://github.com/renefs/daily-worklogs',
@@ -935,13 +935,13 @@ function parseTaskCounts(content: string) {
 
 // IPC Handlers
 ipcMain.handle('get-app-version', () => {
-  return app.getVersion() || '1.10.0';
+  return app.getVersion() || '1.11.0';
 });
 
 ipcMain.handle('get-app-info', () => {
   return {
     name: 'Daily Worklog',
-    version: app.getVersion() || '1.10.0',
+    version: app.getVersion() || '1.11.0',
     electron: process.versions.electron,
     chrome: process.versions.chrome,
     node: process.versions.node,

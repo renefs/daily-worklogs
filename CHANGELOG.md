@@ -8,9 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-09-08
+
+### Added
+- **Task Editor Flush Service**: Added an editor flush service that guarantees unsaved task drafts and daily notes are persisted before view navigation, date changes, or application shutdown.
+- **Save Failure Feedback & Notifications**: Added robust error handling and localized notifications when note saves fail, keeping dirty drafts open with actionable recovery feedback.
+- **Vitest Unit Test Suite**: Migrated test infrastructure to Vitest with comprehensive unit and component testing across store, vault services, area/project utilities, and UI views.
+- **Playwright E2E Testing**: Integrated Playwright for Electron end-to-end test automation covering application launch, daily note authoring, and Kanban boards.
+
 ### Changed
 - **Continuous Editor Sessions**: Live, source, split, and preview mode changes now preserve the mounted CodeMirror session, including cursor position and undo history.
 - **Lean Markdown Language Support**: Replaced the full CodeMirror language catalog with the Markdown GFM parser needed by the editor, substantially reducing editor-related renderer chunks.
+- **Sidebar Action Clarification**: Renamed "New Today" action to "Open Today's Note" in the sidebar with updated English and Spanish translations to accurately describe opening or creating today's note.
 
 ### Fixed
 - **Lossless Navigation and Shutdown**: Dirty daily notes and task drafts are flushed before changing dates, switching views, returning from the task editor, or closing the application. Failed saves keep the editor open with actionable feedback.
@@ -23,6 +32,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Testing
 - Added regression coverage for failed-save navigation, edits during in-flight saves, stable task draft identity, long viewport-spanning Markdown constructs, and editor toolbar accessibility.
+- Integrated full Vitest unit test suite and Playwright end-to-end test framework.
 
 ## [1.10.0] - 2026-09-07
 
