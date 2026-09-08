@@ -8,6 +8,7 @@ import { Paper, ScrollArea, Checkbox, CopyButton, ActionIcon, Tooltip } from '@m
 import { IconCopy, IconCheck, IconCode } from '@tabler/icons-react';
 import { useAppStoreSelector } from '../../store/useAppStore';
 import { useTranslation } from 'react-i18next';
+import { sanitizeLivePreviewUrl } from '../editor/liveMarkdownUtils';
 
 export interface MarkdownViewerProps {
   content?: string;
@@ -211,12 +212,14 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                   const cleanPath = src.replace(/^\.?\/+/, '');
                   resolvedSrc = `worklog-media://vault/${cleanPath}`;
                 }
+                const safeSrc = sanitizeLivePreviewUrl(resolvedSrc, true);
+                if (!safeSrc) return null;
 
                 return (
                   <span className="cm-live-image-card" style={{ margin: '8px 0', display: 'inline-flex' }}>
                     <span className="cm-live-image-wrapper">
                       <img
-                        src={resolvedSrc}
+                        src={safeSrc}
                         alt={alt || 'Image'}
                         loading="lazy"
                         className="cm-live-image-img"
@@ -227,7 +230,9 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                           if (parent && !parent.querySelector('.cm-live-image-error')) {
                             const err = document.createElement('span');
                             err.className = 'cm-live-image-error';
-                            err.innerHTML = `<span>Image not found: <strong>${src}</strong></span>`;
+                            const label = document.createElement('span');
+                            label.textContent = `${t('editor.imageNotFound')}: ${src}`;
+                            err.appendChild(label);
                             parent.appendChild(err);
                           }
                         }}

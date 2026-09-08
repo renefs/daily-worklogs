@@ -106,6 +106,8 @@ export interface ElectronAPI {
   onVaultFilesChanged: (callback: (data: { relativePath: string }) => void) => () => void;
   onOpenSettings?: (callback: (tab?: string) => void) => () => void;
   onTriggerSave?: (callback: () => void) => () => void;
+  onRequestEditorFlushBeforeClose?: (callback: () => void) => () => void;
+  completeEditorFlushBeforeClose?: (succeeded: boolean) => void;
 }
 
 declare global {

@@ -8,7 +8,7 @@
 
 .cm-live-editor .cm-content {
   padding: 16px 20px;
-  font-size: 15px;
+  font-size: inherit;
   letter-spacing: -0.01em;
 }
 
@@ -152,7 +152,20 @@
   text-decoration: underline !important;
   text-decoration-thickness: 1px !important;
   text-underline-offset: 2px !important;
+  cursor: text;
+}
+
+a.cm-live-link {
   cursor: pointer;
+}
+
+.cm-live-link-widget {
+  overflow-wrap: anywhere;
+}
+
+.cm-live-link-unsafe {
+  color: var(--mantine-color-dimmed);
+  text-decoration: none;
 }
 
 .cm-live-link-url {
@@ -243,6 +256,18 @@
 .cm-live-checkbox-widget:hover {
   border-color: var(--mantine-primary-color-filled, #4f46e5);
   transform: scale(1.05);
+}
+
+.cm-live-checkbox-widget:focus-visible,
+.cm-live-table-wrapper:focus-visible,
+.cm-live-image-widget:focus-visible,
+.cm-live-codeblock-header:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled, #4f46e5);
+  outline-offset: 2px;
+}
+
+.cm-live-codeblock-copy-error {
+  color: var(--mantine-color-red-6, #e03131) !important;
 }
 
 .cm-live-checkbox-widget.checked {
@@ -652,10 +677,6 @@
     opacity: 1;
   }
 }
-
-
-
-
 
 
 

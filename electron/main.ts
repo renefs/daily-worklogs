@@ -45,11 +45,19 @@ const __dirname = path.dirname(__filename);
 // Path constants
 let mainWindow: BrowserWindow | null = null;
 let vaultWatcher: fs.FSWatcher | null = null;
-const internalWriteDeadlines = new Map<string, number>();
+const internalWrites = new Map<string, { deadline: number; expectedContent: Buffer }>();
+let allowWindowClose = false;
 
 async function writeInternalFile(filePath: string, content: string | NodeJS.ArrayBufferView): Promise<void> {
   const resolved = path.resolve(filePath);
-  internalWriteDeadlines.set(resolved, Date.now() + 1_000);
+  const writeMarker = {
+    deadline: Date.now() + 1_000,
+    expectedContent: Buffer.from(content as Uint8Array),
+  };
+  internalWrites.set(resolved, writeMarker);
+  setTimeout(() => {
+    if (internalWrites.get(resolved) === writeMarker) internalWrites.delete(resolved);
+  }, 1_500);
   await atomicWriteFile(filePath, content);
 }
 
@@ -66,14 +74,22 @@ function setupVaultWatcher(vaultPath: string): void {
     const pathParts = relativePath.split('/');
     if (pathParts.some((part, index) => part.startsWith('.') && !(index === 0 && part === VAULT_CONFIG_DIR))) return;
     const absolutePath = path.resolve(vaultPath, relativePath);
-    const deadline = internalWriteDeadlines.get(absolutePath) || 0;
-    if (deadline >= Date.now()) return;
-    internalWriteDeadlines.delete(absolutePath);
-
     const existingTimer = pending.get(relativePath);
     if (existingTimer) clearTimeout(existingTimer);
     pending.set(relativePath, setTimeout(async () => {
       pending.delete(relativePath);
+      const internalWrite = internalWrites.get(absolutePath);
+      if (internalWrite) {
+        internalWrites.delete(absolutePath);
+        if (internalWrite.deadline >= Date.now() && fs.existsSync(absolutePath)) {
+          try {
+            const actualContent = await fsp.readFile(absolutePath);
+            if (actualContent.equals(internalWrite.expectedContent)) return;
+          } catch {
+            // Reconcile through the normal external-change path below.
+          }
+        }
+      }
       if (relativePath.startsWith(`${VAULT_CONFIG_DIR}/`)) invalidateSettingsCache();
       const noteMatch = /(?:^|\/)(\d{4}-\d{2}-\d{2})\.md$/.exec(relativePath);
       if (noteMatch) {
@@ -615,6 +631,7 @@ function generateUniqueImageFilename(imagesDir: string, originalName?: string, m
 }
 
 function createWindow() {
+  allowWindowClose = false;
   const settings = getSettings();
   ensureVaultDir(settings.vaultPath);
   ensureImagesDir(settings.vaultPath);
@@ -650,7 +667,7 @@ function createWindow() {
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https:\/\//i.test(url)) void shell.openExternal(url);
+    if (/^(?:https?:|mailto:)/i.test(url)) void shell.openExternal(url);
     return { action: 'deny' };
   });
   mainWindow.webContents.on('will-navigate', (event, url) => {
@@ -664,10 +681,40 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
+  mainWindow.on('close', (event) => {
+    if (process.env.NODE_ENV === 'test' || allowWindowClose || !mainWindow || mainWindow.webContents.isDestroyed()) return;
+    event.preventDefault();
+    mainWindow.webContents.send('request-editor-flush-before-close');
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
 }
+
+ipcMain.on('editor-flush-before-close-complete', async (_event, succeeded: boolean) => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (!succeeded) {
+    const isSpanish = getSettings().language === 'es';
+    const result = await dialog.showMessageBox(mainWindow, {
+      type: 'warning',
+      title: isSpanish ? 'Cambios sin guardar' : 'Unsaved changes',
+      message: isSpanish
+        ? 'No se pudieron guardar todos los cambios.'
+        : 'Not all changes could be saved.',
+      detail: isSpanish
+        ? 'Puedes seguir editando e intentar guardarlos de nuevo, o salir y descartar los cambios sin guardar.'
+        : 'You can keep editing and retry the save, or quit and discard the unsaved changes.',
+      buttons: isSpanish ? ['Seguir editando', 'Salir sin guardar'] : ['Keep Editing', 'Quit Without Saving'],
+      defaultId: 0,
+      cancelId: 0,
+      noLink: true,
+    });
+    if (result.response !== 1 || !mainWindow || mainWindow.isDestroyed()) return;
+  }
+  allowWindowClose = true;
+  mainWindow.close();
+});
 
 function showAbout() {
   if (process.platform === 'darwin') {

@@ -3,6 +3,7 @@ import { useAppStore } from '../../../src/store/useAppStore';
 
 describe('useAppStore', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     // Reset store to predictable initial state
     useAppStore.setState({
       currentView: 'daily',
@@ -24,7 +25,7 @@ describe('useAppStore', () => {
     const store = useAppStore.getState();
     expect(store.currentView).toBe('daily');
 
-    store.setCurrentView('kanban');
+    await store.setCurrentView('kanban');
     expect(useAppStore.getState().currentView).toBe('kanban');
 
     await store.openTaskEditor({
@@ -45,8 +46,8 @@ describe('useAppStore', () => {
     expect(useAppStore.getState().activeTask).toBeNull();
   });
 
-  it('sets selected date', () => {
-    useAppStore.getState().setSelectedDate('2026-10-01');
+  it('sets selected date', async () => {
+    await useAppStore.getState().setSelectedDate('2026-10-01');
     expect(useAppStore.getState().selectedDate).toBe('2026-10-01');
   });
 
@@ -121,5 +122,61 @@ describe('useAppStore', () => {
     expect(useAppStore.getState().isDirty).toBe(true);
     expect(useAppStore.getState().isSaving).toBe(false);
     expect(useAppStore.getState().noteSaveError).toBe('Disk unavailable');
+  });
+
+  it('does not leave the current date when its dirty note cannot be saved', async () => {
+    vi.mocked(window.electronAPI.writeNote).mockRejectedValueOnce(new Error('Disk unavailable'));
+    useAppStore.setState({
+      selectedDate: '2026-09-07',
+      activeNote: {
+        date: '2026-09-07',
+        filename: '2026-09-07.md',
+        filepath: '',
+        content: 'Keep this draft',
+        exists: true,
+      },
+      isDirty: true,
+    });
+
+    await useAppStore.getState().setSelectedDate('2026-09-08');
+
+    expect(useAppStore.getState().selectedDate).toBe('2026-09-07');
+    expect(useAppStore.getState().activeNote?.content).toBe('Keep this draft');
+    expect(window.electronAPI.readNote).not.toHaveBeenCalled();
+  });
+
+  it('flushes edits made during an in-flight save before changing dates', async () => {
+    let resolveFirstWrite: ((value: { success: boolean; filepath: string; lastModified: string }) => void) | undefined;
+    vi.mocked(window.electronAPI.writeNote)
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveFirstWrite = resolve; }))
+      .mockResolvedValueOnce({ success: true, filepath: '/mock/vault/2026/2026-09-07.md', lastModified: 'later' });
+    vi.mocked(window.electronAPI.readNote).mockResolvedValueOnce({
+      date: '2026-09-08',
+      filename: '2026-09-08.md',
+      filepath: '',
+      content: 'Next day',
+      exists: false,
+    });
+    useAppStore.setState({
+      selectedDate: '2026-09-07',
+      activeNote: {
+        date: '2026-09-07',
+        filename: '2026-09-07.md',
+        filepath: '',
+        content: 'First revision',
+        exists: true,
+      },
+      isDirty: true,
+    });
+
+    const firstSave = useAppStore.getState().saveActiveNote();
+    useAppStore.getState().setNoteContent('Newest revision');
+    const navigation = useAppStore.getState().setSelectedDate('2026-09-08');
+    resolveFirstWrite?.({ success: true, filepath: '/mock/vault/2026/2026-09-07.md', lastModified: 'first' });
+    await Promise.all([firstSave, navigation]);
+
+    expect(window.electronAPI.writeNote).toHaveBeenNthCalledWith(1, '2026-09-07', 'First revision');
+    expect(window.electronAPI.writeNote).toHaveBeenNthCalledWith(2, '2026-09-07', 'Newest revision');
+    expect(useAppStore.getState().selectedDate).toBe('2026-09-08');
   });
 });

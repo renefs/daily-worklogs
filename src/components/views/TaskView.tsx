@@ -7,7 +7,6 @@ import {
   Modal,
   Text,
   Badge,
-  Grid,
   Tooltip,
   Paper,
   Stack,
@@ -47,11 +46,12 @@ import {
   IconChevronRight,
   IconRotateClockwise,
   IconFolder,
+  IconAlertCircle,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { useAppStoreSelector } from '../../store/useAppStore';
-import { DEFAULT_KANBAN_COLUMNS, TaskPriority, TaskStatus } from '../../types';
+import { DEFAULT_KANBAN_COLUMNS, TaskItem, TaskPriority, TaskStatus } from '../../types';
 import { MarkdownEditor } from '../editor/MarkdownEditor';
 import { MarkdownViewer } from '../viewer/MarkdownViewer';
 import { ExportModal } from '../modals/ExportModal';
@@ -63,6 +63,7 @@ import {
   getProjectColor,
   resolveTaskContext,
 } from '../../utils/areaProjectUtils';
+import { registerTaskEditorFlush } from '../../services/editorSession';
 
 export const TaskView: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -114,10 +115,17 @@ export const TaskView: React.FC = () => {
 
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [taskSaveError, setTaskSaveError] = useState<string | null>(null);
   const [isLogging, setIsLogging] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const isSavingRef = useRef(false);
+  const persistedTaskRef = useRef<TaskItem | null>(activeTask);
+  const initializedTaskKeyRef = useRef<string | null>(null);
+  const failedDraftSignatureRef = useRef<string | null>(null);
+  const taskSaveInFlightRef = useRef<Promise<TaskItem | null> | null>(null);
+  const handleSaveRef = useRef<(options?: { showNotification?: boolean }) => Promise<TaskItem | null>>(
+    async () => null
+  );
 
   const draftSignature = JSON.stringify({
     title,
@@ -133,6 +141,12 @@ export const TaskView: React.FC = () => {
   });
   const latestDraftSignatureRef = useRef(draftSignature);
   latestDraftSignatureRef.current = draftSignature;
+
+  useEffect(() => {
+    if (taskSaveError && failedDraftSignatureRef.current !== draftSignature) {
+      setTaskSaveError(null);
+    }
+  }, [draftSignature, taskSaveError]);
 
   // Inspector section collapse states
   const [isOutlineOpen, setIsOutlineOpen] = useState(true);
@@ -189,6 +203,10 @@ export const TaskView: React.FC = () => {
 
   // Initialize or reset form from activeTask
   useEffect(() => {
+    const initializationKey = activeTask?.filename || `new:${taskModalInitialStatus}`;
+    if (initializedTaskKeyRef.current === initializationKey) return;
+    initializedTaskKeyRef.current = initializationKey;
+    persistedTaskRef.current = activeTask;
     if (activeTask) {
       const resolved = resolveTaskContext(activeTask, areas, projects, allTags);
       setTitle(activeTask.title || '');
@@ -202,6 +220,7 @@ export const TaskView: React.FC = () => {
       setTags(activeTask.tags || []);
       setContent(activeTask.content || '');
       setIsDirty(false);
+      setTaskSaveError(null);
     } else {
       const initialStatus = taskModalInitialStatus || availableColumns[0]?.id || 'todo';
       const targetCol = availableColumns.find((c) => c.id === initialStatus);
@@ -218,6 +237,7 @@ export const TaskView: React.FC = () => {
       setTags([]);
       setContent('');
       setIsDirty(false);
+      setTaskSaveError(null);
     }
   }, [activeTask, taskModalInitialStatus, availableColumns, areas, projects, allTags]);
 
@@ -280,34 +300,43 @@ export const TaskView: React.FC = () => {
   };
 
   const handleSave = useCallback(async (options?: { showNotification?: boolean }) => {
-    if (isSavingRef.current) return null;
+    const existingSave = taskSaveInFlightRef.current;
+    if (existingSave) {
+      const result = await existingSave;
+      if (taskSaveInFlightRef.current === existingSave) taskSaveInFlightRef.current = null;
+      if (!result) return null;
+      if (latestDraftSignatureRef.current !== draftSignature) {
+        return handleSaveRef.current(options);
+      }
+      return result;
+    }
 
     const savingDraftSignature = draftSignature;
-    isSavingRef.current = true;
-    const trimmedTitle = title.trim() || activeTask?.title || t('tasks.untitledTask', 'Untitled Task');
-    setIsSaving(true);
-    try {
-      const formattedDue = dueDate ? dayjs(dueDate).format('YYYY-MM-DD') : undefined;
-      const formattedStarted = startedDate ? dayjs(startedDate).format('YYYY-MM-DD') : undefined;
-      const formattedCompleted = completedDate ? dayjs(completedDate).format('YYYY-MM-DD') : undefined;
+    const identity = persistedTaskRef.current || activeTask;
+    const trimmedTitle = title.trim() || identity?.title || t('tasks.untitledTask', 'Untitled Task');
+    const saveOperation = (async (): Promise<TaskItem | null> => {
+      setIsSaving(true);
+      setTaskSaveError(null);
+      try {
+        const result = await createOrUpdateTask({
+          id: identity?.id,
+          taskId: identity?.taskId,
+          filename: identity?.filename,
+          title: trimmedTitle,
+          status,
+          priority,
+          area: area.trim() || undefined,
+          project: project ? project.trim() : undefined,
+          due: dueDate ? dayjs(dueDate).format('YYYY-MM-DD') : undefined,
+          startedDate: startedDate ? dayjs(startedDate).format('YYYY-MM-DD') : undefined,
+          completedDate: completedDate ? dayjs(completedDate).format('YYYY-MM-DD') : undefined,
+          tags,
+          content,
+        });
+        if (!result) throw new Error(t('tasks.errorSaving') || 'Failed to save task');
 
-      const result = await createOrUpdateTask({
-        id: activeTask?.id,
-        taskId: activeTask?.taskId,
-        filename: activeTask?.filename,
-        title: trimmedTitle,
-        status,
-        priority,
-        area: area.trim() || undefined,
-        project: project ? project.trim() : undefined,
-        due: formattedDue,
-        startedDate: formattedStarted,
-        completedDate: formattedCompleted,
-        tags,
-        content,
-      });
-
-      if (result) {
+        persistedTaskRef.current = result;
+        failedDraftSignatureRef.current = null;
         setIsDirty(latestDraftSignatureRef.current !== savingDraftSignature);
         if (options?.showNotification) {
           notifications.show({
@@ -319,22 +348,32 @@ export const TaskView: React.FC = () => {
             autoClose: 2000,
           });
         }
+        return result;
+      } catch (err) {
+        console.error('Failed to save task from TaskView:', err);
+        const message = err instanceof Error ? err.message : t('tasks.errorSaving');
+        failedDraftSignatureRef.current = savingDraftSignature;
+        setTaskSaveError(message);
+        setIsDirty(true);
+        if (options?.showNotification) {
+          notifications.show({
+            id: 'task-save-error',
+            title: t('common.error') || 'Error',
+            message,
+            color: 'red',
+          });
+        }
+        return null;
+      } finally {
+        setIsSaving(false);
       }
-      return result;
-    } catch (err) {
-      console.error('Failed to save task from TaskView:', err);
-      if (options?.showNotification) {
-        notifications.show({
-          id: 'task-save-error',
-          title: t('common.error') || 'Error',
-          message: t('tasks.errorSaving') || 'Failed to save task',
-          color: 'red',
-        });
-      }
-      return null;
+    })();
+
+    taskSaveInFlightRef.current = saveOperation;
+    try {
+      return await saveOperation;
     } finally {
-      isSavingRef.current = false;
-      setIsSaving(false);
+      if (taskSaveInFlightRef.current === saveOperation) taskSaveInFlightRef.current = null;
     }
   }, [
     activeTask?.id,
@@ -355,15 +394,21 @@ export const TaskView: React.FC = () => {
     createOrUpdateTask,
     t,
   ]);
+  handleSaveRef.current = handleSave;
+
+  useEffect(() => registerTaskEditorFlush(async () => {
+    if (!isDirty) return true;
+    return Boolean(await handleSave({ showNotification: true }));
+  }), [handleSave, isDirty]);
 
   // Autosave debounce timer
   useEffect(() => {
-    if (!settings?.autoSave || !isDirty || isSaving) return;
+    if (!settings?.autoSave || !isDirty || isSaving || taskSaveError) return;
     const timer = setTimeout(() => {
       handleSave();
     }, settings.autoSaveDelay || 1000);
     return () => clearTimeout(timer);
-  }, [isDirty, isSaving, settings?.autoSave, settings?.autoSaveDelay, handleSave]);
+  }, [isDirty, isSaving, taskSaveError, settings?.autoSave, settings?.autoSaveDelay, handleSave]);
 
   // Listen to global app save trigger (Cmd+S, File -> Save menu)
   useEffect(() => {
@@ -485,19 +530,19 @@ export const TaskView: React.FC = () => {
       <div className="task-header-unified">
         <div className="task-header-primary">
           <div className="task-header-title-group">
-            <Tooltip label={t('tasks.backToTasks', 'Back to Tasks')} withArrow>
+            <Tooltip label={t('tasks.backToTasks')} withArrow>
               <ActionIcon
                 variant="subtle"
                 color="gray"
                 size="md"
                 onClick={() => {
-                  if (isDirty) {
-                    handleSave();
-                  }
-                  closeTaskEditor();
+                  void (async () => {
+                    if (isDirty && !await handleSave({ showNotification: true })) return;
+                    closeTaskEditor();
+                  })();
                 }}
                 radius="md"
-                aria-label={t('tasks.backToTasks', 'Back to Tasks')}
+                aria-label={t('tasks.backToTasks')}
               >
                 <IconArrowLeft size={18} />
               </ActionIcon>
@@ -559,7 +604,17 @@ export const TaskView: React.FC = () => {
 
           <Group gap={6} wrap="nowrap" className="task-header-primary-actions">
             {/* Save status stays visible without competing with the title. */}
-            {isSaving ? (
+            {taskSaveError ? (
+              <Button
+                variant="subtle"
+                color="red"
+                size="compact-xs"
+                leftSection={<IconAlertCircle size={14} />}
+                onClick={() => void handleSave({ showNotification: true })}
+              >
+                {t('editor.retrySave')}
+              </Button>
+            ) : isSaving ? (
               <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
                 {t('editor.saving')}
               </Text>
@@ -575,8 +630,9 @@ export const TaskView: React.FC = () => {
               </Tooltip>
             )}
 
-            <Tooltip label={t('tasks.toggleProperties', 'Task Properties')} withArrow>
+            <Tooltip label={t('tasks.toggleProperties')} withArrow>
               <ActionIcon
+                aria-label={t('tasks.toggleProperties')}
                 variant={isTaskPropertiesPanelOpen ? 'light' : 'subtle'}
                 color={isTaskPropertiesPanelOpen ? 'primary' : 'gray'}
                 size="md"
@@ -594,7 +650,13 @@ export const TaskView: React.FC = () => {
             {/* 3-Dots More Actions Menu */}
             <Menu position="bottom-end" shadow="md" width={200} withinPortal>
               <Menu.Target>
-                <ActionIcon variant="subtle" size="md" color="gray" radius="md">
+                <ActionIcon
+                  aria-label={t('tasks.moreActions')}
+                  variant="subtle"
+                  size="md"
+                  color="gray"
+                  radius="md"
+                >
                   <IconDotsVertical size={16} />
                 </ActionIcon>
               </Menu.Target>
@@ -715,7 +777,7 @@ export const TaskView: React.FC = () => {
           <div className="task-header-view-modes">
             <SegmentedControl
               value={taskEditorLayoutMode}
-              onChange={(val) => setTaskEditorLayoutMode(val as any)}
+              onChange={(val) => setTaskEditorLayoutMode(val as 'live' | 'split' | 'edit' | 'preview')}
               size="xs"
               radius="md"
               transitionDuration={180}
@@ -766,77 +828,35 @@ export const TaskView: React.FC = () => {
       {/* 3. MAIN WORKSPACE: EDITOR/VIEWER + COMPACT INSPECTOR */}
       <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: 10, overflow: 'hidden' }}>
         {/* Document Editor / Viewer */}
-        <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
-          {taskEditorLayoutMode === 'live' && (
-            <div style={{ height: '100%' }}>
-              <MarkdownEditor
-                isLivePreview={true}
-                content={content}
-                onChange={handleContentChange}
-                onSave={handleSave}
-                isSaving={isSaving}
-                isDirty={isDirty}
-                showTemplates={false}
-                showStatusAndActions={false}
-                placeholder={t('tasks.descriptionPlaceholder')}
-                tasksStats={checklistStats}
-                onExportClick={() => setIsExportModalOpen(true)}
-                onDeleteClick={() => setIsDeleteModalOpen(true)}
-              />
-            </div>
-          )}
+        <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', gap: 10 }}>
+          <div
+            style={{
+              display: taskEditorLayoutMode === 'preview' ? 'none' : 'block',
+              flex: 1,
+              minWidth: 0,
+              height: '100%',
+            }}
+          >
+            <MarkdownEditor
+              isLivePreview={taskEditorLayoutMode === 'live'}
+              content={content}
+              onChange={handleContentChange}
+              onSave={handleSave}
+              isSaving={isSaving}
+              isDirty={isDirty}
+              showTemplates={false}
+              showStatusAndActions={false}
+              placeholder={t('tasks.descriptionPlaceholder')}
+              tasksStats={checklistStats}
+              onExportClick={() => setIsExportModalOpen(true)}
+              onDeleteClick={() => setIsDeleteModalOpen(true)}
+            />
+          </div>
 
-          {taskEditorLayoutMode === 'split' && (
-            <Grid style={{ height: '100%' }} gutter="sm">
-              <Grid.Col span={{ base: 12, md: 6 }} style={{ height: '100%' }}>
-                <MarkdownEditor
-                  isLivePreview={false}
-                  content={content}
-                  onChange={handleContentChange}
-                  onSave={handleSave}
-                  isSaving={isSaving}
-                  isDirty={isDirty}
-                  showTemplates={false}
-                  showStatusAndActions={false}
-                  placeholder={t('tasks.descriptionPlaceholder')}
-                  tasksStats={checklistStats}
-                  onExportClick={() => setIsExportModalOpen(true)}
-                  onDeleteClick={() => setIsDeleteModalOpen(true)}
-                />
-              </Grid.Col>
-              <Grid.Col span={{ base: 12, md: 6 }} style={{ height: '100%' }}>
-                <MarkdownViewer
-                  content={content || '_No description provided_'}
-                  allowToggleTasks={true}
-                  onToggleTask={handleToggleTaskInContent}
-                />
-              </Grid.Col>
-            </Grid>
-          )}
-
-          {taskEditorLayoutMode === 'edit' && (
-            <div style={{ height: '100%' }}>
-              <MarkdownEditor
-                isLivePreview={false}
-                content={content}
-                onChange={handleContentChange}
-                onSave={handleSave}
-                isSaving={isSaving}
-                isDirty={isDirty}
-                showTemplates={false}
-                showStatusAndActions={false}
-                placeholder={t('tasks.descriptionPlaceholder')}
-                tasksStats={checklistStats}
-                onExportClick={() => setIsExportModalOpen(true)}
-                onDeleteClick={() => setIsDeleteModalOpen(true)}
-              />
-            </div>
-          )}
-
-          {taskEditorLayoutMode === 'preview' && (
-            <div style={{ height: '100%' }}>
+          {(taskEditorLayoutMode === 'split' || taskEditorLayoutMode === 'preview') && (
+            <div style={{ flex: 1, minWidth: 0, height: '100%' }}>
               <MarkdownViewer
-                content={content || '_No description provided_'}
+                content={content || `_${t('tasks.noDescriptionProvided')}_`}
                 allowToggleTasks={true}
                 onToggleTask={handleToggleTaskInContent}
               />
@@ -861,6 +881,7 @@ export const TaskView: React.FC = () => {
               </Group>
 
               <ActionIcon
+                aria-label={t('tasks.toggleProperties')}
                 variant="subtle"
                 size="xs"
                 color="gray"

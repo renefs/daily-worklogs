@@ -7,6 +7,7 @@ import { AppSettings, AppViewMode, AreaDefinition, DailyNote, DailyNoteMeta, Dai
 import i18n, { getSystemLanguage } from '../i18n';
 import { formatTemplateContent } from '../utils/dateTemplate';
 import { DEFAULT_AREAS } from '../utils/areaProjectUtils';
+import { flushTaskEditor } from '../services/editorSession';
 
 dayjs.extend(isoWeek);
 
@@ -15,6 +16,7 @@ let notesRefreshInFlight: { generation: number; promise: Promise<DailyNoteMeta[]
 let tasksRefreshGeneration = 0;
 let tasksRefreshInFlight: { generation: number; promise: Promise<TaskMeta[]> } | null = null;
 let noteEditRevision = 0;
+let noteSaveInFlight: Promise<boolean> | null = null;
 
 function invalidateNotesRefresh(): void {
   notesRefreshGeneration += 1;
@@ -70,10 +72,10 @@ interface AppState {
   loadSettings: () => Promise<void>;
   updateSettings: (partial: Partial<AppSettings>) => Promise<void>;
   setSelectedDate: (date: string) => Promise<void>;
-  setCurrentView: (view: AppViewMode) => void;
+  setCurrentView: (view: AppViewMode) => Promise<void>;
   loadNoteForDate: (date: string) => Promise<void>;
   setNoteContent: (content: string) => void;
-  saveActiveNote: (options?: { force?: boolean }) => Promise<void>;
+  saveActiveNote: (options?: { force?: boolean }) => Promise<boolean>;
   handleExternalNoteChange: (change: { date: string; content: string; lastModified?: string; exists: boolean }) => void;
   acceptExternalNote: () => void;
   keepLocalNote: () => Promise<void>;
@@ -124,7 +126,7 @@ interface AppState {
   logTaskToDailyNote: (task: TaskMeta, targetDate?: string) => Promise<boolean>;
   openTaskModal: (task?: TaskMeta | TaskItem | null, defaultStatus?: TaskStatus) => void;
   closeTaskModal: () => void;
-  openTaskEditor: (task?: TaskMeta | TaskItem | null, defaultStatus?: TaskStatus, returnView?: AppViewMode) => void;
+  openTaskEditor: (task?: TaskMeta | TaskItem | null, defaultStatus?: TaskStatus, returnView?: AppViewMode) => Promise<void>;
   closeTaskEditor: () => void;
   setActiveTask: (task: TaskItem | null) => void;
   setTaskEditorLayoutMode: (mode: 'live' | 'split' | 'edit' | 'preview') => void;
@@ -291,15 +293,29 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   setSelectedDate: async (date: string) => {
+    if (date === get().selectedDate) return;
     // If current note is dirty, save it first before switching
     if (get().isDirty && get().activeNote) {
-      await get().saveActiveNote();
+      const saved = await get().saveActiveNote({ force: true });
+      if (!saved) return;
     }
     set({ selectedDate: date });
     await Promise.all([get().loadNoteForDate(date), get().loadRoutineCompletions(date)]);
   },
 
-  setCurrentView: (view: AppViewMode) => {
+  setCurrentView: async (view: AppViewMode) => {
+    const currentView = get().currentView;
+    if (view === currentView) return;
+
+    if (currentView === 'task') {
+      const saved = await flushTaskEditor();
+      if (!saved) return;
+    }
+    if (get().isDirty && get().activeNote) {
+      const saved = await get().saveActiveNote({ force: true });
+      if (!saved) return;
+    }
+
     set({ currentView: view });
   },
 
@@ -334,52 +350,75 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   saveActiveNote: async (_options?: { force?: boolean }) => {
-    const { activeNote, isSaving } = get();
-    if (!activeNote || !window.electronAPI || isSaving) return;
+    const requestedNote = get().activeNote;
+    if (!requestedNote || !window.electronAPI) return false;
 
-    set({ isSaving: true, noteSaveError: null });
-    try {
-      let noteToSave: DailyNote | null = activeNote;
-      while (noteToSave) {
-        const savingRevision = noteEditRevision;
-        const res = await window.electronAPI.writeNote(noteToSave.date, noteToSave.content);
-        if (!res.success) throw new Error('The note could not be written to disk');
-
-        const current = get().activeNote;
-        if (!current || current.date !== noteToSave.date) break;
-        const hasNewerEdits = noteEditRevision !== savingRevision;
-        set({
-          isDirty: hasNewerEdits,
-          activeNote: {
-            ...current,
-            exists: true,
-            filepath: res.filepath,
-            lastModified: res.lastModified,
-          },
-        });
-        invalidateNotesRefresh();
-        if (!hasNewerEdits) break;
-        noteToSave = get().activeNote;
+    if (noteSaveInFlight) {
+      const inFlight = noteSaveInFlight;
+      const previousSaveSucceeded = await inFlight;
+      if (noteSaveInFlight === inFlight) noteSaveInFlight = null;
+      const current = get().activeNote;
+      if (!previousSaveSucceeded) return false;
+      if (current?.date === requestedNote.date && get().isDirty) {
+        return get().saveActiveNote(_options);
       }
-      await get().refreshNotesList();
-      notifications.hide('note-save-error');
-    } catch (err) {
-      console.error('Failed to save note:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Unknown save error';
-      set({ noteSaveError: errorMessage, isDirty: true });
+      return true;
+    }
+
+    const saveOperation = (async (): Promise<boolean> => {
+      set({ isSaving: true, noteSaveError: null });
       try {
-        notifications.show({
-          id: 'note-save-error',
-          title: i18n.t('editor.saveFailed') || 'The note could not be saved',
-          message: i18n.t('editor.saveFailedDescription') || 'Your changes are still available. Try saving again.',
-          color: 'red',
-          autoClose: false,
-        });
-      } catch {
-        // ignore in non-browser environments
+        let noteToSave: DailyNote | null = get().activeNote;
+        while (noteToSave) {
+          const savingRevision = noteEditRevision;
+          const res = await window.electronAPI.writeNote(noteToSave.date, noteToSave.content);
+          if (!res.success) throw new Error('The note could not be written to disk');
+
+          const current = get().activeNote;
+          if (!current || current.date !== noteToSave.date) return false;
+          const hasNewerEdits = noteEditRevision !== savingRevision;
+          set({
+            isDirty: hasNewerEdits,
+            activeNote: {
+              ...current,
+              exists: true,
+              filepath: res.filepath,
+              lastModified: res.lastModified,
+            },
+          });
+          invalidateNotesRefresh();
+          if (!hasNewerEdits) break;
+          noteToSave = get().activeNote;
+        }
+        await get().refreshNotesList();
+        notifications.hide('note-save-error');
+        return true;
+      } catch (err) {
+        console.error('Failed to save note:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Unknown save error';
+        set({ noteSaveError: errorMessage, isDirty: true });
+        try {
+          notifications.show({
+            id: 'note-save-error',
+            title: i18n.t('editor.saveFailed') || 'The note could not be saved',
+            message: i18n.t('editor.saveFailedDescription') || 'Your changes are still available. Try saving again.',
+            color: 'red',
+            autoClose: false,
+          });
+        } catch {
+          // Ignore notification failures in non-browser environments.
+        }
+        return false;
+      } finally {
+        set({ isSaving: false });
       }
+    })();
+
+    noteSaveInFlight = saveOperation;
+    try {
+      return await saveOperation;
     } finally {
-      set({ isSaving: false });
+      if (noteSaveInFlight === saveOperation) noteSaveInFlight = null;
     }
   },
 
@@ -802,6 +841,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   openTaskEditor: async (task = null, defaultStatus = 'todo', returnView) => {
+    if (get().isDirty && get().activeNote) {
+      const saved = await get().saveActiveNote({ force: true });
+      if (!saved) return;
+    }
     const current = get().currentView;
     const prev = returnView || (current === 'task' ? get().previousView : current);
     const detailedTask = task && 'content' in task

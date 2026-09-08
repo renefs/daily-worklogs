@@ -6,12 +6,14 @@ import {
   WidgetType,
 } from '@codemirror/view';
 import { EditorState, RangeSetBuilder } from '@codemirror/state';
+import { syntaxTree } from '@codemirror/language';
 import { matchesMarkdownSyntaxNode, sanitizeLivePreviewUrl } from './liveMarkdownUtils';
 
 export interface LiveMarkdownLabels {
   copyCode: string;
   editTable: string;
   imageNotFound: string;
+  toggleTask: string;
 }
 
 /**
@@ -21,7 +23,8 @@ export interface LiveMarkdownLabels {
 class CheckboxWidget extends WidgetType {
   constructor(
     readonly checked: boolean,
-    readonly pos: number
+    readonly pos: number,
+    readonly label: string
   ) {
     super();
   }
@@ -31,16 +34,16 @@ class CheckboxWidget extends WidgetType {
     wrap.className = `cm-live-checkbox-widget ${this.checked ? 'checked' : ''}`;
     wrap.setAttribute('role', 'checkbox');
     wrap.setAttribute('aria-checked', String(this.checked));
+    wrap.setAttribute('aria-label', this.label);
+    wrap.tabIndex = 0;
 
     if (this.checked) {
       wrap.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
     }
 
-    wrap.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-
+    const toggle = () => {
       const currentDoc = view.state.doc.sliceString(this.pos, this.pos + 3);
+      if (!/^\[[ xX]\]$/.test(currentDoc)) return;
       const isCurrentlyChecked = currentDoc.includes('x') || currentDoc.includes('X');
       const newMark = isCurrentlyChecked ? '[ ]' : '[x]';
 
@@ -51,13 +54,25 @@ class CheckboxWidget extends WidgetType {
           insert: newMark,
         },
       });
+    };
+
+    wrap.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggle();
+    });
+    wrap.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      e.stopPropagation();
+      toggle();
     });
 
     return wrap;
   }
 
   eq(other: CheckboxWidget): boolean {
-    return this.checked === other.checked && this.pos === other.pos;
+    return this.checked === other.checked && this.pos === other.pos && this.label === other.label;
   }
 
   ignoreEvent(): boolean {
@@ -96,6 +111,7 @@ class CodeBlockHeaderWidget extends WidgetType {
   toDOM(view: EditorView): HTMLElement {
     const header = document.createElement('span');
     header.className = 'cm-live-codeblock-header';
+    header.tabIndex = 0;
 
     const langSpan = document.createElement('span');
     langSpan.className = 'cm-live-codeblock-lang';
@@ -113,11 +129,13 @@ class CodeBlockHeaderWidget extends WidgetType {
     copyBtn.addEventListener('mousedown', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      navigator.clipboard.writeText(this.rawCode).then(() => {
+      void navigator.clipboard.writeText(this.rawCode).then(() => {
         copyBtn.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#12b886" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
         setTimeout(() => {
           copyBtn.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
         }, 2000);
+      }).catch(() => {
+        copyBtn.classList.add('cm-live-codeblock-copy-error');
       });
     });
     header.appendChild(copyBtn);
@@ -130,6 +148,12 @@ class CodeBlockHeaderWidget extends WidgetType {
         selection: { anchor: this.pos },
         scrollIntoView: true,
       });
+      view.focus();
+    });
+    header.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      view.dispatch({ selection: { anchor: this.pos }, scrollIntoView: true });
       view.focus();
     });
 
@@ -210,6 +234,39 @@ class BulletWidget extends WidgetType {
 }
 
 /**
+ * Clickable link shown when the caret is outside the Markdown source.
+ * Opening a new window is intercepted by Electron and delegated to the user's
+ * default browser.
+ */
+class LinkWidget extends WidgetType {
+  constructor(
+    readonly label: string,
+    readonly href: string
+  ) {
+    super();
+  }
+
+  toDOM(): HTMLElement {
+    const anchor = document.createElement('a');
+    anchor.className = 'cm-live-link cm-live-link-widget';
+    anchor.href = this.href;
+    anchor.target = '_blank';
+    anchor.rel = 'noopener noreferrer';
+    anchor.textContent = this.label;
+    anchor.addEventListener('mousedown', (event) => event.stopPropagation());
+    return anchor;
+  }
+
+  eq(other: LinkWidget): boolean {
+    return this.label === other.label && this.href === other.href;
+  }
+
+  ignoreEvent(): boolean {
+    return false;
+  }
+}
+
+/**
  * Interactive Image Widget in Live Preview
  */
 class ImageWidget extends WidgetType {
@@ -225,6 +282,9 @@ class ImageWidget extends WidgetType {
   toDOM(view: EditorView): HTMLElement {
     const wrap = document.createElement('span');
     wrap.className = 'cm-live-image-widget';
+    wrap.setAttribute('role', 'button');
+    wrap.setAttribute('aria-label', this.alt || this.src);
+    wrap.tabIndex = 0;
 
     const card = document.createElement('span');
     card.className = 'cm-live-image-card';
@@ -287,6 +347,12 @@ class ImageWidget extends WidgetType {
         selection: { anchor: this.pos },
         scrollIntoView: true,
       });
+      view.focus();
+    });
+    wrap.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      view.dispatch({ selection: { anchor: this.pos }, scrollIntoView: true });
       view.focus();
     });
 
@@ -450,6 +516,7 @@ function findTableStartingAt(doc: { lines: number; line: (n: number) => { text: 
 
   const headers = splitTableRow(headerText);
   if (headers.length === 0) return null;
+  if (headers.length !== alignments.length) return null;
 
   const rows: string[][] = [];
   let cur = lineNum + 2;
@@ -496,6 +563,9 @@ class TableWidget extends WidgetType {
   toDOM(view: EditorView): HTMLElement {
     const wrapper = document.createElement('div');
     wrapper.className = 'cm-live-table-wrapper';
+    wrapper.setAttribute('role', 'group');
+    wrapper.setAttribute('aria-label', this.editTableLabel);
+    wrapper.tabIndex = 0;
 
     const hint = document.createElement('span');
     hint.className = 'cm-live-table-hint';
@@ -572,6 +642,12 @@ class TableWidget extends WidgetType {
       });
       view.focus();
     });
+    wrapper.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      view.dispatch({ selection: { anchor: this.from }, scrollIntoView: true });
+      view.focus();
+    });
 
     return wrapper;
   }
@@ -595,13 +671,14 @@ interface QueuedDeco {
 /**
  * Build decorations across the document.
  */
-function buildLiveDecorations(
+export function buildLiveDecorations(
   state: EditorState,
   visibleRanges: readonly { from: number; to: number }[] | undefined,
   labels: LiveMarkdownLabels
 ): DecorationSet {
   const queued: QueuedDeco[] = [];
   const { doc, selection } = state;
+  const tree = syntaxTree(state);
   const cursorRanges = selection.ranges;
   const matchesSyntaxNode = (names: readonly string[], from: number, to: number): boolean =>
     matchesMarkdownSyntaxNode(state, names, from, to);
@@ -629,101 +706,108 @@ function buildLiveDecorations(
     const text = line.text;
     const cursorOnCurrentLine = isCursorOnLine(line.from, line.to);
 
-    // 0. Fenced Code Blocks (``` or ~~~)
-    const codeBlockMatch = text.match(/^([ \t]*)(```+|~~~+)(.*)$/);
-    if (codeBlockMatch) {
-      const fenceMarker = codeBlockMatch[2];
-      const fenceChar = fenceMarker[0];
-      const fenceLen = fenceMarker.length;
-      const lang = (codeBlockMatch[3] || '').trim();
+    // 0. Fenced code blocks. Resolve the enclosing syntax node rather than
+    // searching only the viewport, so long blocks remain stable while scrolling.
+    let syntaxNode = tree.resolveInner(Math.min(line.from + 1, line.to), 1);
+    let fencedRange: { from: number; to: number } | null = null;
+    while (syntaxNode) {
+      if (syntaxNode.name === 'FencedCode') {
+        fencedRange = { from: syntaxNode.from, to: syntaxNode.to };
+        break;
+      }
+      const parent = syntaxNode.parent;
+      if (!parent) break;
+      syntaxNode = parent;
+    }
+
+    if (fencedRange) {
+      const blockStartLine = doc.lineAt(fencedRange.from).number;
+      const blockEndLine = doc.lineAt(Math.max(fencedRange.from, fencedRange.to - 1)).number;
+      const openingLine = doc.line(blockStartLine);
+      const openingMatch = openingLine.text.match(/^([ \t]*)(```+|~~~+)(.*)$/);
+      const lang = (openingMatch?.[3] || '').trim();
       const langClass = lang ? ` cm-live-codeblock-lang-${lang.toLowerCase()}` : '';
+      const closingLine = blockEndLine > blockStartLine ? doc.line(blockEndLine) : null;
+      const hasClosingFence = Boolean(closingLine?.text.match(/^[ \t]*(?:```+|~~~+)\s*$/));
+      const cursorOnOpening = isCursorOnLine(openingLine.from, openingLine.to);
 
-      // Find closing fence line
-      let closeLineNum = -1;
-      for (let c = l + 1; c <= endLine; c++) {
-        const cText = doc.line(c).text;
-        const closeMatch = cText.match(new RegExp(`^[ \\t]*${fenceChar}{${fenceLen},}\\s*$`));
-        if (closeMatch) {
-          closeLineNum = c;
-          break;
-        }
-      }
-
-      const blockEndLine = closeLineNum !== -1 ? closeLineNum : endLine;
-      const cursorOnOpening = isCursorOnLine(line.from, line.to);
-
-      // Extract raw code text between fences for copy button
+      const contentEndLine = hasClosingFence ? blockEndLine - 1 : blockEndLine;
       let rawCode = '';
-      if (l + 1 < blockEndLine) {
-        const fromPos = doc.line(l + 1).from;
-        const toPos = doc.line(blockEndLine - 1).to;
-        rawCode = doc.sliceString(fromPos, toPos);
+      if (blockStartLine + 1 <= contentEndLine) {
+        rawCode = doc.sliceString(doc.line(blockStartLine + 1).from, doc.line(contentEndLine).to);
       }
 
-      // 0a. Opening fence line
-      queued.push({
-        from: line.from,
-        to: line.from,
-        deco: Decoration.line({
-          class: `cm-live-codeblock-line cm-live-codeblock-start${cursorOnOpening ? ' cm-live-codeblock-active' : ''}${langClass}`,
-        }),
-        isLine: true,
-      });
-
-      if (!cursorOnOpening) {
+      if (blockStartLine >= startLine && blockStartLine <= endLine) {
         queued.push({
-          from: line.from,
-          to: line.to,
-          deco: Decoration.replace({
-            widget: new CodeBlockHeaderWidget(lang, line.from, rawCode, labels.copyCode),
-          }),
-        });
-      }
-
-      // 0b. Inner code lines
-      for (let innerL = l + 1; innerL < blockEndLine; innerL++) {
-        const innerLine = doc.line(innerL);
-        queued.push({
-          from: innerLine.from,
-          to: innerLine.from,
+          from: openingLine.from,
+          to: openingLine.from,
           deco: Decoration.line({
-            class: 'cm-live-codeblock-line cm-live-codeblock-content',
+            class: `cm-live-codeblock-line cm-live-codeblock-start${cursorOnOpening ? ' cm-live-codeblock-active' : ''}${langClass}`,
           }),
           isLine: true,
         });
-      }
-
-      // 0c. Closing fence line
-      if (closeLineNum !== -1) {
-        const closeLine = doc.line(closeLineNum);
-        const cursorOnClosing = isCursorOnLine(closeLine.from, closeLine.to);
-
-        queued.push({
-          from: closeLine.from,
-          to: closeLine.from,
-          deco: Decoration.line({
-            class: `cm-live-codeblock-line cm-live-codeblock-end${cursorOnClosing ? ' cm-live-codeblock-active' : ''}`,
-          }),
-          isLine: true,
-        });
-
-        if (!cursorOnClosing) {
+        if (!cursorOnOpening) {
           queued.push({
-            from: closeLine.from,
-            to: closeLine.to,
+            from: openingLine.from,
+            to: openingLine.to,
             deco: Decoration.replace({
-              widget: new CodeBlockFooterWidget(closeLine.from),
+              widget: new CodeBlockHeaderWidget(lang, openingLine.from, rawCode, labels.copyCode),
             }),
           });
         }
       }
 
-      l = blockEndLine + 1;
+      for (
+        let innerLineNumber = Math.max(blockStartLine + 1, startLine);
+        innerLineNumber <= Math.min(contentEndLine, endLine);
+        innerLineNumber++
+      ) {
+        const innerLine = doc.line(innerLineNumber);
+        queued.push({
+          from: innerLine.from,
+          to: innerLine.from,
+          deco: Decoration.line({ class: 'cm-live-codeblock-line cm-live-codeblock-content' }),
+          isLine: true,
+        });
+      }
+
+      if (hasClosingFence && closingLine && blockEndLine >= startLine && blockEndLine <= endLine) {
+        const cursorOnClosing = isCursorOnLine(closingLine.from, closingLine.to);
+        queued.push({
+          from: closingLine.from,
+          to: closingLine.from,
+          deco: Decoration.line({
+            class: `cm-live-codeblock-line cm-live-codeblock-end${cursorOnClosing ? ' cm-live-codeblock-active' : ''}`,
+          }),
+          isLine: true,
+        });
+        if (!cursorOnClosing) {
+          queued.push({
+            from: closingLine.from,
+            to: closingLine.to,
+            deco: Decoration.replace({ widget: new CodeBlockFooterWidget(closingLine.from) }),
+          });
+        }
+      }
+
+      l = Math.min(blockEndLine, endLine) + 1;
       continue;
     }
 
     // 0. Markdown Tables
-    const tableData = findTableStartingAt(doc, l);
+    let tableSyntaxNode = tree.resolveInner(Math.min(line.from + 1, line.to), 1);
+    let tableRange: { from: number; to: number } | null = null;
+    while (tableSyntaxNode) {
+      if (tableSyntaxNode.name === 'Table') {
+        tableRange = { from: tableSyntaxNode.from, to: tableSyntaxNode.to };
+        break;
+      }
+      const parent = tableSyntaxNode.parent;
+      if (!parent) break;
+      tableSyntaxNode = parent;
+    }
+    const tableStartLine = tableRange ? doc.lineAt(tableRange.from).number : l;
+    const tableData = findTableStartingAt(doc, tableStartLine);
     if (tableData) {
       const tableFrom = doc.line(tableData.headerLine).from;
       const tableTo = doc.line(tableData.endLine).to;
@@ -752,12 +836,16 @@ function buildLiveDecorations(
         l = tableData.endLine + 1;
         continue;
       } else {
-        // Cursor is in table -> style table header line
+        const lineClass = l === tableData.headerLine
+          ? 'cm-live-table-line cm-live-table-header-line'
+          : l === tableData.delimiterLine
+            ? 'cm-live-table-line cm-live-table-delimiter-line'
+            : 'cm-live-table-line';
         queued.push({
           from: line.from,
           to: line.from,
           deco: Decoration.line({
-            class: 'cm-live-table-line cm-live-table-header-line',
+            class: lineClass,
           }),
           isLine: true,
         });
@@ -896,7 +984,7 @@ function buildLiveDecorations(
           from: replaceFrom,
           to: replaceTo,
           deco: Decoration.replace({
-            widget: new CheckboxWidget(isChecked, boxFrom),
+            widget: new CheckboxWidget(isChecked, boxFrom, labels.toggleTask),
           }),
         });
         occupiedRanges.push({ from: replaceFrom, to: replaceTo });
@@ -1084,6 +1172,7 @@ function buildLiveDecorations(
       const textEnd = textStart + match[1].length;
       const urlPartStart = textEnd;
       const urlPartEnd = mTo;
+      const safeUrl = sanitizeLivePreviewUrl(match[2]);
 
       if (!isOccupied(mFrom, mTo) && matchesSyntaxNode(['Link'], mFrom, mTo)) {
         occupiedRanges.push({ from: mFrom, to: mTo });
@@ -1105,21 +1194,53 @@ function buildLiveDecorations(
             to: urlPartEnd,
             deco: Decoration.mark({ class: 'cm-live-mark-visible cm-live-link-url' }),
           });
+        } else if (safeUrl) {
+          queued.push({
+            from: mFrom,
+            to: mTo,
+            deco: Decoration.replace({
+              widget: new LinkWidget(match[1], safeUrl),
+            }),
+          });
         } else {
           queued.push({
             from: mFrom,
-            to: textStart,
-            deco: Decoration.mark({ class: 'cm-live-mark-hidden' }),
+            to: mTo,
+            deco: Decoration.mark({ class: 'cm-live-link-unsafe' }),
           });
+        }
+      }
+    }
+
+    // B2. GFM autolinks: https://example.com and mailto:user@example.com
+    const bareUrlRegex = /(?:https?:\/\/|mailto:)[^\s<>()]+/gi;
+    while ((match = bareUrlRegex.exec(text)) !== null) {
+      let rawUrl = match[0];
+      while (/[.,;:!?]$/.test(rawUrl)) rawUrl = rawUrl.slice(0, -1);
+      if (!rawUrl) continue;
+
+      const mFrom = line.from + match.index;
+      const mTo = mFrom + rawUrl.length;
+      const safeUrl = sanitizeLivePreviewUrl(rawUrl);
+      if (
+        safeUrl &&
+        !isOccupied(mFrom, mTo) &&
+        matchesSyntaxNode(['URL'], mFrom, mTo)
+      ) {
+        occupiedRanges.push({ from: mFrom, to: mTo });
+        if (isCursorTouching(mFrom, mTo, 1)) {
           queued.push({
-            from: textStart,
-            to: textEnd,
+            from: mFrom,
+            to: mTo,
             deco: Decoration.mark({ class: 'cm-live-link' }),
           });
+        } else {
           queued.push({
-            from: urlPartStart,
-            to: urlPartEnd,
-            deco: Decoration.mark({ class: 'cm-live-mark-hidden' }),
+            from: mFrom,
+            to: mTo,
+            deco: Decoration.replace({
+              widget: new LinkWidget(rawUrl, safeUrl),
+            }),
           });
         }
       }

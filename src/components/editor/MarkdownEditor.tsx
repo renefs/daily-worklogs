@@ -1,10 +1,10 @@
 import React, { useRef, useCallback, useEffect } from 'react';
 import CodeMirror, { ReactCodeMirrorRef } from '@uiw/react-codemirror';
 import { markdown } from '@codemirror/lang-markdown';
-import { languages } from '@codemirror/language-data';
 import { oneDark } from '@codemirror/theme-one-dark';
-import { syntaxHighlighting, defaultHighlightStyle, HighlightStyle } from '@codemirror/language';
+import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
+import { GFM } from '@lezer/markdown';
 import {
   Group,
   ActionIcon,
@@ -45,6 +45,7 @@ import { useAppStoreSelector } from '../../store/useAppStore';
 import { formatTemplateContent } from '../../utils/dateTemplate';
 
 import { EditorView, keymap } from '@codemirror/view';
+import { EditorSelection } from '@codemirror/state';
 import { liveMarkdownExtension } from './liveMarkdownExtension';
 import { createTagAutocompleteExtension } from './tagAutocompleteExtension';
 
@@ -73,7 +74,7 @@ const editorHighlightStyle = HighlightStyle.define([
 export interface MarkdownEditorProps {
   content?: string;
   onChange?: (val: string) => void;
-  onSave?: () => Promise<any> | any;
+  onSave?: () => Promise<unknown> | unknown;
   isSaving?: boolean;
   isDirty?: boolean;
   onExportClick?: () => void;
@@ -101,6 +102,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   layoutMode,
   onLayoutModeChange,
   showTemplates = true,
+  showDelete = true,
+  showExport = true,
   showStatusAndActions = true,
   placeholder,
   tasksStats,
@@ -159,37 +162,22 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
   const isDark = computedColorScheme === 'dark';
 
-  // Auto-save debounce timer
-  useEffect(() => {
-    // Controlled editors own their persistence lifecycle. This prevents a parent
-    // view and the editor from scheduling the same save independently.
-    if (isControlled) return;
-    if (!settings?.autoSave || !effectiveIsDirty) return;
-    if (!activeNote) return;
-
-    const timer = setTimeout(() => {
-      effectiveOnSave();
-    }, settings.autoSaveDelay || 1000);
-
-    return () => clearTimeout(timer);
-  }, [effectiveContent, effectiveIsDirty, settings?.autoSave, settings?.autoSaveDelay, effectiveOnSave, isControlled, activeNote]);
-
   // Insert text helper
   const insertText = useCallback((before: string, after: string = '', defaultText: string = '') => {
     const view = editorRef.current?.view;
     if (!view) return;
 
-    const selection = view.state.selection.main;
-    const selectedText = view.state.sliceDoc(selection.from, selection.to) || defaultText;
-    const replacement = `${before}${selectedText}${after}`;
-
-    view.dispatch({
-      changes: { from: selection.from, to: selection.to, insert: replacement },
-      selection: {
-        anchor: selection.from + before.length,
-        head: selection.from + before.length + selectedText.length,
-      },
+    const transaction = view.state.changeByRange((selection) => {
+      const selectedText = view.state.sliceDoc(selection.from, selection.to) || defaultText;
+      return {
+        changes: { from: selection.from, to: selection.to, insert: `${before}${selectedText}${after}` },
+        range: EditorSelection.range(
+          selection.from + before.length,
+          selection.from + before.length + selectedText.length
+        ),
+      };
     });
+    view.dispatch(transaction);
     view.focus();
   }, []);
 
@@ -241,11 +229,11 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           icon: <IconCheck size={16} />,
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error selecting image:', err);
       notifications.show({
         title: t('common.error') || 'Error',
-        message: err?.message || 'Failed to insert image',
+        message: err instanceof Error ? err.message : t('editor.imageSaveFailed'),
         color: 'red',
       });
     }
@@ -253,6 +241,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
   const processImageFiles = async (files: FileList | File[]) => {
     let inserted = 0;
+    let failed = 0;
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (!file.type.startsWith('image/') && !/\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(file.name)) {
@@ -261,9 +250,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
       try {
         const buffer = await file.arrayBuffer();
-        const sourcePath = (file as any).path;
         const res = await window.electronAPI.saveImage({
-          sourcePath,
           buffer,
           originalName: file.name,
           mimeType: file.type,
@@ -272,9 +259,12 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         if (res.success && res.relativePath) {
           insertText(`\n![${res.filename || file.name}](${res.relativePath})\n`);
           inserted++;
+        } else {
+          failed++;
         }
       } catch (err) {
         console.error('Error saving dropped/pasted image:', err);
+        failed++;
       }
     }
 
@@ -284,6 +274,13 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         message: `${inserted} ${t('editor.imagesSavedMessage') || 'image(s) saved to vault'}`,
         color: 'teal',
         icon: <IconCheck size={16} />,
+      });
+    }
+    if (failed > 0) {
+      notifications.show({
+        title: t('common.error'),
+        message: t('editor.imageSaveFailedCount', { count: failed }),
+        color: 'red',
       });
     }
   };
@@ -311,6 +308,10 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         e.preventDefault();
         e.stopPropagation();
         setIsDraggingOver(false);
+        const dropPosition = editorRef.current?.view?.posAtCoords({ x: e.clientX, y: e.clientY });
+        if (dropPosition !== null && dropPosition !== undefined && editorRef.current?.view) {
+          editorRef.current.view.dispatch({ selection: { anchor: dropPosition } });
+        }
         await processImageFiles(e.dataTransfer.files);
       }
     }
@@ -346,9 +347,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
   const extensions = React.useMemo(() => {
     const list = [
-      markdown({ codeLanguages: languages }),
+      markdown({ extensions: GFM }),
       syntaxHighlighting(editorHighlightStyle, { fallback: true }),
-      syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       createTagAutocompleteExtension(() => allTagsRef.current),
       keymap.of([
         {
@@ -366,6 +366,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         copyCode: t('editor.copyCode'),
         editTable: t('editor.editTable'),
         imageNotFound: t('editor.imageNotFound'),
+        toggleTask: t('editor.toggleTask'),
       }));
     }
     return list;
@@ -388,60 +389,60 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           {/* Left: Formatting tools */}
           <Group gap={3} wrap="nowrap" style={{ overflowX: 'auto' }}>
             <Tooltip label={t('editor.bold')} withArrow>
-              <ActionIcon variant="subtle" size="sm" onClick={() => insertText('**', '**', 'bold')}>
+              <ActionIcon aria-label={t('editor.bold')} variant="subtle" size="sm" onClick={() => insertText('**', '**', 'bold')}>
                 <IconBold size={15} />
               </ActionIcon>
             </Tooltip>
             <Tooltip label={t('editor.italic')} withArrow>
-              <ActionIcon variant="subtle" size="sm" onClick={() => insertText('*', '*', 'italic')}>
+              <ActionIcon aria-label={t('editor.italic')} variant="subtle" size="sm" onClick={() => insertText('*', '*', 'italic')}>
                 <IconItalic size={15} />
               </ActionIcon>
             </Tooltip>
             <Divider orientation="vertical" />
-            <Tooltip label="H1" withArrow>
-              <ActionIcon variant="subtle" size="sm" onClick={() => insertText('\n# ', '\n')}>
+            <Tooltip label={t('editor.headingLevel', { level: 1 })} withArrow>
+              <ActionIcon aria-label={t('editor.headingLevel', { level: 1 })} variant="subtle" size="sm" onClick={() => insertText('\n# ', '\n')}>
                 <IconH1 size={15} />
               </ActionIcon>
             </Tooltip>
-            <Tooltip label="H2" withArrow>
-              <ActionIcon variant="subtle" size="sm" onClick={() => insertText('\n## ', '\n')}>
+            <Tooltip label={t('editor.headingLevel', { level: 2 })} withArrow>
+              <ActionIcon aria-label={t('editor.headingLevel', { level: 2 })} variant="subtle" size="sm" onClick={() => insertText('\n## ', '\n')}>
                 <IconH2 size={15} />
               </ActionIcon>
             </Tooltip>
-            <Tooltip label="H3" withArrow>
-              <ActionIcon variant="subtle" size="sm" onClick={() => insertText('\n### ', '\n')}>
+            <Tooltip label={t('editor.headingLevel', { level: 3 })} withArrow>
+              <ActionIcon aria-label={t('editor.headingLevel', { level: 3 })} variant="subtle" size="sm" onClick={() => insertText('\n### ', '\n')}>
                 <IconH3 size={15} />
               </ActionIcon>
             </Tooltip>
             <Divider orientation="vertical" />
-            <Tooltip label="Bullet List" withArrow>
-              <ActionIcon variant="subtle" size="sm" onClick={() => insertText('\n- ', '')}>
+            <Tooltip label={t('editor.bulletList')} withArrow>
+              <ActionIcon aria-label={t('editor.bulletList')} variant="subtle" size="sm" onClick={() => insertText('\n- ', '')}>
                 <IconList size={15} />
               </ActionIcon>
             </Tooltip>
-            <Tooltip label="Numbered List" withArrow>
-              <ActionIcon variant="subtle" size="sm" onClick={() => insertText('\n1. ', '')}>
+            <Tooltip label={t('editor.numberedList')} withArrow>
+              <ActionIcon aria-label={t('editor.numberedList')} variant="subtle" size="sm" onClick={() => insertText('\n1. ', '')}>
                 <IconListNumbers size={15} />
               </ActionIcon>
             </Tooltip>
             <Tooltip label={t('editor.task')} withArrow>
-              <ActionIcon variant="subtle" size="sm" onClick={() => insertText('\n- [ ] ', '')}>
+              <ActionIcon aria-label={t('editor.task')} variant="subtle" size="sm" onClick={() => insertText('\n- [ ] ', '')}>
                 <IconCheckbox size={15} />
               </ActionIcon>
             </Tooltip>
             <Divider orientation="vertical" />
             <Tooltip label={t('editor.code')} withArrow>
-              <ActionIcon variant="subtle" size="sm" onClick={() => insertText('```\n', '\n```\n')}>
+              <ActionIcon aria-label={t('editor.code')} variant="subtle" size="sm" onClick={() => insertText('```\n', '\n```\n')}>
                 <IconCode size={15} />
               </ActionIcon>
             </Tooltip>
             <Tooltip label={t('editor.table')} withArrow>
-              <ActionIcon variant="subtle" size="sm" onClick={insertTable}>
+              <ActionIcon aria-label={t('editor.table')} variant="subtle" size="sm" onClick={insertTable}>
                 <IconTable size={15} />
               </ActionIcon>
             </Tooltip>
             <Tooltip label={t('editor.insertImage') || 'Insert Image'} withArrow>
-              <ActionIcon variant="subtle" size="sm" onClick={handleInsertImage}>
+              <ActionIcon aria-label={t('editor.insertImage')} variant="subtle" size="sm" onClick={handleInsertImage}>
                 <IconPhoto size={15} />
               </ActionIcon>
             </Tooltip>
@@ -477,7 +478,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               {layoutMode && onLayoutModeChange && (
                 <SegmentedControl
                   value={layoutMode}
-                  onChange={(val: string) => onLayoutModeChange(val as any)}
+                  onChange={(val: string) => onLayoutModeChange(val as 'live' | 'split' | 'edit' | 'preview')}
                   size="xs"
                   radius="md"
                   className="nav-segmented-control"
@@ -533,7 +534,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               {/* 3-dots actions menu */}
               <Menu position="bottom-end" shadow="md" withinPortal>
                 <Menu.Target>
-                  <ActionIcon variant="subtle" size="sm" color="gray">
+                  <ActionIcon aria-label={t('editor.moreActions')} variant="subtle" size="sm" color="gray">
                     <IconDotsVertical size={15} />
                   </ActionIcon>
                 </Menu.Target>
@@ -559,7 +560,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                   >
                     {t('common.save')}
                   </Menu.Item>
-                  {onExportClick && (
+                  {showExport && onExportClick && (
                     <Menu.Item
                       leftSection={<IconFileExport size={14} />}
                       onClick={onExportClick}
@@ -567,7 +568,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                       {t('editor.exportNote')}
                     </Menu.Item>
                   )}
-                  {onDeleteClick && (isControlled || activeNote?.exists) && (
+                  {showDelete && onDeleteClick && (isControlled || activeNote?.exists) && (
                     <>
                       <Menu.Divider />
                       <Menu.Item

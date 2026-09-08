@@ -6,7 +6,6 @@ import {
   Modal,
   Text,
   Badge,
-  Grid,
   Tooltip,
   SegmentedControl,
 } from '@mantine/core';
@@ -153,51 +152,28 @@ export const DailyView: React.FC = () => {
 
       {/* Main Body: Editor / Viewer Container + Right Side Routines Panel */}
       <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: 12, overflow: 'hidden' }}>
-        {/* Left Side: Editor / Viewer */}
-        <div style={{ flex: 1, minWidth: 0, height: '100%' }}>
-          {layoutMode === 'live' && (
-            <div style={{ height: '100%' }}>
-              <MarkdownEditor
-                isLivePreview={true}
-                layoutMode={layoutMode}
-                onLayoutModeChange={setLayoutMode}
-                onExportClick={() => setIsExportModalOpen(true)}
-                onDeleteClick={() => setIsDeleteModalOpen(true)}
-              />
-            </div>
-          )}
+        {/* Keep a single editor mounted so switching modes preserves undo, cursor, and scroll state. */}
+        <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', gap: 12 }}>
+          <div
+            style={{
+              display: layoutMode === 'preview' ? 'none' : 'block',
+              flex: 1,
+              minWidth: 0,
+              height: '100%',
+            }}
+          >
+            <MarkdownEditor
+              isLivePreview={layoutMode === 'live'}
+              layoutMode={layoutMode}
+              onLayoutModeChange={setLayoutMode}
+              onExportClick={() => setIsExportModalOpen(true)}
+              onDeleteClick={() => setIsDeleteModalOpen(true)}
+            />
+          </div>
 
-          {layoutMode === 'split' && (
-            <Grid style={{ height: '100%' }} gutter="md">
-              <Grid.Col span={{ base: 12, md: 6 }} style={{ height: '100%' }}>
-                <MarkdownEditor
-                  isLivePreview={false}
-                  layoutMode={layoutMode}
-                  onLayoutModeChange={setLayoutMode}
-                  onExportClick={() => setIsExportModalOpen(true)}
-                  onDeleteClick={() => setIsDeleteModalOpen(true)}
-                />
-              </Grid.Col>
-              <Grid.Col span={{ base: 12, md: 6 }} style={{ height: '100%' }}>
-                <MarkdownViewer allowToggleTasks={true} />
-              </Grid.Col>
-            </Grid>
-          )}
-
-          {layoutMode === 'edit' && (
-            <div style={{ height: '100%' }}>
-              <MarkdownEditor
-                isLivePreview={false}
-                layoutMode={layoutMode}
-                onLayoutModeChange={setLayoutMode}
-                onExportClick={() => setIsExportModalOpen(true)}
-                onDeleteClick={() => setIsDeleteModalOpen(true)}
-              />
-            </div>
-          )}
-
-          {layoutMode === 'preview' && (
-            <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          {(layoutMode === 'split' || layoutMode === 'preview') && (
+            <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
+              {layoutMode === 'preview' && (
               <div
                 style={{
                   padding: '8px 12px',
@@ -216,7 +192,7 @@ export const DailyView: React.FC = () => {
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <SegmentedControl
                     value={layoutMode}
-                    onChange={(val: string) => setLayoutMode(val as any)}
+                    onChange={(val: string) => setLayoutMode(val as 'live' | 'split' | 'edit' | 'preview')}
                     size="xs"
                     radius="md"
                     className="nav-segmented-control"
@@ -229,15 +205,12 @@ export const DailyView: React.FC = () => {
                   />
                 </div>
               </div>
+              )}
               <div
                 style={{
                   flex: 1,
                   minHeight: 0,
                   overflow: 'auto',
-                  border: '1px solid var(--app-card-border)',
-                  borderRadius: '0 0 8px 8px',
-                  padding: 16,
-                  backgroundColor: 'var(--app-card-bg)',
                 }}
               >
                 <MarkdownViewer allowToggleTasks={true} />

@@ -8,6 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Changed
+- **Continuous Editor Sessions**: Live, source, split, and preview mode changes now preserve the mounted CodeMirror session, including cursor position and undo history.
+- **Lean Markdown Language Support**: Replaced the full CodeMirror language catalog with the Markdown GFM parser needed by the editor, substantially reducing editor-related renderer chunks.
+
+### Fixed
+- **Lossless Navigation and Shutdown**: Dirty daily notes and task drafts are flushed before changing dates, switching views, returning from the task editor, or closing the application. Failed saves keep the editor open with actionable feedback.
+- **Stable Task Auto-Save Identity**: New task drafts retain the filename and task ID returned by their first save, preventing later auto-saves from creating duplicate Markdown files.
+- **External Edit Detection**: Vault watcher events are ignored only when their file contents match the application's own write, so rapid cloud or external edits are no longer silently suppressed.
+- **Long Document Rendering**: Fenced code blocks and GFM tables render correctly when only their middle is visible in the editor viewport.
+- **Reliable Editor Input**: Image drops insert at the drop position and report partial failures, formatting works across multiple selections, and tag completion avoids code spans, fenced code, URLs, and false positives such as `C#`.
+- **Safe Markdown Media**: Rendered images use the same destination validation as the live editor, and missing-image fallback content no longer relies on HTML injection.
+- **Editor Accessibility**: Toolbar actions and interactive live-preview widgets now expose localized accessible names, keyboard activation, and visible focus states.
+
+### Testing
+- Added regression coverage for failed-save navigation, edits during in-flight saves, stable task draft identity, long viewport-spanning Markdown constructs, and editor toolbar accessibility.
+
 ## [1.10.0] - 2026-09-07
 
 ### Added

@@ -85,4 +85,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.removeListener('trigger-save', handler);
     };
   },
+  onRequestEditorFlushBeforeClose: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('request-editor-flush-before-close', handler);
+    return () => ipcRenderer.removeListener('request-editor-flush-before-close', handler);
+  },
+  completeEditorFlushBeforeClose: (succeeded: boolean) =>
+    ipcRenderer.send('editor-flush-before-close-complete', succeeded),
 });

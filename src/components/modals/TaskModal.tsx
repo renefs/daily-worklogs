@@ -36,8 +36,9 @@ import {
   IconArrowsMaximize,
   IconWriting,
 } from '@tabler/icons-react';
-import CodeMirror from '@uiw/react-codemirror';
+import CodeMirror, { ReactCodeMirrorRef } from '@uiw/react-codemirror';
 import { markdown } from '@codemirror/lang-markdown';
+import { GFM } from '@lezer/markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
@@ -108,6 +109,9 @@ export const TaskModal: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isLogging, setIsLogging] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const editorRef = useRef<ReactCodeMirrorRef>(null);
+  const wasTaskModalOpenRef = useRef(false);
+  const initializedTaskKeyRef = useRef<string | null>(null);
 
   const availableColumns = useMemo(() => {
     return settings?.kanbanColumns && settings.kanbanColumns.length > 0
@@ -161,20 +165,27 @@ export const TaskModal: React.FC = () => {
 
   // Initialize or reset form when modal opens / task changes
   useEffect(() => {
-    if (isTaskModalOpen) {
-      if (activeTask) {
-        const resolved = resolveTaskContext(activeTask, areas, projects, allTags);
-        setTitle(activeTask.title || '');
-        setArea(activeTask.area || resolved.area || 'General');
-        setProject(activeTask.project || resolved.project || null);
-        setStatus(activeTask.status || 'todo');
-        setPriority(activeTask.priority || 'medium');
-        setDueDate(activeTask.due ? dayjs(activeTask.due).toDate() : null);
-        setStartedDate(activeTask.startedDate ? dayjs(activeTask.startedDate).toDate() : null);
-        setCompletedDate(activeTask.completedDate ? dayjs(activeTask.completedDate).toDate() : null);
-        setTags(activeTask.tags || []);
-        setContent(activeTask.content || '');
-      } else {
+    if (!isTaskModalOpen) {
+      wasTaskModalOpenRef.current = false;
+      return;
+    }
+    const taskKey = activeTask?.filename || `new:${taskModalInitialStatus}`;
+    if (wasTaskModalOpenRef.current && initializedTaskKeyRef.current === taskKey) return;
+    wasTaskModalOpenRef.current = true;
+    initializedTaskKeyRef.current = taskKey;
+    if (activeTask) {
+      const resolved = resolveTaskContext(activeTask, areas, projects, allTags);
+      setTitle(activeTask.title || '');
+      setArea(activeTask.area || resolved.area || 'General');
+      setProject(activeTask.project || resolved.project || null);
+      setStatus(activeTask.status || 'todo');
+      setPriority(activeTask.priority || 'medium');
+      setDueDate(activeTask.due ? dayjs(activeTask.due).toDate() : null);
+      setStartedDate(activeTask.startedDate ? dayjs(activeTask.startedDate).toDate() : null);
+      setCompletedDate(activeTask.completedDate ? dayjs(activeTask.completedDate).toDate() : null);
+      setTags(activeTask.tags || []);
+      setContent(activeTask.content || '');
+    } else {
         const initialStatus = taskModalInitialStatus || availableColumns[0]?.id || 'todo';
         const targetCol = availableColumns.find((c) => c.id === initialStatus);
         const behavior = targetCol?.behavior || 'todo';
@@ -189,21 +200,34 @@ export const TaskModal: React.FC = () => {
         setCompletedDate(behavior === 'done' || behavior === 'cancelled' ? new Date() : null);
         setTags([]);
         setContent('');
-      }
-      setActiveTab('write');
-      setIsDeleting(false);
-      setIsSaving(false);
-      setIsLogging(false);
-      setIsDraggingOver(false);
     }
+    setActiveTab('write');
+    setIsDeleting(false);
+    setIsSaving(false);
+    setIsLogging(false);
+    setIsDraggingOver(false);
   }, [isTaskModalOpen, activeTask, taskModalInitialStatus, availableColumns, areas, projects, allTags]);
+
+  const insertImageMarkdown = (imageMarkdown: string) => {
+    const view = editorRef.current?.view;
+    if (!view) {
+      setContent((previous) => previous ? `${previous}${imageMarkdown}` : imageMarkdown.trim());
+      return;
+    }
+    const selection = view.state.selection.main;
+    view.dispatch({
+      changes: { from: selection.from, to: selection.to, insert: imageMarkdown },
+      selection: { anchor: selection.from + imageMarkdown.length },
+    });
+    view.focus();
+  };
 
   const handleInsertImage = async () => {
     try {
       const res = await window.electronAPI.selectImageDialog();
       if (res.success && res.relativePath) {
         const imageMarkdown = `\n![${res.filename || 'Image'}](${res.relativePath})\n`;
-        setContent((prev) => (prev ? `${prev}${imageMarkdown}` : imageMarkdown.trim()));
+        insertImageMarkdown(imageMarkdown);
         notifications.show({
           title: t('editor.imageSaved') || 'Image Added',
           message: res.filename,
@@ -211,13 +235,19 @@ export const TaskModal: React.FC = () => {
           icon: <IconCheck size={16} />,
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error selecting image for task:', err);
+      notifications.show({
+        title: t('common.error'),
+        message: err instanceof Error ? err.message : t('editor.imageSaveFailed'),
+        color: 'red',
+      });
     }
   };
 
   const processImageFiles = async (files: FileList | File[]) => {
     let inserted = 0;
+    let failed = 0;
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (!file.type.startsWith('image/') && !/\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(file.name)) {
@@ -226,9 +256,7 @@ export const TaskModal: React.FC = () => {
 
       try {
         const buffer = await file.arrayBuffer();
-        const sourcePath = (file as any).path;
         const res = await window.electronAPI.saveImage({
-          sourcePath,
           buffer,
           originalName: file.name,
           mimeType: file.type,
@@ -236,11 +264,14 @@ export const TaskModal: React.FC = () => {
 
         if (res.success && res.relativePath) {
           const imageMarkdown = `\n![${res.filename || file.name}](${res.relativePath})\n`;
-          setContent((prev) => (prev ? `${prev}${imageMarkdown}` : imageMarkdown.trim()));
+          insertImageMarkdown(imageMarkdown);
           inserted++;
+        } else {
+          failed++;
         }
       } catch (err) {
         console.error('Error saving dropped/pasted image in task:', err);
+        failed++;
       }
     }
 
@@ -250,6 +281,13 @@ export const TaskModal: React.FC = () => {
         message: `${inserted} ${t('editor.imagesSavedMessage') || 'image(s) saved to vault'}`,
         color: 'teal',
         icon: <IconCheck size={16} />,
+      });
+    }
+    if (failed > 0) {
+      notifications.show({
+        title: t('common.error'),
+        message: t('editor.imageSaveFailedCount', { count: failed }),
+        color: 'red',
       });
     }
   };
@@ -277,6 +315,10 @@ export const TaskModal: React.FC = () => {
         e.preventDefault();
         e.stopPropagation();
         setIsDraggingOver(false);
+        const dropPosition = editorRef.current?.view?.posAtCoords({ x: e.clientX, y: e.clientY });
+        if (dropPosition !== null && dropPosition !== undefined && editorRef.current?.view) {
+          editorRef.current.view.dispatch({ selection: { anchor: dropPosition } });
+        }
         await processImageFiles(e.dataTransfer.files);
       }
     }
@@ -464,8 +506,9 @@ export const TaskModal: React.FC = () => {
             )}
           </Group>
 
-          <Tooltip label={t('tasks.openInFullEditor', 'Open in Full Editor')} withArrow>
+          <Tooltip label={t('tasks.openInFullEditor')} withArrow>
             <ActionIcon
+              aria-label={t('tasks.openInFullEditor')}
               variant="light"
               color="primary"
               size="sm"
@@ -475,7 +518,7 @@ export const TaskModal: React.FC = () => {
                 const formattedStarted = startedDate ? dayjs(startedDate).format('YYYY-MM-DD') : undefined;
                 const formattedCompleted = completedDate ? dayjs(completedDate).format('YYYY-MM-DD') : undefined;
 
-                openTaskEditor(
+                void openTaskEditor(
                   {
                     id: activeTask?.id || 'draft',
                     taskId: activeTask?.taskId,
@@ -765,88 +808,57 @@ export const TaskModal: React.FC = () => {
             </Tabs>
           </Group>
 
-          {activeTab === 'live' ? (
-            <div
-              onDragOver={handleDragOver}
-              onDragEnter={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onPaste={handlePaste}
-              className={isDraggingOver ? 'editor-dropzone-active' : ''}
-              style={{
-                height: 260,
-                border: '1px solid var(--mantine-color-default-border)',
-                borderRadius: 8,
-                overflow: 'hidden',
-                backgroundColor: isDark ? '#141517' : '#ffffff',
-                fontSize: `${settings?.editorFontSize ? settings.editorFontSize - 1 : 14}px`,
+          <div
+            onDragOver={handleDragOver}
+            onDragEnter={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onPaste={handlePaste}
+            className={isDraggingOver ? 'editor-dropzone-active' : ''}
+            style={{
+              display: activeTab === 'preview' ? 'none' : 'block',
+              height: 260,
+              border: '1px solid var(--mantine-color-default-border)',
+              borderRadius: 8,
+              overflow: 'hidden',
+              backgroundColor: isDark ? '#141517' : '#ffffff',
+              fontSize: `${settings?.editorFontSize ? settings.editorFontSize - 1 : 14}px`,
+            }}
+          >
+            <CodeMirror
+              ref={editorRef}
+              value={content}
+              height="100%"
+              theme={isDark ? oneDark : 'light'}
+              extensions={[
+                markdown({ extensions: GFM }),
+                createTagAutocompleteExtension(() => allTagsRef.current),
+                ...(activeTab === 'live' ? liveMarkdownExtension({
+                  copyCode: t('editor.copyCode'),
+                  editTable: t('editor.editTable'),
+                  imageNotFound: t('editor.imageNotFound'),
+                  toggleTask: t('editor.toggleTask'),
+                }) : []),
+              ]}
+              onChange={(val) => setContent(val)}
+              placeholder={t('tasks.descriptionPlaceholder')}
+              basicSetup={{
+                lineNumbers: false,
+                foldGutter: false,
+                highlightActiveLine: false,
+                autocompletion: true,
               }}
-            >
-              <CodeMirror
-                value={content}
-                height="100%"
-                theme={isDark ? oneDark : 'light'}
-                extensions={[
-                  markdown(),
-                  createTagAutocompleteExtension(() => allTagsRef.current),
-                  ...liveMarkdownExtension({
-                    copyCode: t('editor.copyCode'),
-                    editTable: t('editor.editTable'),
-                    imageNotFound: t('editor.imageNotFound'),
-                  }),
-                ]}
-                onChange={(val) => setContent(val)}
-                placeholder={t('tasks.descriptionPlaceholder')}
-                basicSetup={{
-                  lineNumbers: false,
-                  foldGutter: false,
-                  highlightActiveLine: false,
-                  autocompletion: true,
-                }}
-                style={{ height: '100%' }}
-              />
-            </div>
-          ) : activeTab === 'write' ? (
-            <div
-              onDragOver={handleDragOver}
-              onDragEnter={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onPaste={handlePaste}
-              className={isDraggingOver ? 'editor-dropzone-active' : ''}
-              style={{
-                height: 260,
-                border: '1px solid var(--mantine-color-default-border)',
-                borderRadius: 8,
-                overflow: 'hidden',
-                backgroundColor: isDark ? '#141517' : '#ffffff',
-                fontSize: `${settings?.editorFontSize ? settings.editorFontSize - 1 : 14}px`,
-              }}
-            >
-              <CodeMirror
-                value={content}
-                height="100%"
-                theme={isDark ? oneDark : 'light'}
-                extensions={[markdown(), createTagAutocompleteExtension(() => allTagsRef.current)]}
-                onChange={(val) => setContent(val)}
-                placeholder={t('tasks.descriptionPlaceholder')}
-                basicSetup={{
-                  lineNumbers: false,
-                  foldGutter: false,
-                  highlightActiveLine: false,
-                  autocompletion: true,
-                }}
-                style={{ height: '100%' }}
-              />
-            </div>
-          ) : (
+              style={{ height: '100%' }}
+            />
+          </div>
+          {activeTab === 'preview' && (
             <Paper
               withBorder
               p="sm"
               radius="md"
               style={{ height: 260, overflow: 'auto', backgroundColor: 'var(--mantine-color-body)' }}
             >
-              <MarkdownViewer content={content || '_No description provided_'} allowToggleTasks={false} />
+              <MarkdownViewer content={content || `_${t('tasks.noDescriptionProvided')}_`} allowToggleTasks={false} />
             </Paper>
           )}
         </div>
@@ -858,7 +870,12 @@ export const TaskModal: React.FC = () => {
           </Text>
           {activeTask?.filepath && (
             <Tooltip label={t('tasks.openInFileManager')} withArrow>
-              <ActionIcon variant="subtle" size="sm" onClick={handleOpenFileInFileManager}>
+              <ActionIcon
+                aria-label={t('tasks.openInFileManager')}
+                variant="subtle"
+                size="sm"
+                onClick={handleOpenFileInFileManager}
+              >
                 <IconFolderOpen size={16} />
               </ActionIcon>
             </Tooltip>
@@ -874,7 +891,7 @@ export const TaskModal: React.FC = () => {
               isDeleting ? (
                 <Group gap="xs">
                   <Text size="xs" c="red" fw={600}>
-                    Confirm delete?
+                    {t('tasks.confirmDelete')}
                   </Text>
                   <Button color="red" size="xs" radius="md" onClick={handleDelete} loading={isSaving}>
                     {t('common.delete')}

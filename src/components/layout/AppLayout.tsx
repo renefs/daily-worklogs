@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore, useAppStoreSelector } from '../../store/useAppStore';
 import { AppHeader } from './AppHeader';
 import { AppSidebar } from './AppSidebar';
+import { flushTaskEditor } from '../../services/editorSession';
 
 const DailyView = React.lazy(() => import('../views/DailyView').then((module) => ({ default: module.DailyView })));
 const WeeklyView = React.lazy(() => import('../views/WeeklyView').then((module) => ({ default: module.WeeklyView })));
@@ -42,6 +43,10 @@ export const AppLayout: React.FC = () => {
     isTaskModalOpen,
     isManageRoutinesModalOpen,
     isOnboardingOpen,
+    activeNote,
+    isDirty,
+    settings,
+    saveActiveNote,
   } = useAppStoreSelector((state) => ({
     currentView: state.currentView,
     isLoading: state.isLoading,
@@ -51,7 +56,33 @@ export const AppLayout: React.FC = () => {
     isTaskModalOpen: state.isTaskModalOpen,
     isManageRoutinesModalOpen: state.isManageRoutinesModalOpen,
     isOnboardingOpen: state.isOnboardingOpen,
+    activeNote: state.activeNote,
+    isDirty: state.isDirty,
+    settings: state.settings,
+    saveActiveNote: state.saveActiveNote,
   }));
+
+  // Keep note persistence alive even when Preview or another application view
+  // unmounts the CodeMirror component.
+  useEffect(() => {
+    if (!settings?.autoSave || !isDirty || !activeNote) return;
+    const timer = window.setTimeout(() => {
+      void saveActiveNote();
+    }, settings.autoSaveDelay || 1000);
+    return () => window.clearTimeout(timer);
+  }, [activeNote?.content, activeNote?.date, isDirty, saveActiveNote, settings?.autoSave, settings?.autoSaveDelay]);
+
+  useEffect(() => {
+    const unsubscribe = window.electronAPI?.onRequestEditorFlushBeforeClose?.(() => {
+      void (async () => {
+        const state = useAppStore.getState();
+        const taskSaved = state.currentView !== 'task' || await flushTaskEditor();
+        const noteSaved = !state.isDirty || await state.saveActiveNote({ force: true });
+        window.electronAPI.completeEditorFlushBeforeClose?.(taskSaved && noteSaved);
+      })();
+    });
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     if (window.electronAPI?.onOpenSettings) {
