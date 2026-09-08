@@ -1,0 +1,186 @@
+import React from 'react';
+import {
+  Group,
+  ActionIcon,
+  Tooltip,
+  Divider,
+  Menu,
+  Button,
+} from '@mantine/core';
+import {
+  IconBold,
+  IconItalic,
+  IconH1,
+  IconH2,
+  IconH3,
+  IconList,
+  IconListNumbers,
+  IconCheckbox,
+  IconCode,
+  IconTable,
+  IconPhoto,
+  IconTemplate,
+} from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
+
+export interface EditorToolbarProps {
+  onInsertText: (before: string, after?: string, defaultText?: string) => void;
+  onInsertTable: () => void;
+  onInsertImage: () => void;
+  showTemplates?: boolean;
+  templates?: { id: string; name: string }[];
+  onInsertTemplate?: (templateId: string) => void;
+}
+
+export const EditorToolbar: React.FC<EditorToolbarProps> = ({
+  onInsertText,
+  onInsertTable,
+  onInsertImage,
+  showTemplates = true,
+  templates = [],
+  onInsertTemplate,
+}) => {
+  const { t } = useTranslation();
+
+  return (
+    <Group gap={3} wrap="nowrap" style={{ overflowX: 'auto' }}>
+      <Tooltip label={t('editor.bold')} withArrow>
+        <ActionIcon
+          aria-label={t('editor.bold')}
+          variant="subtle"
+          size="sm"
+          onClick={() => onInsertText('**', '**', 'bold')}
+        >
+          <IconBold size={15} />
+        </ActionIcon>
+      </Tooltip>
+      <Tooltip label={t('editor.italic')} withArrow>
+        <ActionIcon
+          aria-label={t('editor.italic')}
+          variant="subtle"
+          size="sm"
+          onClick={() => onInsertText('*', '*', 'italic')}
+        >
+          <IconItalic size={15} />
+        </ActionIcon>
+      </Tooltip>
+      <Divider orientation="vertical" />
+      <Tooltip label={t('editor.headingLevel', { level: 1 })} withArrow>
+        <ActionIcon
+          aria-label={t('editor.headingLevel', { level: 1 })}
+          variant="subtle"
+          size="sm"
+          onClick={() => onInsertText('\n# ', '\n')}
+        >
+          <IconH1 size={15} />
+        </ActionIcon>
+      </Tooltip>
+      <Tooltip label={t('editor.headingLevel', { level: 2 })} withArrow>
+        <ActionIcon
+          aria-label={t('editor.headingLevel', { level: 2 })}
+          variant="subtle"
+          size="sm"
+          onClick={() => onInsertText('\n## ', '\n')}
+        >
+          <IconH2 size={15} />
+        </ActionIcon>
+      </Tooltip>
+      <Tooltip label={t('editor.headingLevel', { level: 3 })} withArrow>
+        <ActionIcon
+          aria-label={t('editor.headingLevel', { level: 3 })}
+          variant="subtle"
+          size="sm"
+          onClick={() => onInsertText('\n### ', '\n')}
+        >
+          <IconH3 size={15} />
+        </ActionIcon>
+      </Tooltip>
+      <Divider orientation="vertical" />
+      <Tooltip label={t('editor.bulletList')} withArrow>
+        <ActionIcon
+          aria-label={t('editor.bulletList')}
+          variant="subtle"
+          size="sm"
+          onClick={() => onInsertText('\n- ', '')}
+        >
+          <IconList size={15} />
+        </ActionIcon>
+      </Tooltip>
+      <Tooltip label={t('editor.numberedList')} withArrow>
+        <ActionIcon
+          aria-label={t('editor.numberedList')}
+          variant="subtle"
+          size="sm"
+          onClick={() => onInsertText('\n1. ', '')}
+        >
+          <IconListNumbers size={15} />
+        </ActionIcon>
+      </Tooltip>
+      <Tooltip label={t('editor.task')} withArrow>
+        <ActionIcon
+          aria-label={t('editor.task')}
+          variant="subtle"
+          size="sm"
+          onClick={() => onInsertText('\n- [ ] ', '')}
+        >
+          <IconCheckbox size={15} />
+        </ActionIcon>
+      </Tooltip>
+      <Divider orientation="vertical" />
+      <Tooltip label={t('editor.code')} withArrow>
+        <ActionIcon
+          aria-label={t('editor.code')}
+          variant="subtle"
+          size="sm"
+          onClick={() => onInsertText('```\n', '\n```\n')}
+        >
+          <IconCode size={15} />
+        </ActionIcon>
+      </Tooltip>
+      <Tooltip label={t('editor.table')} withArrow>
+        <ActionIcon
+          aria-label={t('editor.table')}
+          variant="subtle"
+          size="sm"
+          onClick={onInsertTable}
+        >
+          <IconTable size={15} />
+        </ActionIcon>
+      </Tooltip>
+      <Tooltip label={t('editor.insertImage') || 'Insert Image'} withArrow>
+        <ActionIcon
+          aria-label={t('editor.insertImage')}
+          variant="subtle"
+          size="sm"
+          onClick={onInsertImage}
+        >
+          <IconPhoto size={15} />
+        </ActionIcon>
+      </Tooltip>
+
+      {/* Template Selector */}
+      {showTemplates && templates.length > 0 && onInsertTemplate && (
+        <Menu shadow="md" width={220}>
+          <Menu.Target>
+            <Button
+              variant="subtle"
+              size="compact-xs"
+              leftSection={<IconTemplate size={13} />}
+              style={{ marginLeft: 2 }}
+            >
+              {t('editor.chooseTemplate')}
+            </Button>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Label>{t('settings.templates')}</Menu.Label>
+            {templates.map((tpl) => (
+              <Menu.Item key={tpl.id} onClick={() => onInsertTemplate(tpl.id)}>
+                {tpl.name}
+              </Menu.Item>
+            ))}
+          </Menu.Dropdown>
+        </Menu>
+      )}
+    </Group>
+  );
+};

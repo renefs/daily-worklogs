@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useEffect } from 'react';
+import React, { useRef, useCallback, useEffect, useMemo } from 'react';
 import CodeMirror, { ReactCodeMirrorRef } from '@uiw/react-codemirror';
 import { markdown } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
@@ -7,47 +7,23 @@ import { tags } from '@lezer/highlight';
 import { GFM } from '@lezer/markdown';
 import {
   Group,
-  ActionIcon,
-  Tooltip,
   Paper,
-  Divider,
-  Menu,
-  Button,
   Text,
-  Loader,
-  SegmentedControl,
   useComputedColorScheme,
 } from '@mantine/core';
-import {
-  IconBold,
-  IconItalic,
-  IconH1,
-  IconH2,
-  IconH3,
-  IconCheckbox,
-  IconList,
-  IconListNumbers,
-  IconCode,
-  IconTable,
-  IconTemplate,
-  IconCheck,
-  IconDeviceFloppy,
-  IconTrash,
-  IconFileExport,
-  IconPhoto,
-  IconDotsVertical,
-  IconAlertCircle,
-  IconCircleFilled,
-} from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
+import { IconCheck } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
+import clsx from 'clsx';
 import { useAppStoreSelector } from '../../store/useAppStore';
 import { formatTemplateContent } from '../../utils/dateTemplate';
-
 import { EditorView, keymap } from '@codemirror/view';
 import { EditorSelection } from '@codemirror/state';
 import { liveMarkdownExtension } from './liveMarkdownExtension';
 import { createTagAutocompleteExtension } from './tagAutocompleteExtension';
+import { EditorToolbar } from './EditorToolbar';
+import { EditorHeaderActions } from './EditorHeaderActions';
+import classes from './MarkdownEditor.module.css';
 
 /**
  * Unified syntax highlighting style matching Mantine light and dark themes
@@ -247,7 +223,6 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       if (!file.type.startsWith('image/') && !/\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(file.name)) {
         continue;
       }
-
       try {
         const buffer = await file.arrayBuffer();
         const res = await window.electronAPI.saveImage({
@@ -255,7 +230,6 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           originalName: file.name,
           mimeType: file.type,
         });
-
         if (res.success && res.relativePath) {
           insertText(`\n![${res.filename || file.name}](${res.relativePath})\n`);
           inserted++;
@@ -263,23 +237,23 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           failed++;
         }
       } catch (err) {
-        console.error('Error saving dropped/pasted image:', err);
+        console.error('Failed to import dragged/pasted image:', err);
         failed++;
       }
     }
 
     if (inserted > 0) {
       notifications.show({
-        title: t('editor.imageSaved') || 'Image Added',
-        message: `${inserted} ${t('editor.imagesSavedMessage') || 'image(s) saved to vault'}`,
+        title: t('editor.imageSaved') || 'Images Added',
+        message: `${inserted} image(s) attached.`,
         color: 'teal',
         icon: <IconCheck size={16} />,
       });
     }
     if (failed > 0) {
       notifications.show({
-        title: t('common.error'),
-        message: t('editor.imageSaveFailedCount', { count: failed }),
+        title: t('common.error') || 'Error',
+        message: `Failed to import ${failed} image(s).`,
         color: 'red',
       });
     }
@@ -289,63 +263,70 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     if (e.dataTransfer.types.includes('Files')) {
       e.preventDefault();
       e.stopPropagation();
-      setIsDraggingOver(true);
+      e.dataTransfer.dropEffect = 'copy';
+      if (!isDraggingOver) setIsDraggingOver(true);
     }
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (
+      e.clientX < rect.left ||
+      e.clientX >= rect.right ||
+      e.clientY < rect.top ||
+      e.clientY >= rect.bottom
+    ) {
       setIsDraggingOver(false);
     }
   };
 
   const handleDrop = async (e: React.DragEvent) => {
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const hasImage = Array.from(e.dataTransfer.files).some(
-        (f) => f.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(f.name)
-      );
-      if (hasImage) {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDraggingOver(false);
-        const dropPosition = editorRef.current?.view?.posAtCoords({ x: e.clientX, y: e.clientY });
-        if (dropPosition !== null && dropPosition !== undefined && editorRef.current?.view) {
-          editorRef.current.view.dispatch({ selection: { anchor: dropPosition } });
-        }
-        await processImageFiles(e.dataTransfer.files);
-      }
-    }
     setIsDraggingOver(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      e.preventDefault();
+      e.stopPropagation();
+      await processImageFiles(e.dataTransfer.files);
+    }
   };
 
   const handlePaste = async (e: React.ClipboardEvent) => {
-    const items = e.clipboardData?.items;
-    if (!items) return;
-
-    const imageFiles: File[] = [];
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item.type.startsWith('image/')) {
-        const file = item.getAsFile();
-        if (file) {
-          imageFiles.push(file);
-        }
+    if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
+      const hasImages = Array.from(e.clipboardData.files).some((f) =>
+        f.type.startsWith('image/')
+      );
+      if (hasImages) {
+        e.preventDefault();
+        await processImageFiles(e.clipboardData.files);
       }
-    }
-
-    if (imageFiles.length > 0) {
-      e.preventDefault();
-      await processImageFiles(imageFiles);
     }
   };
 
-  const wordCount = effectiveContent
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean).length;
-  const charCount = effectiveContent.length;
+  const handleManualSave = async () => {
+    if (isControlled) {
+      await effectiveOnSave();
+      notifications.show({
+        id: 'manual-save',
+        title: t('editor.saved') || 'All changes saved',
+        message: t('editor.fileSaved') || 'File saved successfully',
+        color: 'teal',
+        icon: <IconCheck size={16} />,
+        autoClose: 2000,
+      });
+    } else {
+      window.dispatchEvent(new CustomEvent('app:save'));
+    }
+  };
 
-  const extensions = React.useMemo(() => {
+  // Compute words and characters
+  const wordCount = useMemo(() => {
+    const text = (effectiveContent || '').trim();
+    if (!text) return 0;
+    return text.split(/\s+/).length;
+  }, [effectiveContent]);
+
+  const charCount = effectiveContent ? effectiveContent.length : 0;
+
+  const extensions = useMemo(() => {
     const list = [
       markdown({ extensions: GFM }),
       syntaxHighlighting(editorHighlightStyle, { fallback: true }),
@@ -362,19 +343,21 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       EditorView.lineWrapping,
     ];
     if (isLivePreview) {
-      list.push(...liveMarkdownExtension({
-        copyCode: t('editor.copyCode'),
-        editTable: t('editor.editTable'),
-        imageNotFound: t('editor.imageNotFound'),
-        toggleTask: t('editor.toggleTask'),
-      }));
+      list.push(
+        ...liveMarkdownExtension({
+          copyCode: t('editor.copyCode'),
+          editTable: t('editor.editTable'),
+          imageNotFound: t('editor.imageNotFound'),
+          toggleTask: t('editor.toggleTask'),
+        })
+      );
     }
     return list;
   }, [isLivePreview, t]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
-      {/* Editor Toolbar */}
+      {/* Editor Toolbar & Header Actions */}
       <Paper
         p="xs"
         withBorder
@@ -386,203 +369,29 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         }}
       >
         <Group justify="space-between" gap="xs" wrap="nowrap">
-          {/* Left: Formatting tools */}
-          <Group gap={3} wrap="nowrap" style={{ overflowX: 'auto' }}>
-            <Tooltip label={t('editor.bold')} withArrow>
-              <ActionIcon aria-label={t('editor.bold')} variant="subtle" size="sm" onClick={() => insertText('**', '**', 'bold')}>
-                <IconBold size={15} />
-              </ActionIcon>
-            </Tooltip>
-            <Tooltip label={t('editor.italic')} withArrow>
-              <ActionIcon aria-label={t('editor.italic')} variant="subtle" size="sm" onClick={() => insertText('*', '*', 'italic')}>
-                <IconItalic size={15} />
-              </ActionIcon>
-            </Tooltip>
-            <Divider orientation="vertical" />
-            <Tooltip label={t('editor.headingLevel', { level: 1 })} withArrow>
-              <ActionIcon aria-label={t('editor.headingLevel', { level: 1 })} variant="subtle" size="sm" onClick={() => insertText('\n# ', '\n')}>
-                <IconH1 size={15} />
-              </ActionIcon>
-            </Tooltip>
-            <Tooltip label={t('editor.headingLevel', { level: 2 })} withArrow>
-              <ActionIcon aria-label={t('editor.headingLevel', { level: 2 })} variant="subtle" size="sm" onClick={() => insertText('\n## ', '\n')}>
-                <IconH2 size={15} />
-              </ActionIcon>
-            </Tooltip>
-            <Tooltip label={t('editor.headingLevel', { level: 3 })} withArrow>
-              <ActionIcon aria-label={t('editor.headingLevel', { level: 3 })} variant="subtle" size="sm" onClick={() => insertText('\n### ', '\n')}>
-                <IconH3 size={15} />
-              </ActionIcon>
-            </Tooltip>
-            <Divider orientation="vertical" />
-            <Tooltip label={t('editor.bulletList')} withArrow>
-              <ActionIcon aria-label={t('editor.bulletList')} variant="subtle" size="sm" onClick={() => insertText('\n- ', '')}>
-                <IconList size={15} />
-              </ActionIcon>
-            </Tooltip>
-            <Tooltip label={t('editor.numberedList')} withArrow>
-              <ActionIcon aria-label={t('editor.numberedList')} variant="subtle" size="sm" onClick={() => insertText('\n1. ', '')}>
-                <IconListNumbers size={15} />
-              </ActionIcon>
-            </Tooltip>
-            <Tooltip label={t('editor.task')} withArrow>
-              <ActionIcon aria-label={t('editor.task')} variant="subtle" size="sm" onClick={() => insertText('\n- [ ] ', '')}>
-                <IconCheckbox size={15} />
-              </ActionIcon>
-            </Tooltip>
-            <Divider orientation="vertical" />
-            <Tooltip label={t('editor.code')} withArrow>
-              <ActionIcon aria-label={t('editor.code')} variant="subtle" size="sm" onClick={() => insertText('```\n', '\n```\n')}>
-                <IconCode size={15} />
-              </ActionIcon>
-            </Tooltip>
-            <Tooltip label={t('editor.table')} withArrow>
-              <ActionIcon aria-label={t('editor.table')} variant="subtle" size="sm" onClick={insertTable}>
-                <IconTable size={15} />
-              </ActionIcon>
-            </Tooltip>
-            <Tooltip label={t('editor.insertImage') || 'Insert Image'} withArrow>
-              <ActionIcon aria-label={t('editor.insertImage')} variant="subtle" size="sm" onClick={handleInsertImage}>
-                <IconPhoto size={15} />
-              </ActionIcon>
-            </Tooltip>
+          <EditorToolbar
+            onInsertText={insertText}
+            onInsertTable={insertTable}
+            onInsertImage={handleInsertImage}
+            showTemplates={showTemplates}
+            templates={settings?.templates}
+            onInsertTemplate={insertTemplate}
+          />
 
-            {/* Template Selector */}
-            {showTemplates && settings?.templates && settings.templates.length > 0 && (
-              <Menu shadow="md" width={220}>
-                <Menu.Target>
-                  <Button
-                    variant="subtle"
-                    size="compact-xs"
-                    leftSection={<IconTemplate size={13} />}
-                    style={{ marginLeft: 2 }}
-                  >
-                    {t('editor.chooseTemplate')}
-                  </Button>
-                </Menu.Target>
-                <Menu.Dropdown>
-                  <Menu.Label>{t('settings.templates')}</Menu.Label>
-                  {settings.templates.map((tpl) => (
-                    <Menu.Item key={tpl.id} onClick={() => insertTemplate(tpl.id)}>
-                      {tpl.name}
-                    </Menu.Item>
-                  ))}
-                </Menu.Dropdown>
-              </Menu>
-            )}
-          </Group>
-
-          {/* Right: Layout Switcher + Discrete Autosave + 3-dots Menu */}
           {showStatusAndActions && (
-            <Group gap={8} wrap="nowrap">
-              {layoutMode && onLayoutModeChange && (
-                <SegmentedControl
-                  value={layoutMode}
-                  onChange={(val: string) => onLayoutModeChange(val as 'live' | 'split' | 'edit' | 'preview')}
-                  size="xs"
-                  radius="md"
-                  className="nav-segmented-control"
-                  transitionDuration={180}
-                  data={[
-                    { label: t('editor.live'), value: 'live' },
-                    { label: t('editor.split'), value: 'split' },
-                    { label: t('editor.write'), value: 'edit' },
-                    { label: t('editor.preview'), value: 'preview' },
-                  ]}
-                />
-              )}
-
-              <Group gap={5} wrap="nowrap" role="status" aria-live="polite" className="note-save-status">
-                {effectiveSaveError ? (
-                  <Button
-                    variant="subtle"
-                    color="red"
-                    size="compact-xs"
-                    leftSection={<IconAlertCircle size={14} />}
-                    onClick={() => void effectiveOnSave()}
-                  >
-                    {t('editor.retrySave')}
-                  </Button>
-                ) : effectiveIsSaving ? (
-                  <>
-                    <Loader size={13} color="gray" />
-                    <Text size="xs" c="dimmed" className="note-save-status-label">
-                      {t('editor.saving')}
-                    </Text>
-                  </>
-                ) : effectiveIsDirty ? (
-                  <>
-                    <IconCircleFilled size={8} className="note-save-status-unsaved" />
-                    <Text size="xs" c="dimmed" className="note-save-status-label">
-                      {t('editor.unsaved')}
-                    </Text>
-                  </>
-                ) : (
-                  <Tooltip label={t('editor.saved')} withArrow>
-                    <Group gap={5} wrap="nowrap">
-                      <IconCheck size={16} className="note-save-status-saved" />
-                      {showSavedConfirmation && (
-                        <Text size="xs" c="dimmed" className="note-save-status-label">
-                          {t('editor.saved')}
-                        </Text>
-                      )}
-                    </Group>
-                  </Tooltip>
-                )}
-              </Group>
-
-              {/* 3-dots actions menu */}
-              <Menu position="bottom-end" shadow="md" withinPortal>
-                <Menu.Target>
-                  <ActionIcon aria-label={t('editor.moreActions')} variant="subtle" size="sm" color="gray">
-                    <IconDotsVertical size={15} />
-                  </ActionIcon>
-                </Menu.Target>
-                <Menu.Dropdown>
-                  <Menu.Item
-                    leftSection={<IconDeviceFloppy size={14} />}
-                    onClick={async () => {
-                      if (isControlled) {
-                        await effectiveOnSave();
-                        notifications.show({
-                          id: 'manual-save',
-                          title: t('editor.saved') || 'All changes saved',
-                          message: t('editor.fileSaved') || 'File saved successfully',
-                          color: 'teal',
-                          icon: <IconCheck size={16} />,
-                          autoClose: 2000,
-                        });
-                      } else {
-                        window.dispatchEvent(new CustomEvent('app:save'));
-                      }
-                    }}
-                    disabled={!effectiveIsDirty}
-                  >
-                    {t('common.save')}
-                  </Menu.Item>
-                  {showExport && onExportClick && (
-                    <Menu.Item
-                      leftSection={<IconFileExport size={14} />}
-                      onClick={onExportClick}
-                    >
-                      {t('editor.exportNote')}
-                    </Menu.Item>
-                  )}
-                  {showDelete && onDeleteClick && (isControlled || activeNote?.exists) && (
-                    <>
-                      <Menu.Divider />
-                      <Menu.Item
-                        color="red"
-                        leftSection={<IconTrash size={14} />}
-                        onClick={onDeleteClick}
-                      >
-                        {t('common.delete')}
-                      </Menu.Item>
-                    </>
-                  )}
-                </Menu.Dropdown>
-              </Menu>
-            </Group>
+            <EditorHeaderActions
+              layoutMode={layoutMode}
+              onLayoutModeChange={onLayoutModeChange}
+              isSaving={effectiveIsSaving}
+              isDirty={effectiveIsDirty}
+              saveError={effectiveSaveError}
+              showSavedConfirmation={showSavedConfirmation}
+              onSave={handleManualSave}
+              showExport={showExport}
+              onExportClick={onExportClick}
+              showDelete={showDelete && Boolean(isControlled || activeNote?.exists)}
+              onDeleteClick={onDeleteClick}
+            />
           )}
         </Group>
       </Paper>
@@ -594,7 +403,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onPaste={handlePaste}
-        className={isDraggingOver ? 'editor-dropzone-active' : ''}
+        className={isDraggingOver ? clsx(classes.editorDropzoneActive, 'editor-dropzone-active') : undefined}
         style={{
           flex: 1,
           overflow: 'hidden',
