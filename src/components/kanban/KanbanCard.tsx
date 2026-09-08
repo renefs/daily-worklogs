@@ -30,7 +30,7 @@ import {
 } from '../../types';
 import { getColumnIcon, getColumnTitle } from './columnUtils';
 import { resolveTaskContext } from '../../utils/areaProjectUtils';
-import classes from '../views/KanbanView.module.css';
+import classes from './KanbanCard.module.css';
 
 export interface KanbanCardProps {
   task: TaskMeta;

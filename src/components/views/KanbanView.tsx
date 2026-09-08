@@ -22,6 +22,7 @@ import { getColumnTitle } from '../kanban/columnUtils';
 import { DEFAULT_AREAS, resolveTaskContext } from '../../utils/areaProjectUtils';
 import { KanbanFilterBar } from '../kanban/KanbanFilterBar';
 import { KanbanColumn } from '../kanban/KanbanColumn';
+import classes from './KanbanView.module.css';
 
 export const KanbanView: React.FC = () => {
   const { t } = useTranslation();
@@ -284,7 +285,7 @@ export const KanbanView: React.FC = () => {
   }, [tasks, columnBehaviorMap]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 12 }}>
+    <div className={classes.container}>
       {/* Top Header & Toolbar */}
       <Group justify="space-between" align="center" gap="xs">
         <Group gap="xs" wrap="nowrap" style={{ flex: '1 1 auto', minWidth: 0 }}>
@@ -365,17 +366,7 @@ export const KanbanView: React.FC = () => {
       />
 
       {/* Kanban Board Columns Container */}
-      <div
-        style={{
-          flex: 1,
-          minHeight: 0,
-          display: 'flex',
-          gap: 12,
-          overflowX: 'auto',
-          overflowY: 'hidden',
-          paddingBottom: 4,
-        }}
-      >
+      <div className={classes.columnsContainer}>
         {visibleColumns.map((col) => {
           const columnTasks = tasksByColumn[col.id] || [];
           return (
