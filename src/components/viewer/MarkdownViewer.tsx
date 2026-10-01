@@ -21,7 +21,7 @@ import { Paper, ScrollArea, Checkbox, CopyButton, ActionIcon, Tooltip } from '@m
 import { IconCopy, IconCheck, IconCode } from '@tabler/icons-react';
 import { useAppStoreSelector } from '../../store/useAppStore';
 import { useTranslation } from 'react-i18next';
-import { sanitizeLivePreviewUrl } from '../editor/liveMarkdownUtils';
+import { sanitizeLivePreviewUrl } from '../../utils/urlUtils';
 
 const lowlight = createLowlight({ bash, css, javascript, json, markdown, python, sql, typescript, xml, yaml });
 lowlight.registerAlias({ bash: ['sh'], javascript: ['js'], markdown: ['md'], python: ['py'], typescript: ['ts'], xml: ['html', 'svg'], yaml: ['yml'] });

@@ -55,4 +55,16 @@ export default defineConfig({
   server: {
     port: 5173,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        onlyExplicitManualChunks: true,
+        manualChunks(id) {
+          if (id.includes('/node_modules/@codemirror/')) {
+            return 'codemirror-vendor';
+          }
+        },
+      },
+    },
+  },
 });
