@@ -33,8 +33,8 @@ Built with **React**, **TypeScript**, **Mantine UI v7**, **CodeMirror 6**, and *
 ### Installation
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/daily-worklog.git
-cd daily-worklog
+git clone https://github.com/renefs/daily-worklogs.git
+cd daily-worklogs
 
 # Install dependencies
 npm install
@@ -67,23 +67,30 @@ npm run build
 ```
 daily-worklog/
 ├── electron/
-│   ├── main.ts              # Electron main process & IPC handlers (Vault, FS, Dialogs)
-│   └── preload.ts           # ContextBridge secure API bridge
+│   ├── main.ts              # Electron main process, IPC handlers, and OS integrations
+│   ├── preload.ts           # Typed ContextBridge API
+│   ├── services/            # Vault file and path operations
+│   └── utils/               # Security, atomic writes, and bounded concurrency
 ├── src/
 │   ├── components/
 │   │   ├── editor/          # CodeMirror 6 Markdown Editor & Toolbar
 │   │   ├── viewer/          # Rendered Markdown Visualizer with interactive tasks
 │   │   ├── layout/          # AppShell, AppHeader, AppSidebar
-│   │   ├── modals/          # SettingsModal, ExportModal
-│   │   └── views/           # DailyView, WeeklyView, MonthlyView, KanbanView
+│   │   ├── modals/          # Settings, onboarding, task, routine, and export dialogs
+│   │   ├── settings/        # Areas, projects, and tag management
+│   │   ├── tasks/           # Shared task detail and property components
+│   │   └── views/           # Daily, period, yearly, Kanban, and task views
 │   ├── i18n/                # Translation catalogs (en.json, es.json)
-│   ├── store/               # Zustand store for app state & reactive saves
+│   ├── store/               # Zustand store composed from domain slices
 │   ├── styles/              # Mantine CSS imports & typography
 │   ├── types/               # TypeScript interfaces & API definitions
 │   ├── App.tsx              # Root Mantine Provider & Theme setup
 │   └── main.tsx             # React entry point
 └── package.json
 ```
+
+Pull requests are checked in GitHub Actions with TypeScript typechecking, Vitest,
+Electron end-to-end tests, and a renderer build.
 
 ---
 

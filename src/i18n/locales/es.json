@@ -215,6 +215,7 @@
     "waitingSection": "Bloqueadas / En espera",
     "backlogSection": "Programadas y Backlog",
     "dailyChecklistsSection": "Elementos de lista en notas diarias",
+    "noTasksInPeriod": "No hay tareas registradas para este período.",
     "byTag": "Por Etiqueta",
     "byPriority": "Por Prioridad",
     "breakdownLabel": "Desglose",

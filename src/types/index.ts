@@ -118,6 +118,23 @@ export interface TaskItem extends TaskMeta {
   activityLog?: TaskActivityEntry[];
 }
 
+export interface TaskWriteInput {
+  id?: string;
+  taskId?: number;
+  filename?: string;
+  title: string;
+  status: TaskStatus;
+  priority?: TaskPriority;
+  area?: string;
+  project?: string;
+  created?: string;
+  due?: string;
+  startedDate?: string;
+  completedDate?: string;
+  tags?: string[];
+  content: string;
+}
+
 export type WeekStartDay = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0 = Sunday, 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday
 
 export interface NoteTemplate {

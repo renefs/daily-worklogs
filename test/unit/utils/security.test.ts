@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
-import { requireIsoDate, requireTaskFilename, resolvePathInside } from '../../../electron/utils/security';
+import { requireIsoDate, requireTaskFilename, requireTaskWriteInput, resolvePathInside } from '../../../electron/utils/security';
 
 describe('security utils', () => {
   describe('requireIsoDate', () => {
@@ -36,6 +36,32 @@ describe('security utils', () => {
     });
   });
 
+  describe('requireTaskWriteInput', () => {
+    const validTask = {
+      title: 'Prepare release',
+      status: 'todo',
+      content: 'Release checklist',
+      due: '2026-10-15',
+      tags: ['release'],
+    };
+
+    it('accepts a valid task payload and keeps only supported fields', () => {
+      expect(requireTaskWriteInput({ ...validTask, unknown: 'discarded' })).toEqual(validTask);
+    });
+
+    it('rejects missing required fields and malformed optional values', () => {
+      expect(() => requireTaskWriteInput(null)).toThrow(/Invalid task data/);
+      expect(() => requireTaskWriteInput({ ...validTask, title: '  ' })).toThrow(/Invalid task title/);
+      expect(() => requireTaskWriteInput({ ...validTask, status: '' })).toThrow(/Invalid task status/);
+      expect(() => requireTaskWriteInput({ ...validTask, content: undefined })).toThrow(/Invalid task content/);
+      expect(() => requireTaskWriteInput({ ...validTask, taskId: 0 })).toThrow(/Invalid task ID/);
+      expect(() => requireTaskWriteInput({ ...validTask, filename: '../outside.md' })).toThrow(/Invalid task filename/);
+      expect(() => requireTaskWriteInput({ ...validTask, priority: 'critical' })).toThrow(/Invalid task priority/);
+      expect(() => requireTaskWriteInput({ ...validTask, due: '2026-02-31' })).toThrow(/Invalid task due/);
+      expect(() => requireTaskWriteInput({ ...validTask, tags: ['release', 3] })).toThrow(/Invalid task tags/);
+    });
+  });
+
   describe('resolvePathInside', () => {
     const baseDir = path.resolve('/tmp/test-vault');
 
@@ -50,4 +76,3 @@ describe('security utils', () => {
     });
   });
 });
-

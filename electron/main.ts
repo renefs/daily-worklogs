@@ -21,9 +21,10 @@ import 'dayjs/locale/es';
 import 'dayjs/locale/en';
 import { formatTemplateContent } from '../src/utils/dateTemplate';
 import { mapWithConcurrency } from './utils/async';
-import { requireIsoDate, requireTaskFilename, resolvePathInside } from './utils/security';
+import { requireIsoDate, requireTaskFilename, requireTaskWriteInput, resolvePathInside } from './utils/security';
 import { atomicWriteFile, atomicWriteFileSync } from './utils/atomicFile';
 import { ensureImagesDir, ensureTasksDir, ensureVaultDir, ensureYearDir, getNoteFilePath, getYearFromDate, listDailyNoteFiles } from './services/vaultService';
+import { parseNumericTaskId, parseTaskCounts, readTaskFiles, type TaskFileRead } from './services/taskFileService';
 
 // Register custom protocol scheme before app ready
 protocol.registerSchemesAsPrivileged([
@@ -923,16 +924,6 @@ app.on('window-all-closed', () => {
   }
 });
 
-// Task parsing helper
-function parseTaskCounts(content: string) {
-  const checked = (content.match(/^[\s]*[-*]\s*\[[xX]\]/gm) || []).length;
-  const unchecked = (content.match(/^[\s]*[-*]\s*\[\s\]/gm) || []).length;
-  return {
-    tasksCompleted: checked,
-    tasksTotal: checked + unchecked,
-  };
-}
-
 // IPC Handlers
 ipcMain.handle('get-app-version', () => {
   return app.getVersion() || '1.13.0';
@@ -1535,73 +1526,6 @@ ipcMain.handle('open-external-url', async (_event, targetUrl: string) => {
   }
 });
 
-// Helper to parse a numeric task ID from frontmatter
-function parseNumericTaskId(data: any): number | undefined {
-  if (!data) return undefined;
-  if (typeof data.id === 'number' && !isNaN(data.id) && data.id > 0) {
-    return Math.floor(data.id);
-  }
-  if (typeof data.taskId === 'number' && !isNaN(data.taskId) && data.taskId > 0) {
-    return Math.floor(data.taskId);
-  }
-  if (typeof data.id === 'string') {
-    const clean = data.id.replace(/^#/, '').trim();
-    const parsed = parseInt(clean, 10);
-    if (!isNaN(parsed) && parsed > 0 && String(parsed) === clean) {
-      return parsed;
-    }
-  }
-  if (typeof data.taskId === 'string') {
-    const clean = data.taskId.replace(/^#/, '').trim();
-    const parsed = parseInt(clean, 10);
-    if (!isNaN(parsed) && parsed > 0 && String(parsed) === clean) {
-      return parsed;
-    }
-  }
-  return undefined;
-}
-
-// Lists the task documents in the tasks directory.
-async function listTaskFilenames(tasksDir: string): Promise<string[]> {
-  try {
-    const files = await fsp.readdir(tasksDir);
-    return files.filter((f) => f.toLowerCase().endsWith('.md'));
-  } catch {
-    return [];
-  }
-}
-
-interface TaskFileRead {
-  filename: string;
-  filepath: string;
-  raw: string;
-  stat: fs.Stats;
-}
-
-// Reads every task document concurrently. Files that cannot be read are skipped rather
-// than failing the whole scan, matching the previous per-file try/catch behaviour.
-async function readTaskFiles(tasksDir: string): Promise<TaskFileRead[]> {
-  const filenames = await listTaskFilenames(tasksDir);
-  const reads = await mapWithConcurrency(
-    filenames,
-    FILE_READ_CONCURRENCY,
-    async (filename): Promise<TaskFileRead | null> => {
-      const filepath = path.join(tasksDir, filename);
-      try {
-        const [raw, stat] = await Promise.all([
-          fsp.readFile(filepath, 'utf-8'),
-          fsp.stat(filepath),
-        ]);
-        return { filename, filepath, raw, stat };
-      } catch (err) {
-        console.warn(`Could not read task file ${filename}:`, err);
-        return null;
-      }
-    }
-  );
-  return reads.filter((read): read is TaskFileRead => read !== null);
-}
-
 // Loads and parses every task document in the tasks directory.
 async function loadAllTasks(tasksDir: string) {
   const reads = await readTaskFiles(tasksDir);
@@ -1820,7 +1744,8 @@ ipcMain.handle('read-task', async (_event, filename: string) => {
   return null;
 });
 
-ipcMain.handle('write-task', async (_event, taskData: any) => {
+ipcMain.handle('write-task', async (_event, rawTaskData: unknown) => {
+  const taskData = requireTaskWriteInput(rawTaskData);
   const { vaultPath } = getSettings();
   const tasksDir = ensureTasksDir(vaultPath);
 

@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Fixed
+- Added the missing Spanish translation for the empty task report state.
+- Added runtime validation for task-write IPC payloads, including task identity, metadata, dates, and tags.
+
+### Changed
+- Updated the README repository URL and architecture overview to match the current project structure.
+- Added GitHub Actions verification for typechecking, unit and component tests, Electron end-to-end tests, and renderer builds.
+- Extracted task file scanning and Markdown task metadata helpers into an Electron service module.
+
 ## [1.13.0] - 2026-09-08
 
 ### Changed
