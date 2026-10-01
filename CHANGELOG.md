@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Added runtime validation for task-write IPC payloads, including task identity, metadata, dates, and tags.
 
 ### Changed
+- Split React runtime modules into a shared renderer vendor chunk to keep the app entry below the chunk warning threshold.
 - Decoupled Markdown preview URL sanitization from CodeMirror utilities and split CodeMirror vendor modules into bounded renderer chunks.
 - Reduced MarkdownViewer syntax-highlighting payload by registering only supported language grammars.
 - Removed fabricated period dashboard metrics and task cards; dashboards now display vault-derived totals and empty states.
