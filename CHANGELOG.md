@@ -312,3 +312,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 - Decomposed the monthly dashboard into focused summary, activity panel, and task list components.
+- Decomposed the weekly dashboard into a focused dashboard component with typed activity and project data.

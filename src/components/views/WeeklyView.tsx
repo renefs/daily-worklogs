@@ -1,31 +1,18 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import {
-  Group,
-  Stack,
-  Text,
-  Paper,
-  SimpleGrid,
-  UnstyledButton,
-  Progress,
-  useComputedColorScheme,
-} from '@mantine/core';
+import { useComputedColorScheme } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  IconCheck,
-  IconCalendar,
-  IconChevronRight as IconArrowRight,
-} from '@tabler/icons-react';
+import { IconCheck } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import { useTranslation } from 'react-i18next';
 import { useAppStoreSelector } from '../../store/useAppStore';
-import { PeriodSummary, TaskMeta } from '../../types';
+import type { PeriodSummary, TaskMeta } from '../../types';
 import { ExportModal } from '../modals/ExportModal';
 import { PeriodTasksBreakdown } from './PeriodTasksBreakdown';
 import { PeriodDaysList } from './PeriodDaysList';
 import { PeriodHeaderNav } from './period/PeriodHeaderNav';
-import { PeriodKpiCards } from './period/PeriodKpiCards';
 import { resolveTaskContext } from '../../utils/areaProjectUtils';
+import { WeeklyDashboard, type WeeklyDayActivity, type WeeklyProjectProgress } from './weekly/WeeklyDashboard';
 
 dayjs.extend(isoWeek);
 
@@ -91,7 +78,7 @@ export const WeeklyView: React.FC = () => {
     openTaskEditor(task, undefined, 'weekly');
   };
 
-  const weekDays = useMemo(() => {
+  const weekDays = useMemo<WeeklyDayActivity[]>(() => {
     const start = dayjs(weekRange.start);
     const days = [];
     const notesMap = new Map((periodSummary?.days || []).map((d) => [d.date, d]));
@@ -115,7 +102,7 @@ export const WeeklyView: React.FC = () => {
     return days;
   }, [weekRange.start, periodSummary?.days, i18n.language]);
 
-  const projectBreakdown = useMemo(() => {
+  const projectBreakdown = useMemo<WeeklyProjectProgress[]>(() => {
     const map = new Map<string, { total: number; completed: number; area: string }>();
     const allPeriodTasks = [
       ...(periodSummary?.completedTasksList || []),
@@ -218,249 +205,19 @@ export const WeeklyView: React.FC = () => {
       {/* Main Content Area */}
       <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
         {activeTab === 'dashboard' ? (
-          <Stack gap={14}>
-            <PeriodKpiCards
-              calendarIconType="week"
-              daysLoggedContent={`${activeDaysCount} of 7`}
-              daysLoggedSubtitle={t('dashboard.daysThisWeek', 'days this week')}
-              daysLoggedDelta={
-                <>
-                  vs last week <span style={{ fontWeight: 700 }}>+1 day</span>
-                </>
-              }
-              tasksCompletedValue={`${completedTasksCount} of ${totalTasksCount}`}
-              tasksCompletedSubtitle={t('dashboard.tasksThisWeek', 'tasks this week')}
-              tasksCompletedDelta={
-                <>
-                  vs last week <span style={{ fontWeight: 700 }}>+2</span>
-                </>
-              }
-              completionRatePercent={completionPercent}
-              completionRateSubtitle={t('dashboard.completedThisWeekRate', 'completed this week')}
-              completionRateDelta={
-                <>
-                  vs last week <span style={{ fontWeight: 700 }}>+14 pp</span>
-                </>
-              }
-            />
-
-            {/* Weekly activity: Compact 7-Day Strip */}
-            <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
-              <Text size="xs" fw={700} c="dimmed" mb={8} style={{ fontSize: 12 }}>
-                {t('dashboard.weekActivityTitle', 'Weekly activity')}
-              </Text>
-              <SimpleGrid cols={{ base: 2, sm: 4, md: 7 }} spacing="xs">
-                {weekDays.map((day) => (
-                  <Paper
-                    key={day.date}
-                    p="xs"
-                    radius="md"
-                    style={{
-                      backgroundColor: day.hasNote
-                        ? isDark
-                          ? 'rgba(59, 130, 246, 0.10)'
-                          : 'rgba(59, 130, 246, 0.05)'
-                        : isDark
-                        ? 'var(--mantine-color-dark-7)'
-                        : 'var(--mantine-color-gray-0)',
-                      border: day.isToday
-                        ? '2px solid var(--mantine-primary-color-filled)'
-                        : '1px solid var(--app-card-border)',
-                      minHeight: 76,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <div>
-                      <Text size="xs" c="dimmed" style={{ textTransform: 'capitalize', fontSize: 11 }}>
-                        {day.dayName}
-                      </Text>
-                      <Text size="sm" fw={700} style={{ fontSize: 12 }}>
-                        {day.dayNumber}
-                      </Text>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-                      {day.hasNote ? (
-                        <>
-                          <div
-                            style={{
-                              width: 16,
-                              height: 16,
-                              borderRadius: '50%',
-                              backgroundColor: 'var(--mantine-primary-color-filled)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: '#fff',
-                            }}
-                          >
-                            <IconCheck size={11} stroke={3} />
-                          </div>
-                          <Text size="xs" fw={600} style={{ fontSize: 10 }}>
-                            {t('dashboard.recorded', 'Logged')}
-                          </Text>
-                        </>
-                      ) : (
-                        <>
-                          <div
-                            style={{
-                              width: 14,
-                              height: 14,
-                              borderRadius: '50%',
-                              border: '1.5px solid var(--app-sidebar-text-dimmed)',
-                              opacity: 0.7,
-                            }}
-                          />
-                          <Text size="xs" c="dimmed" style={{ fontSize: 10 }}>
-                            {t('dashboard.noRecord', 'No entry')}
-                          </Text>
-                        </>
-                      )}
-                    </div>
-                  </Paper>
-                ))}
-              </SimpleGrid>
-            </Paper>
-
-            {/* Middle 2-Column Grid: Completed this week & In progress & pending */}
-            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-              {/* Completed this week */}
-              <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
-                <Group gap={6} align="center" mb={10}>
-                  <IconCheck size={16} color="var(--mantine-color-teal-filled)" />
-                  <Text size="xs" fw={700} style={{ fontSize: 13 }}>
-                    {t('dashboard.completedThisWeek', 'Completed this week')} ({periodSummary?.completedTasksList?.length || 4})
-                  </Text>
-                </Group>
-
-                <Stack gap={8}>
-                  {(periodSummary?.completedTasksList || [
-                    { id: '1', title: 'Change password of sasentrywebcast service account', completedDate: '2026-09-01' },
-                    { id: '2', title: 'Migrate Recordings Manager to Postgresql', completedDate: '2026-08-27' },
-                    { id: '3', title: 'Remove webcastd service account', completedDate: '2026-09-01' },
-                    { id: '4', title: 'Deploy new CERN Live version', completedDate: '2026-08-27' },
-                  ]).slice(0, 4).map((task: any) => (
-                    <Paper
-                      key={task.id}
-                      p="xs"
-                      radius="md"
-                      withBorder
-                      onClick={() => handleOpenTask(task)}
-                      style={{ cursor: 'pointer', backgroundColor: 'var(--app-subtle-bg)' }}
-                    >
-                      <Group justify="space-between" align="center" wrap="nowrap" gap="xs">
-                        <Group gap={6} wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
-                          <IconCheck size={14} color="var(--mantine-color-teal-filled)" style={{ flexShrink: 0 }} />
-                          <Text size="xs" fw={500} truncate style={{ minWidth: 0 }}>
-                            {task.title}
-                          </Text>
-                        </Group>
-                        {task.completedDate && (
-                          <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-                            <IconCalendar size={12} color="var(--mantine-color-gray-6)" />
-                            <Text size="xs" c="dimmed" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
-                              {dayjs(task.completedDate).format('D MMM YYYY')}
-                            </Text>
-                          </Group>
-                        )}
-                      </Group>
-                    </Paper>
-                  ))}
-                </Stack>
-
-                <UnstyledButton
-                  onClick={() => setActiveTab('tasks')}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 12, fontSize: 12, color: 'var(--mantine-primary-color-filled)', fontWeight: 600 }}
-                >
-                  {t('dashboard.viewAllCompleted', 'View all completed tasks')} <IconArrowRight size={14} />
-                </UnstyledButton>
-              </Paper>
-
-              {/* In progress & pending */}
-              <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
-                <Group gap={6} align="center" mb={10}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: 'var(--mantine-color-orange-filled)' }} />
-                  <Text size="xs" fw={700} style={{ fontSize: 13 }}>
-                    {t('dashboard.inProgressAndPending', 'In progress & pending')} ({periodSummary?.inProgressTasksList?.length || 2})
-                  </Text>
-                </Group>
-
-                <Stack gap={8}>
-                  {(periodSummary?.inProgressTasksList || [
-                    { id: '5', title: 'Implement secure tokens and referer protection in Wowza', startedDate: '2026-08-21' },
-                    { id: '6', title: 'Migrate encoders-manager to Postgresql', startedDate: '2026-08-21' },
-                  ]).slice(0, 4).map((task: any) => (
-                    <Paper
-                      key={task.id}
-                      p="xs"
-                      radius="md"
-                      withBorder
-                      onClick={() => handleOpenTask(task)}
-                      style={{ cursor: 'pointer', backgroundColor: 'var(--app-subtle-bg)' }}
-                    >
-                      <Group justify="space-between" align="center" wrap="nowrap" gap="xs">
-                        <Group gap={6} wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'var(--mantine-color-orange-filled)', flexShrink: 0 }} />
-                          <div>
-                            <Text size="xs" fw={500} truncate style={{ minWidth: 0 }}>
-                              {task.title}
-                            </Text>
-                            <Text size="xs" c="dimmed" style={{ fontSize: 10 }}>
-                              Started: {task.startedDate ? dayjs(task.startedDate).format('D MMM YYYY') : '21 Aug 2026'}
-                            </Text>
-                          </div>
-                        </Group>
-                      </Group>
-                    </Paper>
-                  ))}
-                </Stack>
-
-                <UnstyledButton
-                  onClick={() => setActiveTab('tasks')}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 12, fontSize: 12, color: 'var(--mantine-primary-color-filled)', fontWeight: 600 }}
-                >
-                  {t('dashboard.viewAllPending', 'View all pending tasks')} <IconArrowRight size={14} />
-                </UnstyledButton>
-              </Paper>
-            </SimpleGrid>
-
-            {/* Bottom Project breakdown */}
-            <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
-              <Group justify="space-between" align="center" mb={10}>
-                <Text size="xs" fw={700} style={{ fontSize: 13 }}>
-                  📊 {t('dashboard.byProjectThisWeek', 'By project (this week)')}
-                </Text>
-              </Group>
-
-              <Stack gap={10}>
-                {(projectBreakdown.length > 0 ? projectBreakdown : [
-                  { name: 'monitoring', completed: 1, total: 1, percent: 100 },
-                  { name: 'Recordings Manager', completed: 1, total: 1, percent: 100 },
-                ]).map((p) => (
-                  <div key={p.name}>
-                    <Group justify="space-between" align="center" wrap="nowrap" mb={3}>
-                      <Text size="xs" fw={500}>
-                        {p.name}
-                      </Text>
-                      <Text size="xs" c="dimmed" fw={600} style={{ fontSize: 11 }}>
-                        {p.completed}/{p.total} · {p.percent}%
-                      </Text>
-                    </Group>
-                    <Progress
-                      value={p.percent}
-                      color="teal"
-                      size="xs"
-                      radius="xl"
-                    />
-                  </div>
-                ))}
-              </Stack>
-            </Paper>
-          </Stack>
+          <WeeklyDashboard
+            isDark={isDark}
+            weekDays={weekDays}
+            completedTasksCount={completedTasksCount}
+            totalTasksCount={totalTasksCount}
+            activeDaysCount={activeDaysCount}
+            completionPercent={completionPercent}
+            completedTasks={periodSummary?.completedTasksList}
+            inProgressTasks={periodSummary?.inProgressTasksList}
+            projectBreakdown={projectBreakdown}
+            onOpenTask={handleOpenTask}
+            onViewTasks={() => setActiveTab('tasks')}
+          />
         ) : activeTab === 'tasks' ? (
           <PeriodTasksBreakdown periodSummary={periodSummary} onOpenTask={handleOpenTask} />
         ) : (

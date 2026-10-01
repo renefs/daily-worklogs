@@ -82,6 +82,7 @@ daily-worklog/
 │   │   ├── tasks/           # Shared task detail and property components
 │   │   ├── views/           # Daily, period, yearly, Kanban, and task views
 │   │   │   ├── monthly/     # Monthly dashboard sections
+│   │   │   ├── weekly/      # Weekly dashboard sections
 │   │   │   └── yearly/      # Yearly dashboard sections
 │   ├── i18n/                # Translation catalogs (en.json, es.json)
 │   ├── store/               # Zustand store composed from domain slices
