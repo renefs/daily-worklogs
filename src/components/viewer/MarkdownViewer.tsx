@@ -1,7 +1,20 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import rehypeHighlight from 'rehype-highlight';
+import bash from 'highlight.js/lib/languages/bash';
+import css from 'highlight.js/lib/languages/css';
+import javascript from 'highlight.js/lib/languages/javascript';
+import json from 'highlight.js/lib/languages/json';
+import markdown from 'highlight.js/lib/languages/markdown';
+import python from 'highlight.js/lib/languages/python';
+import sql from 'highlight.js/lib/languages/sql';
+import typescript from 'highlight.js/lib/languages/typescript';
+import yaml from 'highlight.js/lib/languages/yaml';
+import xml from 'highlight.js/lib/languages/xml';
+import { createLowlight } from 'lowlight';
+import { toText } from 'hast-util-to-text';
+import { visit } from 'unist-util-visit';
+import type { ElementContent, Root } from 'hast';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import { Paper, ScrollArea, Checkbox, CopyButton, ActionIcon, Tooltip } from '@mantine/core';
@@ -9,6 +22,22 @@ import { IconCopy, IconCheck, IconCode } from '@tabler/icons-react';
 import { useAppStoreSelector } from '../../store/useAppStore';
 import { useTranslation } from 'react-i18next';
 import { sanitizeLivePreviewUrl } from '../editor/liveMarkdownUtils';
+
+const lowlight = createLowlight({ bash, css, javascript, json, markdown, python, sql, typescript, xml, yaml });
+lowlight.registerAlias({ bash: ['sh'], javascript: ['js'], markdown: ['md'], python: ['py'], typescript: ['ts'], xml: ['html', 'svg'], yaml: ['yml'] });
+
+const highlightSupportedCode = () => (tree: Root) => {
+  visit(tree, 'element', (node, _index, parent) => {
+    if (node.tagName !== 'code' || !parent || parent.type !== 'element' || parent.tagName !== 'pre') return;
+    const classes = Array.isArray(node.properties.className) ? node.properties.className : [];
+    const languageClass = classes.find((className): className is string => typeof className === 'string' && className.startsWith('language-'));
+    const language = languageClass?.slice('language-'.length);
+    if (!language || !lowlight.registered(language)) return;
+    const highlighted = lowlight.highlight(language, toText(node));
+    node.properties.className = [...classes, 'hljs'];
+    node.children = highlighted.children as ElementContent[];
+  });
+};
 
 export interface MarkdownViewerProps {
   content?: string;
@@ -68,7 +97,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                   code: [...(defaultSchema.attributes?.code || []), ['className', /^language-./]],
                 },
               }],
-              rehypeHighlight,
+              highlightSupportedCode,
             ]}
             components={{
               h1({ children, ...props }) {
