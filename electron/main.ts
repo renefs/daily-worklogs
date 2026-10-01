@@ -28,6 +28,7 @@ import { ensureImagesDir, ensureTasksDir, ensureVaultDir, ensureYearDir, getNote
 import { parseNumericTaskId, parseTaskCounts, readTaskFiles, type TaskFileRead } from './services/taskFileService';
 import { registerTaskHandlers } from './ipc/taskHandlers';
 import { registerNoteHandlers } from './ipc/noteHandlers';
+import { summarizeDailyNotesInRange } from './services/dailyNoteRangeService';
 
 // Register custom protocol scheme before app ready
 protocol.registerSchemesAsPrivileged([
@@ -542,60 +543,6 @@ function writeRoutineCompletionsForYear(
 // stays free to serve IPC and paint.
 const FILE_READ_CONCURRENCY = 16;
 
-// Resolves which daily notes exist in a date range using one directory listing per
-// involved year (plus the vault root) instead of two existsSync probes per day.
-async function resolveNoteFilesInRange(
-  vaultPath: string,
-  dates: string[]
-): Promise<Map<string, string>> {
-  const listDir = async (dir: string): Promise<Set<string>> => {
-    try {
-      return new Set(await fsp.readdir(dir));
-    } catch {
-      return new Set<string>();
-    }
-  };
-
-  const years = Array.from(new Set(dates.map((date) => getYearFromDate(date))));
-  const rootFiles = await listDir(vaultPath);
-  const yearFiles = new Map<string, Set<string>>();
-  await Promise.all(
-    years.map(async (year) => {
-      yearFiles.set(year, await listDir(path.join(vaultPath, year)));
-    })
-  );
-
-  const resolved = new Map<string, string>();
-  for (const date of dates) {
-    const filename = `${date}.md`;
-    const year = getYearFromDate(date);
-    if (yearFiles.get(year)?.has(filename)) {
-      resolved.set(date, path.join(vaultPath, year, filename));
-    } else if (rootFiles.has(filename)) {
-      resolved.set(date, path.join(vaultPath, filename));
-    }
-  }
-  return resolved;
-}
-
-// Expands an inclusive date range into YYYY-MM-DD strings. Returns an empty list for
-// unparseable bounds rather than looping forever on an Invalid Date comparison.
-function expandDateRange(startDate: string, endDate: string): string[] {
-  const start = dayjs(startDate);
-  const end = dayjs(endDate);
-  if (!start.isValid() || !end.isValid() || start.isAfter(end, 'day')) {
-    return [];
-  }
-
-  const dates: string[] = [];
-  let curr = start;
-  while (!curr.isAfter(end, 'day')) {
-    dates.push(curr.format('YYYY-MM-DD'));
-    curr = curr.add(1, 'day');
-  }
-  return dates;
-}
-
 function slugify(text: string) {
   return text
     .toLowerCase()
@@ -1059,77 +1006,10 @@ registerNoteHandlers({
 ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: string) => {
   const settings = getSettings();
   const vaultPath = settings.vaultPath;
-  ensureVaultDir(vaultPath);
-
-  // Generate array of dates between start and end
-  const days = [];
-  let totalTasks = 0;
-  let completedTasks = 0;
-  let activeDays = 0;
-  const allDailyChecklistItems: Array<{ date: string; text: string; completed: boolean }> = [];
-
-  const rangeDates = expandDateRange(startDate, endDate);
-  const noteFilePaths = await resolveNoteFilesInRange(vaultPath, rangeDates);
-
-  // Read every note in the range off the main thread, a bounded batch at a time, so a
-  // slow (or cloud-hydrating) file system cannot freeze the app mid-scan.
-  const noteContents = await mapWithConcurrency(
-    rangeDates,
-    FILE_READ_CONCURRENCY,
-    async (dateStr) => {
-      const filepath = noteFilePaths.get(dateStr);
-      if (!filepath) return null;
-      try {
-        return await fsp.readFile(filepath, 'utf-8');
-      } catch (err) {
-        console.error(`Failed to read note for ${dateStr}:`, err);
-        return null;
-      }
-    }
-  );
-
-  for (let dayIndex = 0; dayIndex < rangeDates.length; dayIndex++) {
-    const dateStr = rangeDates[dayIndex];
-    const content = noteContents[dayIndex];
-
-    if (content !== null) {
-      const { tasksCompleted, tasksTotal } = parseTaskCounts(content);
-      totalTasks += tasksTotal;
-      completedTasks += tasksCompleted;
-      activeDays += 1;
-
-      // Extract specific checklist items
-      const checklistItems: Array<{ date: string; text: string; completed: boolean }> = [];
-      const lines = content.split('\n');
-      for (const line of lines) {
-        const checkMatch = line.match(/^[\s]*[-*]\s*\[([ xX])\]\s*(.+)$/);
-        if (checkMatch) {
-          const isCheck = checkMatch[1].toLowerCase() === 'x';
-          const itemText = checkMatch[2].trim();
-          if (itemText.length > 0) {
-            checklistItems.push({
-              date: dateStr,
-              text: itemText,
-              completed: isCheck,
-            });
-            allDailyChecklistItems.push({
-              date: dateStr,
-              text: itemText,
-              completed: isCheck,
-            });
-          }
-        }
-      }
-
-      days.push({
-        date: dateStr,
-        exists: true,
-        tasksTotal,
-        tasksCompleted,
-        checklistItems,
-      });
-    }
-  }
+  const dailySummary = await summarizeDailyNotesInRange(vaultPath, startDate, endDate, FILE_READ_CONCURRENCY);
+  const { days, totalTasks: dailyTasksTotal, completedTasks: dailyTasksCompleted, activeDays, dailyChecklistItems } = dailySummary;
+  let totalTasks = dailyTasksTotal;
+  let completedTasks = dailyTasksCompleted;
 
   // Load and include standalone task documents from vault/tasks
   let periodTaskCount = 0;
@@ -1372,7 +1252,7 @@ ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: str
     inProgressTasksList,
     waitingTasksList,
     backlogTasksList,
-    dailyChecklistItems: allDailyChecklistItems,
+    dailyChecklistItems,
     tagBreakdown,
     priorityBreakdown,
     serviceBreakdown,
