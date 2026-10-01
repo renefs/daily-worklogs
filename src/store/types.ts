@@ -7,6 +7,9 @@ import {
   DailyNoteMeta,
   DailyRoutine,
   ProjectDefinition,
+  PeriodSummary,
+  ReportPeriod,
+  ReportTab,
   TagDefinition,
   TaskItem,
   TaskMeta,
@@ -138,7 +141,24 @@ export interface RoutinesSlice {
   closeManageRoutinesModal: () => void;
 }
 
+export interface ReportsSlice {
+  reportDate: string;
+  reportPeriod: ReportPeriod;
+  reportTab: ReportTab;
+  hasOpenedReports: boolean;
+  reportSummary: PeriodSummary | null;
+  isReportLoading: boolean;
+  reportError: string | null;
+  setReportDate: (date: string) => void;
+  setReportTab: (tab: ReportTab) => void;
+  openReports: (period?: ReportPeriod, date?: string) => Promise<void>;
+  openReportDay: (date: string) => Promise<void>;
+  readReportDay: (date: string) => Promise<string>;
+  refreshReport: () => Promise<void>;
+}
+
 export type AppState = UiSlice &
+  ReportsSlice &
   SettingsSlice &
   NotesSlice &
   TasksSlice &

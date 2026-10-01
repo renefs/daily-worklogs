@@ -1,5 +1,5 @@
 import React from 'react';
-import { Group, Stack, Text } from '@mantine/core';
+import { Stack, Text } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import type { TaskMeta } from '../../../types';
 import { PeriodKpiCards } from '../period/PeriodKpiCards';
@@ -22,6 +22,8 @@ interface MonthlyDashboardProps {
   inProgressTasks?: TaskMeta[];
   onOpenTask: (task: TaskMeta) => void;
   onViewTasks: () => void;
+  weekStartDay?: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  onOpenWeek?: (date: string) => void;
 }
 
 export const MonthlyDashboard: React.FC<MonthlyDashboardProps> = ({
@@ -38,30 +40,28 @@ export const MonthlyDashboard: React.FC<MonthlyDashboardProps> = ({
   inProgressTasks,
   onOpenTask,
   onViewTasks,
+  weekStartDay = 1,
+  onOpenWeek,
 }) => {
   const { t } = useTranslation();
 
   return (
-    <Stack gap={14}>
+    <Stack gap="lg">
             <PeriodKpiCards
               calendarIconType="month"
-              daysLoggedContent={
-                <Group gap={4} align="baseline" mt={2}>
-                  <Text fw={800} size="xl" style={{ fontSize: 24, lineHeight: 1.2 }}>
-                    {activeDaysCount}
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    of {daysInMonth} days
-                  </Text>
-                </Group>
-              }
-              tasksCompletedValue={`${completedTasksCount} of ${totalTasksCount}`}
+              daysLoggedContent={String(activeDaysCount)}
+              daysLoggedSubtitle={t('reports.ofCalendarDays', { count: daysInMonth })}
+              tasksCompletedValue={`${completedTasksCount} ${t('reports.of')} ${totalTasksCount}`}
+              tasksCompletedSubtitle={t('reports.tasksInPeriod')}
+              completionRateSubtitle={t('reports.completedRatio')}
               completionRatePercent={completionPercent}
             />
 
             <MonthlyActivityPanels
               isDark={isDark}
               heatmapDays={heatmapDays}
+              weekStartDay={weekStartDay}
+              onOpenWeek={onOpenWeek}
               weeklyProgress={weeklyProgress}
               statusDistribution={statusDistribution}
             />
@@ -73,7 +73,7 @@ export const MonthlyDashboard: React.FC<MonthlyDashboardProps> = ({
               onViewTasks={onViewTasks}
             />
             {/* Footer notice */}
-            <Text size="xs" c="dimmed" ta="center" py="xs" style={{ fontSize: 11 }}>
+            <Text size="xs" c="dimmed" ta="center" py="xs">
               {t('dashboard.autoUpdatedFooter', 'Data updates automatically with each daily log.')}
             </Text>
           </Stack>

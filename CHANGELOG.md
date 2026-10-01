@@ -13,6 +13,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Added runtime validation for task-write IPC payloads, including task identity, metadata, dates, and tags.
 
 ### Changed
+- Unified weekly, monthly, and yearly reporting in a spacious Reports workspace with shared date navigation, accessible period pickers, and dashboard drill-downs.
+- Moved report loading into Zustand with stale-response protection, retryable errors, and vault-driven refreshes.
 - Split React runtime modules into a shared renderer vendor chunk to keep the app entry below the chunk warning threshold.
 - Decoupled Markdown preview URL sanitization from CodeMirror utilities and split CodeMirror vendor modules into bounded renderer chunks.
 - Reduced MarkdownViewer syntax-highlighting payload by registering only supported language grammars.

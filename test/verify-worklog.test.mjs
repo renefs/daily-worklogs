@@ -1,4 +1,5 @@
 import assert from 'node:assert';
+import { getReportRange, moveReportDate } from '../src/utils/reportPeriod.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -18,6 +19,12 @@ if (fs.existsSync(testVault)) {
 fs.mkdirSync(testVault, { recursive: true });
 
 console.log('--- Testing Daily Worklog Logic ---');
+
+assert.deepStrictEqual(getReportRange('2026-10-01', 'week', 1), { start: '2026-09-28', end: '2026-10-04', totalDays: 7 });
+assert.deepStrictEqual(getReportRange('2026-10-01', 'week', 0), { start: '2026-09-27', end: '2026-10-03', totalDays: 7 });
+assert.strictEqual(getReportRange('2024-02-29', 'year').totalDays, 366);
+assert.strictEqual(moveReportDate('2026-01-31', 'month', 1), '2026-02-28');
+console.log('✓ Shared report navigation and calendar boundaries verified');
 
 assert.strictEqual(requireIsoDate('2026-09-02'), '2026-09-02');
 assert.throws(() => requireIsoDate('2026-02-31'), /Invalid date/);

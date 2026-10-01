@@ -4,6 +4,7 @@ import { AppSettings, AppViewMode, DEFAULT_KANBAN_COLUMNS } from '../../types';
 import i18n, { getSystemLanguage } from '../../i18n';
 import { DEFAULT_AREAS } from '../../utils/areaProjectUtils';
 import { flushTaskEditor } from '../../services/editorSession';
+import { getReportPeriod, isReportView } from '../../utils/reportPeriod';
 import { AppSlice, UiSlice } from '../types';
 
 dayjs.extend(isoWeek);
@@ -118,7 +119,14 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       if (!saved) return;
     }
 
-    set({ currentView: view });
+    set({
+      currentView: view,
+      ...(isReportView(view) ? {
+        reportPeriod: getReportPeriod(view),
+        reportDate: get().hasOpenedReports ? get().reportDate : get().selectedDate,
+        hasOpenedReports: true,
+      } : {}),
+    });
   },
 
   setIsSettingsOpen: (open: boolean) => {

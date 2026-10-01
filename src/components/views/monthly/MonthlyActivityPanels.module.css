@@ -1,0 +1,11 @@
+.panel { background: var(--app-card-bg); border-color: var(--app-card-border); }
+.calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: rem(6px); }
+.day { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: rem(4px); min-height: rem(44px); padding: rem(6px) 0; border-radius: rem(6px); background: var(--app-subtle-bg); font-size: rem(13px); }
+.day[data-logged], .day:hover { background: var(--mantine-primary-color-light); }
+.day[data-today] { box-shadow: inset 0 0 0 1px var(--mantine-primary-color-filled); }
+.day[data-future] { color: var(--app-text-secondary); }
+.dot { height: rem(5px); width: rem(5px); background: var(--app-card-border); border-radius: 50%; }
+.dot[data-logged] { background: var(--mantine-primary-color-filled); }
+.day:focus-visible, .weekLink:focus-visible { outline: 2px solid var(--mantine-primary-color-filled); outline-offset: 2px; }
+.weekLink { color: var(--mantine-primary-color-filled); border-radius: rem(4px); }
+.weekLink:hover { text-decoration: underline; }

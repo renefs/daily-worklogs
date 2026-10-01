@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Group,
   Stack,
@@ -43,9 +43,9 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
   const { t, i18n } = useTranslation();
   const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
   const isDark = computedColorScheme === 'dark';
-  const { setSelectedDate, setCurrentView } = useAppStoreSelector((state) => ({
-    setSelectedDate: state.setSelectedDate,
-    setCurrentView: state.setCurrentView,
+  const { openReportDay, readReportDay } = useAppStoreSelector((state) => ({
+    openReportDay: state.openReportDay,
+    readReportDay: state.readReportDay,
   }));
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,8 +65,7 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
 
   const loadDayContent = async (date: string): Promise<string> => {
     if (loadedContent[date] !== undefined) return loadedContent[date];
-    const note = await window.electronAPI.readNote(date);
-    const content = note?.content || '';
+    const content = await readReportDay(date);
     setLoadedContent((current) => ({ ...current, [date]: content }));
     return content;
   };
@@ -118,11 +117,6 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
     });
   }, [daysList, onlyWithNotes, searchQuery, i18n.language]);
 
-  useEffect(() => {
-    if (!searchQuery.trim()) return;
-    void Promise.all(daysList.filter((day) => day.exists).map((day) => loadDayContent(day.date)));
-  }, [searchQuery, periodSummary]);
-
   const handleCopyDayMarkdown = async (day: WorklogDaySummary, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
 
@@ -155,8 +149,7 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
 
   const handleOpenInDaily = (date: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    setSelectedDate(date);
-    setCurrentView('daily');
+    void openReportDay(date);
   };
 
   const todayStr = dayjs().format('YYYY-MM-DD');
@@ -182,12 +175,17 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
                   <CloseButton
                     size="xs"
                     onClick={() => setSearchQuery('')}
-                    aria-label="Clear search"
+                    aria-label={t('reports.clearSearch')}
                   />
                 ) : null
               }
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.currentTarget.value)}
+              onChange={(e) => {
+                setSearchQuery(e.currentTarget.value);
+                if (e.currentTarget.value.trim()) {
+                  void Promise.all(daysList.filter((day) => day.exists).map((day) => loadDayContent(day.date)));
+                }
+              }}
               size="xs"
               radius="md"
               style={{ flex: 1 }}
@@ -345,6 +343,7 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
                           variant="default"
                           size="sm"
                           radius="md"
+                          aria-label={t('reports.openInEditor')}
                           onClick={(e) => handleOpenInDaily(day.date, e)}
                         >
                           <IconEdit size={15} />

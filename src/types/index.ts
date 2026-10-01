@@ -207,6 +207,9 @@ export interface AppSettings {
   projects?: ProjectDefinition[];
 }
 
+export type ReportPeriod = 'week' | 'month' | 'year';
+export type ReportTab = 'dashboard' | 'days' | 'tasks';
+
 export type AppViewMode = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'tasks' | 'task' | 'settings';
 
 export interface DailyChecklistItem {

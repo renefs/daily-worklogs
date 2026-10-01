@@ -36,4 +36,13 @@ describe('WeeklyDashboard', () => {
     fireEvent.click(screen.getByRole('button', { name: /view all completed tasks/i }));
     expect(onViewTasks).toHaveBeenCalledOnce();
   });
+
+  it('opens a daily note from its activity tile', () => {
+    const onOpenDay = vi.fn();
+    renderWithMantine(<WeeklyDashboard isDark={false} weekDays={[{ date: '2026-10-01', dayName: 'Thu', dayNumber: '1', hasNote: true, isToday: false }]}
+      activeDaysCount={1} completedTasksCount={0} totalTasksCount={0} completionPercent={0} projectBreakdown={[]}
+      onOpenTask={vi.fn()} onViewTasks={vi.fn()} onOpenDay={onOpenDay} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open daily note for 2026-10-01' }));
+    expect(onOpenDay).toHaveBeenCalledWith('2026-10-01');
+  });
 });

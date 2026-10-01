@@ -1,0 +1,5 @@
+.panel { background: var(--app-card-bg); border-color: var(--app-card-border); }
+.month { padding: rem(16px); border: 1px solid var(--app-card-border); border-radius: rem(8px); }
+.month:hover { background: var(--app-subtle-bg); }
+.month[data-current] { border-color: var(--mantine-primary-color-filled); }
+.month:focus-visible { outline: 2px solid var(--mantine-primary-color-filled); outline-offset: 2px; }

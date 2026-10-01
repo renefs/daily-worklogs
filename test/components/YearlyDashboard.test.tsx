@@ -47,6 +47,16 @@ describe('YearlyDashboard', () => {
     expect(onViewAllAchievements).toHaveBeenCalledOnce();
   });
 
+  it('opens a month from the annual activity view', () => {
+    const onOpenMonth = vi.fn();
+    renderWithMantine(<YearlyDashboard year="2024" daysInYear={366} isDark={false} activeDaysCount={12} completedTasksCount={0}
+      totalTasksCount={0} completionPercent={0} monthlyActivity={monthlyActivity} completedTasks={[]} projectDistribution={[]}
+      priorityDistribution={[]} onOpenTask={vi.fn()} onViewAllAchievements={vi.fn()} onOpenMonth={onOpenMonth} />);
+    expect(screen.getByText('12 of 366')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Open Jan 2024' }));
+    expect(onOpenMonth).toHaveBeenCalledWith(0);
+  });
+
   it('shows empty states instead of sample tasks or chart totals', () => {
     renderWithMantine(
       <YearlyDashboard

@@ -1,151 +1,110 @@
-import React from 'react';
-import { Group, Title, Text, Button, ActionIcon, Menu, UnstyledButton } from '@mantine/core';
-import {
-  IconChevronLeft,
-  IconChevronRight,
-  IconCopy,
-  IconFileExport,
-  IconDotsVertical,
-  IconCalendar,
-} from '@tabler/icons-react';
+import { useState } from 'react';
+import { ActionIcon, Button, Group, Popover, SegmentedControl, Stack, Tabs, Text, Title } from '@mantine/core';
+import { DatePicker, MonthPicker, YearPicker } from '@mantine/dates';
+import { IconCalendar, IconChevronDown, IconChevronLeft, IconChevronRight, IconCopy, IconFileExport } from '@tabler/icons-react';
+import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
+import type { ReportPeriod, ReportTab } from '../../../types';
+import { formatReportPeriod, getReportRange, moveReportDate } from '../../../utils/reportPeriod';
+import classes from './PeriodHeaderNav.module.css';
 
 export interface PeriodHeaderNavProps {
-  title: string;
-  subtitle?: string;
-  pickerLabel: string;
-  onPrev: () => void;
-  onNext: () => void;
-  onCurrent: () => void;
-  currentPeriodLabel: string;
+  date: string;
+  period: ReportPeriod;
+  weekStartDay: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  onDateChange: (date: string) => void;
+  onPeriodChange: (period: ReportPeriod) => void;
   onExport: () => void;
   onCopyReport: () => void;
-  activeTab: 'dashboard' | 'days' | 'tasks';
-  onTabChange: (tab: 'dashboard' | 'days' | 'tasks') => void;
+  exportDisabled?: boolean;
+  activeTab: ReportTab;
+  onTabChange: (tab: ReportTab) => void;
 }
 
-export const PeriodHeaderNav: React.FC<PeriodHeaderNavProps> = ({
-  title,
-  subtitle,
-  pickerLabel,
-  onPrev,
-  onNext,
-  onCurrent,
-  currentPeriodLabel,
-  onExport,
-  onCopyReport,
-  activeTab,
-  onTabChange,
-}) => {
-  const { t } = useTranslation();
-
+export function PeriodHeaderNav({ date, period, weekStartDay, onDateChange, onPeriodChange,
+  onExport, onCopyReport, exportDisabled, activeTab, onTabChange }: PeriodHeaderNavProps) {
+  const { t, i18n } = useTranslation();
+  const [pickerOpened, setPickerOpened] = useState(false);
+  const locale = i18n.language === 'es' ? 'es' : 'en';
+  const range = getReportRange(date, period, weekStartDay);
+  const label = formatReportPeriod(date, period, weekStartDay, locale);
+  const pickDate = (value: Date | null) => {
+    if (!value) return;
+    onDateChange(dayjs(value).format('YYYY-MM-DD'));
+    setPickerOpened(false);
+  };
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <Group justify="space-between" align="flex-start" wrap="nowrap">
+    <Stack gap="lg" className={classes.header}>
+      <Group justify="space-between" align="flex-start">
         <div>
-          <Title order={2} style={{ letterSpacing: '-0.02em', fontSize: 22, fontWeight: 700 }}>
-            {title}
-          </Title>
-          {subtitle && (
-            <Text size="xs" c="dimmed" mt={2}>
-              {subtitle}
-            </Text>
-          )}
+          <Title order={2} className={classes.title}>{t('nav.reports')}</Title>
+          <Text size="sm" c="dimmed" mt={4}>{t('reports.workspaceDescription')}</Text>
         </div>
-
-        <Group gap="xs" wrap="nowrap">
-          <Button
-            variant="default"
-            size="xs"
-            leftSection={<IconFileExport size={14} />}
-            onClick={onExport}
-            radius="md"
-          >
-            {t('weekly.exportReport', 'Export report')}
+        <Group gap="xs">
+          <Button variant="default" leftSection={<IconCopy size={16} />} onClick={onCopyReport} disabled={exportDisabled}>
+            {t('weekly.copyReport')}
           </Button>
-
-          <Menu position="bottom-end" shadow="md" width={180}>
-            <Menu.Target>
-              <ActionIcon variant="default" size="sm" radius="md">
-                <IconDotsVertical size={16} />
-              </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown>
-              <Menu.Item leftSection={<IconCopy size={14} />} onClick={onCopyReport}>
-                {t('weekly.copyReport', 'Copy report')}
-              </Menu.Item>
-            </Menu.Dropdown>
-          </Menu>
+          <Button variant="default" leftSection={<IconFileExport size={16} />} onClick={onExport} disabled={exportDisabled}>
+            {t('weekly.exportReport')}
+          </Button>
         </Group>
       </Group>
-
-      {/* Period Navigation Controls */}
-      <Group gap={6} wrap="nowrap">
-        <ActionIcon variant="default" size="sm" onClick={onPrev} radius="md">
-          <IconChevronLeft size={16} />
-        </ActionIcon>
-        <Button
-          variant="default"
-          size="xs"
-          radius="md"
-          leftSection={<IconCalendar size={14} />}
-          style={{ fontWeight: 500 }}
-        >
-          {pickerLabel}
-        </Button>
-        <ActionIcon variant="default" size="sm" onClick={onNext} radius="md">
-          <IconChevronRight size={16} />
-        </ActionIcon>
-        <Button
-          variant="default"
-          size="xs"
-          onClick={onCurrent}
-          radius="md"
-          style={{ fontWeight: 500 }}
-        >
-          {currentPeriodLabel}
-        </Button>
+      <Group justify="space-between" gap="md" className={classes.toolbar}>
+        <SegmentedControl data-testid="report-period-type" aria-label={t('reports.periodType')} value={period} className={classes.periodType}
+          onChange={(value) => {
+            if (value === 'week' || value === 'month' || value === 'year') {
+              setPickerOpened(false);
+              onPeriodChange(value);
+            }
+          }}
+          data={(['week', 'month', 'year'] as const).map((value) => ({ value, label: t(`reports.period.${value}`) }))} />
+        <Group gap={6} className={classes.navigation}>
+          <ActionIcon variant="default" size="lg" aria-label={t(`reports.previous.${period}`)}
+            onClick={() => { setPickerOpened(false); onDateChange(moveReportDate(date, period, -1)); }}>
+            <IconChevronLeft size={17} />
+          </ActionIcon>
+          <Popover opened={pickerOpened} onChange={setPickerOpened} position="bottom-end" trapFocus returnFocus withinPortal>
+            <Popover.Target>
+              <Button variant="default" className={classes.dateButton} data-testid="report-period-picker"
+                leftSection={<IconCalendar size={16} />} rightSection={<IconChevronDown size={14} />}
+                aria-label={t('reports.choosePeriod', { period: label })} aria-expanded={pickerOpened}
+                onClick={() => setPickerOpened(!pickerOpened)}>{label}</Button>
+            </Popover.Target>
+            <Popover.Dropdown p="sm" role="dialog" aria-label={t('reports.periodPicker')}>
+              {period === 'week' ? (
+                <DatePicker key={date} locale={locale} firstDayOfWeek={weekStartDay}
+                  value={dayjs(date).toDate()} defaultDate={dayjs(date).toDate()} onChange={pickDate}
+                  getDayProps={(day) => {
+                    const iso = dayjs(day).format('YYYY-MM-DD');
+                    return { inRange: iso >= range.start && iso <= range.end, firstInRange: iso === range.start, lastInRange: iso === range.end };
+                  }} />
+              ) : period === 'month' ? (
+                <MonthPicker key={date} locale={locale} value={dayjs(date).toDate()}
+                  defaultDate={dayjs(date).toDate()} onChange={pickDate} />
+              ) : (
+                <YearPicker key={date} locale={locale} value={dayjs(date).toDate()}
+                  defaultDate={dayjs(date).toDate()} onChange={pickDate} />
+              )}
+            </Popover.Dropdown>
+          </Popover>
+          <ActionIcon variant="default" size="lg" aria-label={t(`reports.next.${period}`)}
+            onClick={() => { setPickerOpened(false); onDateChange(moveReportDate(date, period, 1)); }}>
+            <IconChevronRight size={17} />
+          </ActionIcon>
+          <Button variant="subtle" onClick={() => { setPickerOpened(false); onDateChange(dayjs().format('YYYY-MM-DD')); }}>
+            {t(`reports.current.${period}`)}
+          </Button>
+        </Group>
       </Group>
-
-      {/* Underline Sub-Navigation Tabs */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 24,
-          borderBottom: '1px solid var(--app-card-border)',
-          paddingBottom: 0,
-        }}
-      >
-        {[
-          { key: 'dashboard', label: t('dashboard.summary', 'Overview') },
-          { key: 'days', label: t('reports.entriesTab', 'Entries') },
-          { key: 'tasks', label: t('reports.taskBreakdownTab', 'Task breakdown') },
-        ].map((tab) => {
-          const isActive = activeTab === tab.key;
-          return (
-            <UnstyledButton
-              key={tab.key}
-              onClick={() => onTabChange(tab.key as any)}
-              style={{
-                padding: '6px 2px 10px 2px',
-                fontSize: 14,
-                fontWeight: isActive ? 600 : 500,
-                color: isActive
-                  ? 'var(--mantine-primary-color-filled)'
-                  : 'var(--app-text-secondary)',
-                borderBottom: isActive
-                  ? '2px solid var(--mantine-primary-color-filled)'
-                  : '2px solid transparent',
-                marginBottom: -1,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {tab.label}
-            </UnstyledButton>
-          );
-        })}
-      </div>
-    </div>
+      <Tabs id="report" value={activeTab} onChange={(value) => {
+        if (value === 'dashboard' || value === 'days' || value === 'tasks') onTabChange(value);
+      }}>
+        <Tabs.List>
+          <Tabs.Tab value="dashboard">{t('dashboard.summary')}</Tabs.Tab>
+          <Tabs.Tab value="days">{t('reports.entriesTab')}</Tabs.Tab>
+          <Tabs.Tab value="tasks">{t('nav.tasks')}</Tabs.Tab>
+        </Tabs.List>
+      </Tabs>
+    </Stack>
   );
-};
+}

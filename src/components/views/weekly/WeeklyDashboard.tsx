@@ -1,26 +1,12 @@
-import React from 'react';
-import { Group, Paper, Progress, SimpleGrid, Stack, Text, UnstyledButton } from '@mantine/core';
-import { IconCalendar, IconCheck, IconChevronRight as IconArrowRight } from '@tabler/icons-react';
-import dayjs from 'dayjs';
+import { Button, Group, Paper, Progress, SimpleGrid, Stack, Text, UnstyledButton } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import type { TaskMeta } from '../../../types';
 import { PeriodKpiCards } from '../period/PeriodKpiCards';
+import { ReportTaskList } from '../period/ReportTaskList';
+import classes from './WeeklyDashboard.module.css';
 
-export interface WeeklyDayActivity {
-  date: string;
-  dayName: string;
-  dayNumber: string;
-  hasNote: boolean;
-  isToday: boolean;
-}
-
-export interface WeeklyProjectProgress {
-  name: string;
-  completed: number;
-  total: number;
-  percent: number;
-}
-
+export interface WeeklyDayActivity { date: string; dayName: string; dayNumber: string; hasNote: boolean; isToday: boolean; }
+export interface WeeklyProjectProgress { name: string; completed: number; total: number; percent: number; }
 interface WeeklyDashboardProps {
   isDark: boolean;
   weekDays: WeeklyDayActivity[];
@@ -33,235 +19,40 @@ interface WeeklyDashboardProps {
   projectBreakdown: WeeklyProjectProgress[];
   onOpenTask: (task: TaskMeta) => void;
   onViewTasks: () => void;
+  onOpenDay?: (date: string) => void;
 }
 
-export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
-  isDark, weekDays, completedTasksCount, totalTasksCount, activeDaysCount,
-  completionPercent, completedTasks, inProgressTasks, projectBreakdown,
-  onOpenTask, onViewTasks,
-}) => {
+export function WeeklyDashboard({ weekDays, completedTasksCount, totalTasksCount, activeDaysCount,
+  completionPercent, completedTasks, inProgressTasks, projectBreakdown, onOpenTask, onViewTasks, onOpenDay }: WeeklyDashboardProps) {
   const { t } = useTranslation();
-  const displayedCompletedTasks = completedTasks ?? [];
-  const displayedInProgressTasks = inProgressTasks ?? [];
-  const displayedProjectProgress = projectBreakdown;
-  return (
-          <Stack gap={14}>
-            <PeriodKpiCards
-              calendarIconType="week"
-              daysLoggedContent={`${activeDaysCount} of 7`}
-              daysLoggedSubtitle={t('dashboard.daysThisWeek', 'days this week')}
-              tasksCompletedValue={`${completedTasksCount} of ${totalTasksCount}`}
-              tasksCompletedSubtitle={t('dashboard.tasksThisWeek', 'tasks this week')}
-              completionRatePercent={completionPercent}
-              completionRateSubtitle={t('dashboard.completedThisWeekRate', 'completed this week')}
-            />
-
-            {/* Weekly activity: Compact 7-Day Strip */}
-            <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
-              <Text size="xs" fw={700} c="dimmed" mb={8} style={{ fontSize: 12 }}>
-                {t('dashboard.weekActivityTitle', 'Weekly activity')}
-              </Text>
-              <SimpleGrid cols={{ base: 2, sm: 4, md: 7 }} spacing="xs">
-                {weekDays.map((day) => (
-                  <Paper
-                    key={day.date}
-                    p="xs"
-                    radius="md"
-                    style={{
-                      backgroundColor: day.hasNote
-                        ? isDark
-                          ? 'rgba(59, 130, 246, 0.10)'
-                          : 'rgba(59, 130, 246, 0.05)'
-                        : isDark
-                        ? 'var(--mantine-color-dark-7)'
-                        : 'var(--mantine-color-gray-0)',
-                      border: day.isToday
-                        ? '2px solid var(--mantine-primary-color-filled)'
-                        : '1px solid var(--app-card-border)',
-                      minHeight: 76,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <div>
-                      <Text size="xs" c="dimmed" style={{ textTransform: 'capitalize', fontSize: 11 }}>
-                        {day.dayName}
-                      </Text>
-                      <Text size="sm" fw={700} style={{ fontSize: 12 }}>
-                        {day.dayNumber}
-                      </Text>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-                      {day.hasNote ? (
-                        <>
-                          <div
-                            style={{
-                              width: 16,
-                              height: 16,
-                              borderRadius: '50%',
-                              backgroundColor: 'var(--mantine-primary-color-filled)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: '#fff',
-                            }}
-                          >
-                            <IconCheck size={11} stroke={3} />
-                          </div>
-                          <Text size="xs" fw={600} style={{ fontSize: 10 }}>
-                            {t('dashboard.recorded', 'Logged')}
-                          </Text>
-                        </>
-                      ) : (
-                        <>
-                          <div
-                            style={{
-                              width: 14,
-                              height: 14,
-                              borderRadius: '50%',
-                              border: '1.5px solid var(--app-sidebar-text-dimmed)',
-                              opacity: 0.7,
-                            }}
-                          />
-                          <Text size="xs" c="dimmed" style={{ fontSize: 10 }}>
-                            {t('dashboard.noRecord', 'No entry')}
-                          </Text>
-                        </>
-                      )}
-                    </div>
-                  </Paper>
-                ))}
-              </SimpleGrid>
-            </Paper>
-
-            {/* Middle 2-Column Grid: Completed this week & In progress & pending */}
-            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-              {/* Completed this week */}
-              <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
-                <Group gap={6} align="center" mb={10}>
-                  <IconCheck size={16} color="var(--mantine-color-teal-filled)" />
-                  <Text size="xs" fw={700} style={{ fontSize: 13 }}>
-                    {t('dashboard.completedThisWeek', 'Completed this week')} ({completedTasks?.length ?? 0})
-                  </Text>
-                </Group>
-
-                <Stack gap={8}>
-                  {displayedCompletedTasks.slice(0, 4).map((task) => (
-                    <Paper
-                      key={task.id}
-                      p="xs"
-                      radius="md"
-                      withBorder
-                      onClick={() => onOpenTask(task)}
-                      style={{ cursor: 'pointer', backgroundColor: 'var(--app-subtle-bg)' }}
-                    >
-                      <Group justify="space-between" align="center" wrap="nowrap" gap="xs">
-                        <Group gap={6} wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
-                          <IconCheck size={14} color="var(--mantine-color-teal-filled)" style={{ flexShrink: 0 }} />
-                          <Text size="xs" fw={500} truncate style={{ minWidth: 0 }}>
-                            {task.title}
-                          </Text>
-                        </Group>
-                        {task.completedDate && (
-                          <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-                            <IconCalendar size={12} color="var(--mantine-color-gray-6)" />
-                            <Text size="xs" c="dimmed" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
-                              {dayjs(task.completedDate).format('D MMM YYYY')}
-                            </Text>
-                          </Group>
-                        )}
-                      </Group>
-                    </Paper>
-                  ))}
-                  {displayedCompletedTasks.length === 0 && <Text size="xs" c="dimmed">{t('reports.noTasksInPeriod', 'No tasks recorded for this period.')}</Text>}
-                </Stack>
-
-                <UnstyledButton
-                  onClick={onViewTasks}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 12, fontSize: 12, color: 'var(--mantine-primary-color-filled)', fontWeight: 600 }}
-                >
-                  {t('dashboard.viewAllCompleted', 'View all completed tasks')} <IconArrowRight size={14} />
-                </UnstyledButton>
-              </Paper>
-
-              {/* In progress & pending */}
-              <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
-                <Group gap={6} align="center" mb={10}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: 'var(--mantine-color-orange-filled)' }} />
-                  <Text size="xs" fw={700} style={{ fontSize: 13 }}>
-                    {t('dashboard.inProgressAndPending', 'In progress & pending')} ({inProgressTasks?.length ?? 0})
-                  </Text>
-                </Group>
-
-                <Stack gap={8}>
-                  {displayedInProgressTasks.slice(0, 4).map((task) => (
-                    <Paper
-                      key={task.id}
-                      p="xs"
-                      radius="md"
-                      withBorder
-                      onClick={() => onOpenTask(task)}
-                      style={{ cursor: 'pointer', backgroundColor: 'var(--app-subtle-bg)' }}
-                    >
-                      <Group justify="space-between" align="center" wrap="nowrap" gap="xs">
-                        <Group gap={6} wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'var(--mantine-color-orange-filled)', flexShrink: 0 }} />
-                          <div>
-                            <Text size="xs" fw={500} truncate style={{ minWidth: 0 }}>
-                              {task.title}
-                            </Text>
-                            {task.startedDate && <Text size="xs" c="dimmed" style={{ fontSize: 10 }}>{t('dashboard.startedDateLabel', 'Started')}: {dayjs(task.startedDate).format('D MMM YYYY')}</Text>}
-                          </div>
-                        </Group>
-                      </Group>
-                    </Paper>
-                  ))}
-                  {displayedInProgressTasks.length === 0 && <Text size="xs" c="dimmed">{t('reports.noTasksInPeriod', 'No tasks recorded for this period.')}</Text>}
-                </Stack>
-
-                <UnstyledButton
-                  onClick={onViewTasks}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 12, fontSize: 12, color: 'var(--mantine-primary-color-filled)', fontWeight: 600 }}
-                >
-                  {t('dashboard.viewAllPending', 'View all pending tasks')} <IconArrowRight size={14} />
-                </UnstyledButton>
-              </Paper>
-            </SimpleGrid>
-
-            {/* Bottom Project breakdown */}
-            <Paper p="sm" radius="md" withBorder style={{ backgroundColor: 'var(--app-card-bg)', borderColor: 'var(--app-card-border)' }}>
-              <Group justify="space-between" align="center" mb={10}>
-                <Text size="xs" fw={700} style={{ fontSize: 13 }}>
-                  📊 {t('dashboard.byProjectThisWeek', 'By project (this week)')}
-                </Text>
-              </Group>
-
-              <Stack gap={10}>
-                {displayedProjectProgress.map((p) => (
-                  <div key={p.name}>
-                    <Group justify="space-between" align="center" wrap="nowrap" mb={3}>
-                      <Text size="xs" fw={500}>
-                        {p.name}
-                      </Text>
-                      <Text size="xs" c="dimmed" fw={600} style={{ fontSize: 11 }}>
-                        {p.completed}/{p.total} · {p.percent}%
-                      </Text>
-                    </Group>
-                    <Progress
-                      value={p.percent}
-                      color="teal"
-                      size="xs"
-                      radius="xl"
-                    />
-                  </div>
-                ))}
-                {displayedProjectProgress.length === 0 && <Text size="xs" c="dimmed">{t('dashboard.noData', 'No data')}</Text>}
-              </Stack>
-            </Paper>
-          </Stack>
-  );
-};
+  return <Stack gap="lg">
+    <PeriodKpiCards daysLoggedContent={`${activeDaysCount} ${t('reports.of')} 7`} daysLoggedSubtitle={t('reports.calendarDays')}
+      tasksCompletedValue={`${completedTasksCount} ${t('reports.of')} ${totalTasksCount}`} tasksCompletedSubtitle={t('reports.tasksInPeriod')}
+      completionRatePercent={completionPercent} completionRateSubtitle={t('reports.completedRatio')} />
+    <Paper p="lg" radius="md" withBorder className={classes.panel}>
+      <Group justify="space-between" mb="md"><Text fw={600}>{t('dashboard.weekActivityTitle')}</Text><Text size="xs" c="dimmed">{t('reports.openDayHint')}</Text></Group>
+      <div className={classes.week}>
+        {weekDays.map((day) => <UnstyledButton key={day.date} className={classes.day} data-logged={day.hasNote || undefined} data-today={day.isToday || undefined}
+          onClick={() => onOpenDay?.(day.date)} aria-label={t('reports.openDay', { date: day.date })}>
+          <Text size="xs" c="dimmed">{day.dayName}</Text><Text className={classes.dayNumber}>{day.dayNumber}</Text>
+          <span className={classes.dot} data-logged={day.hasNote || undefined} />
+          <Text size="xs" c="dimmed">{t(day.hasNote ? 'dashboard.recorded' : 'dashboard.noRecord')}</Text>
+        </UnstyledButton>)}
+      </div>
+    </Paper>
+    <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+      <ReportTaskList title={t('reports.completedWork')} completed tasks={completedTasks} onOpenTask={onOpenTask}
+        onViewTasks={onViewTasks} actionLabel={t('dashboard.viewAllCompleted')} />
+      <Paper p="lg" radius="md" withBorder className={classes.panel}>
+        <Text fw={600} mb="md">{t('reports.projectProgress')}</Text>
+        <Stack gap="lg">{projectBreakdown.map((project) => <div key={project.name}>
+          <Group justify="space-between" mb="xs"><Text size="sm">{project.name}</Text><Text size="xs" c="dimmed">{project.completed} / {project.total} · {project.percent}%</Text></Group>
+          <Progress value={project.percent} size="sm" color="primary" aria-label={project.name} />
+        </div>)}{projectBreakdown.length === 0 && <Text size="sm" c="dimmed">{t('dashboard.noData')}</Text>}</Stack>
+        <Button variant="subtle" size="compact-sm" mt="lg" onClick={onViewTasks}>{t('nav.tasks')}</Button>
+      </Paper>
+    </SimpleGrid>
+    {!!inProgressTasks?.length && <ReportTaskList title={t('dashboard.inProgressAndPending')} tasks={inProgressTasks}
+      onOpenTask={onOpenTask} onViewTasks={onViewTasks} actionLabel={t('dashboard.viewAllPending')} />}
+  </Stack>;
+}
