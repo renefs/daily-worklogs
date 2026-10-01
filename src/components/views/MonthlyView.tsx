@@ -48,7 +48,6 @@ export const MonthlyView: React.FC = () => {
       end: end.format('YYYY-MM-DD'),
       monthTitle: d.locale(i18n.language === 'es' ? 'es' : 'en').format(i18n.language === 'es' ? 'MMMM [de] YYYY' : 'MMMM YYYY'),
       shortMonthTitle: d.locale(i18n.language === 'es' ? 'es' : 'en').format('MMMM YYYY'),
-      prevMonthName: d.subtract(1, 'month').locale(i18n.language === 'es' ? 'es' : 'en').format('MMM YYYY'),
       daysInMonth: d.daysInMonth(),
       workingDays,
       startDayOfWeek: (start.day() + 6) % 7, // 0 = Monday, ..., 6 = Sunday
@@ -82,7 +81,7 @@ export const MonthlyView: React.FC = () => {
   };
 
   const completionPercent = useMemo(() => {
-    if (!periodSummary || periodSummary.totalTasks === 0) return 40;
+    if (!periodSummary || periodSummary.totalTasks === 0) return 0;
     return Math.round((periodSummary.completedTasks / periodSummary.totalTasks) * 100);
   }, [periodSummary]);
 
@@ -107,7 +106,7 @@ export const MonthlyView: React.FC = () => {
 
       let level = 0;
       if (note && note.exists) {
-        const total = note.tasksTotal || 1;
+        const total = note.tasksTotal || 0;
         if (total >= 4) level = 3;
         else if (total >= 2) level = 2;
         else level = 1;
@@ -150,7 +149,7 @@ export const MonthlyView: React.FC = () => {
 
       const total = daysInWeek.reduce((acc, d) => acc + (d.tasksTotal || 0), 0);
       const completed = daysInWeek.reduce((acc, d) => acc + (d.tasksCompleted || 0), 0);
-      const percent = total > 0 ? Math.round((completed / total) * 100) : (weekIndex === 1 ? 40 : 0);
+      const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
       weeks.push({
         label: i18n.language === 'es' ? `Sem ${weekIndex}` : `Wk ${weekIndex}`,
@@ -170,19 +169,18 @@ export const MonthlyView: React.FC = () => {
 
   // Task status distribution for Tasks by status donut chart
   const statusDistribution = useMemo(() => {
-    const completed = periodSummary?.completedTasksList?.length || periodSummary?.completedTasks || 2;
-    const inProgress = periodSummary?.inProgressTasksList?.length || 2;
-    const totalCount = periodSummary?.totalTasks || 5;
-    const pending = Math.max(1, totalCount - completed - inProgress);
+    const completed = periodSummary?.completedTasks ?? 0;
+    const inProgress = periodSummary?.inProgressTasksList?.length ?? 0;
+    const pending = periodSummary ? Math.max(0, periodSummary.totalTasks - completed - inProgress) : 0;
     const total = completed + inProgress + pending;
 
     return {
       completed,
-      completedPct: Math.round((completed / total) * 100),
+      completedPct: total ? Math.round((completed / total) * 100) : 0,
       inProgress,
-      inProgressPct: Math.round((inProgress / total) * 100),
+      inProgressPct: total ? Math.round((inProgress / total) * 100) : 0,
       pending,
-      pendingPct: Math.round((pending / total) * 100),
+      pendingPct: total ? Math.round((pending / total) * 100) : 0,
       total,
     };
   }, [periodSummary]);
@@ -234,9 +232,9 @@ export const MonthlyView: React.FC = () => {
     }
   };
 
-  const activeDaysCount = periodSummary?.activeDays ?? 1;
-  const completedTasksCount = periodSummary?.completedTasks ?? 2;
-  const totalTasksCount = periodSummary?.totalTasks ?? 5;
+  const activeDaysCount = periodSummary?.activeDays ?? 0;
+  const completedTasksCount = periodSummary?.completedTasks ?? 0;
+  const totalTasksCount = periodSummary?.totalTasks ?? 0;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 14 }}>
@@ -259,7 +257,6 @@ export const MonthlyView: React.FC = () => {
           <MonthlyDashboard
             isDark={isDark}
             daysInMonth={monthRange.daysInMonth}
-            previousMonthLabel={monthRange.prevMonthName}
             activeDaysCount={activeDaysCount}
             completedTasksCount={completedTasksCount}
             totalTasksCount={totalTasksCount}

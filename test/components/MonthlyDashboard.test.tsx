@@ -13,7 +13,6 @@ describe('MonthlyDashboard', () => {
       <MonthlyDashboard
         isDark={false}
         daysInMonth={30}
-        previousMonthLabel="Sep 2026"
         activeDaysCount={12}
         completedTasksCount={6}
         totalTasksCount={10}
@@ -21,6 +20,7 @@ describe('MonthlyDashboard', () => {
         heatmapDays={[]}
         weeklyProgress={[]}
         statusDistribution={{ completed: 6, completedPct: 60, inProgress: 2, inProgressPct: 20, pending: 2, pendingPct: 20, total: 10 }}
+        completedTasks={[{ id: 'a', filename: 'a.md', filepath: '', title: 'Review release notes', status: 'done', created: '2026-02-01' }]}
         onOpenTask={onOpenTask}
         onViewTasks={onViewTasks}
       />
@@ -29,9 +29,11 @@ describe('MonthlyDashboard', () => {
     expect(screen.getByText('12')).toBeInTheDocument();
     expect(screen.getByText('6 of 10')).toBeInTheDocument();
     expect(screen.getByText('Daily activity')).toBeInTheDocument();
+    expect(screen.queryByText(/sasentrywebcast|Postgresql/i)).not.toBeInTheDocument();
+    expect(screen.getByText('No tasks recorded for this period.')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('Change password of sasentrywebcast service account'));
-    expect(onOpenTask).toHaveBeenCalledWith(expect.objectContaining({ title: 'Change password of sasentrywebcast service account' }));
+    fireEvent.click(screen.getByText('Review release notes'));
+    expect(onOpenTask).toHaveBeenCalledWith(expect.objectContaining({ title: 'Review release notes' }));
 
     fireEvent.click(screen.getByRole('button', { name: /view all completed tasks/i }));
     expect(onViewTasks).toHaveBeenCalledOnce();

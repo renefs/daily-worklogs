@@ -93,27 +93,22 @@ export const YearlyView: React.FC = () => {
   };
 
   const completionPercent = useMemo(() => {
-    if (!periodSummary || periodSummary.totalTasks === 0) return 80;
+    if (!periodSummary || periodSummary.totalTasks === 0) return 0;
     return Math.round((periodSummary.completedTasks / periodSummary.totalTasks) * 100);
   }, [periodSummary]);
 
   const currentYearNum = parseInt(yearRange.year, 10);
-  const prevYearNum = currentYearNum - 1;
 
-  // 12 Months activity data with visually muted future months and previous-year comparison
+  // 12 months of activity with visually muted future months
   const monthlyActivity = useMemo(() => {
     const months = [];
     const monthNamesEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dic'];
     const monthNames = monthNamesEn;
 
-    // Baseline numbers for visual reference (if no custom historical vault notes yet)
-    const mockThisYear = [12, 13, 9, 19, 10, 17, 7, 8, 1, 0, 0, 0];
-    const mockPrevYear = [6, 8, 5, 11, 7, 10, 4, 6, 0, 0, 0, 0];
-
     const currentSystemMonth = dayjs().month(); // 0..11
     const isCurrentCalendarYear = dayjs().year() === currentYearNum;
 
-    let maxWorklogs = 20;
+    let maxWorklogs = 1;
 
     for (let m = 0; m < 12; m++) {
       const startOfMonth = dayjs(new Date(currentYearNum, m, 1)).format('YYYY-MM-DD');
@@ -130,10 +125,6 @@ export const YearlyView: React.FC = () => {
       let count = 0;
       if (hasVaultData) {
         count = monthDays.filter((d) => d.exists).length;
-      } else if (isFutureMonth) {
-        count = 0;
-      } else {
-        count = mockThisYear[m];
       }
 
       if (count > maxWorklogs) maxWorklogs = count;
@@ -142,7 +133,6 @@ export const YearlyView: React.FC = () => {
         name: monthNames[m],
         monthIndex: m,
         count,
-        prevYearCount: mockPrevYear[m],
         isCurrentMonth,
         isFutureMonth,
       });
@@ -151,7 +141,6 @@ export const YearlyView: React.FC = () => {
     return months.map((m) => ({
       ...m,
       heightPercent: Math.max(m.count > 0 ? 8 : 0, Math.round((m.count / maxWorklogs) * 100)),
-      prevHeightPercent: Math.round((m.prevYearCount / maxWorklogs) * 100),
     }));
   }, [periodSummary?.days, currentYearNum]);
 
@@ -161,8 +150,8 @@ export const YearlyView: React.FC = () => {
 
     let doc = `# 📅 Annual Worklog Report - ${yearRange.year}\n\n`;
     doc += `> **Period**: \`${yearRange.start}\` to \`${yearRange.end}\` (${yearRange.startFormatted} - ${yearRange.endFormatted})  \n`;
-    doc += `> **Active Working Days**: ${periodSummary.activeDays || 96} of ${yearRange.daysInYear}  \n`;
-    doc += `> **Tasks Completed**: ${periodSummary.completedTasks || 37} / ${periodSummary.totalTasks || 46}  \n\n`;
+    doc += `> **Active Working Days**: ${periodSummary.activeDays} of ${yearRange.daysInYear}  \n`;
+    doc += `> **Tasks Completed**: ${periodSummary.completedTasks} / ${periodSummary.totalTasks}  \n\n`;
     doc += `---\n\n`;
 
     const completed = periodSummary.completedTasksList || [];
@@ -202,9 +191,9 @@ export const YearlyView: React.FC = () => {
     }
   };
 
-  const activeDaysCount = periodSummary?.activeDays || 96;
-  const completedTasksCount = periodSummary?.completedTasks || 37;
-  const totalTasksCount = periodSummary?.totalTasks || 46;
+  const activeDaysCount = periodSummary?.activeDays ?? 0;
+  const completedTasksCount = periodSummary?.completedTasks ?? 0;
+  const totalTasksCount = periodSummary?.totalTasks ?? 0;
   const tabs: { key: YearlyTab; label: string }[] = [
     { key: 'dashboard', label: t('dashboard.summary', 'Overview') },
     { key: 'days', label: t('reports.entriesTab', 'Entries') },
@@ -313,13 +302,15 @@ export const YearlyView: React.FC = () => {
         {activeTab === 'dashboard' ? (
           <YearlyDashboard
             year={yearRange.year}
-            previousYear={prevYearNum}
             isDark={isDark}
             activeDaysCount={activeDaysCount}
             completedTasksCount={completedTasksCount}
             totalTasksCount={totalTasksCount}
             completionPercent={completionPercent}
             monthlyActivity={monthlyActivity}
+            completedTasks={periodSummary?.completedTasksList ?? []}
+            projectDistribution={Object.entries(periodSummary?.projectBreakdown ?? {}).map(([name, item]) => ({ name: item.project || name, count: item.total }))}
+            priorityDistribution={Object.entries(periodSummary?.priorityBreakdown ?? {}).map(([key, item]) => ({ key, count: item.total }))}
             onOpenTask={handleOpenTask}
             onViewAllAchievements={() => setActiveTab('tasks')}
           />

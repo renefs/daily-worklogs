@@ -132,7 +132,7 @@ export const WeeklyView: React.FC = () => {
   }, [periodSummary, areas, projects, allTags]);
 
   const completionPercent = useMemo(() => {
-    if (!periodSummary || periodSummary.totalTasks === 0) return 57;
+    if (!periodSummary || periodSummary.totalTasks === 0) return 0;
     return Math.round((periodSummary.completedTasks / periodSummary.totalTasks) * 100);
   }, [periodSummary]);
 
@@ -182,9 +182,9 @@ export const WeeklyView: React.FC = () => {
     }
   };
 
-  const activeDaysCount = periodSummary?.activeDays ?? 2;
-  const completedTasksCount = periodSummary?.completedTasks ?? 4;
-  const totalTasksCount = periodSummary?.totalTasks ?? 7;
+  const activeDaysCount = periodSummary?.activeDays ?? 0;
+  const completedTasksCount = periodSummary?.completedTasks ?? 0;
+  const totalTasksCount = periodSummary?.totalTasks ?? 0;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 14 }}>

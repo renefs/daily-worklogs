@@ -35,57 +35,25 @@ interface WeeklyDashboardProps {
   onViewTasks: () => void;
 }
 
-const fallbackCompletedTasks: TaskMeta[] = [
-  { id: '1', filename: '1.md', filepath: '', title: 'Change password of sasentrywebcast service account', status: 'done', created: '2026-09-01', completedDate: '2026-09-01' },
-  { id: '2', filename: '2.md', filepath: '', title: 'Migrate Recordings Manager to Postgresql', status: 'done', created: '2026-08-27', completedDate: '2026-08-27' },
-  { id: '3', filename: '3.md', filepath: '', title: 'Remove webcastd service account', status: 'done', created: '2026-09-01', completedDate: '2026-09-01' },
-  { id: '4', filename: '4.md', filepath: '', title: 'Deploy new CERN Live version', status: 'done', created: '2026-08-27', completedDate: '2026-08-27' },
-];
-
-const fallbackInProgressTasks: TaskMeta[] = [
-  { id: '5', filename: '5.md', filepath: '', title: 'Implement secure tokens and referer protection in Wowza', status: 'in_progress', created: '2026-08-21' },
-  { id: '6', filename: '6.md', filepath: '', title: 'Migrate encoders-manager to Postgresql', status: 'in_progress', created: '2026-08-21' },
-];
-
-const fallbackProjectProgress: WeeklyProjectProgress[] = [
-  { name: 'monitoring', completed: 1, total: 1, percent: 100 },
-  { name: 'Recordings Manager', completed: 1, total: 1, percent: 100 },
-];
-
 export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
   isDark, weekDays, completedTasksCount, totalTasksCount, activeDaysCount,
   completionPercent, completedTasks, inProgressTasks, projectBreakdown,
   onOpenTask, onViewTasks,
 }) => {
   const { t } = useTranslation();
-  const displayedCompletedTasks = completedTasks ?? fallbackCompletedTasks;
-  const displayedInProgressTasks = inProgressTasks ?? fallbackInProgressTasks;
-  const displayedProjectProgress = projectBreakdown.length > 0 ? projectBreakdown : fallbackProjectProgress;
+  const displayedCompletedTasks = completedTasks ?? [];
+  const displayedInProgressTasks = inProgressTasks ?? [];
+  const displayedProjectProgress = projectBreakdown;
   return (
           <Stack gap={14}>
             <PeriodKpiCards
               calendarIconType="week"
               daysLoggedContent={`${activeDaysCount} of 7`}
               daysLoggedSubtitle={t('dashboard.daysThisWeek', 'days this week')}
-              daysLoggedDelta={
-                <>
-                  vs last week <span style={{ fontWeight: 700 }}>+1 day</span>
-                </>
-              }
               tasksCompletedValue={`${completedTasksCount} of ${totalTasksCount}`}
               tasksCompletedSubtitle={t('dashboard.tasksThisWeek', 'tasks this week')}
-              tasksCompletedDelta={
-                <>
-                  vs last week <span style={{ fontWeight: 700 }}>+2</span>
-                </>
-              }
               completionRatePercent={completionPercent}
               completionRateSubtitle={t('dashboard.completedThisWeekRate', 'completed this week')}
-              completionRateDelta={
-                <>
-                  vs last week <span style={{ fontWeight: 700 }}>+14 pp</span>
-                </>
-              }
             />
 
             {/* Weekly activity: Compact 7-Day Strip */}
@@ -177,7 +145,7 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
                 <Group gap={6} align="center" mb={10}>
                   <IconCheck size={16} color="var(--mantine-color-teal-filled)" />
                   <Text size="xs" fw={700} style={{ fontSize: 13 }}>
-                    {t('dashboard.completedThisWeek', 'Completed this week')} ({completedTasks?.length || 4})
+                    {t('dashboard.completedThisWeek', 'Completed this week')} ({completedTasks?.length ?? 0})
                   </Text>
                 </Group>
 
@@ -209,6 +177,7 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
                       </Group>
                     </Paper>
                   ))}
+                  {displayedCompletedTasks.length === 0 && <Text size="xs" c="dimmed">{t('reports.noTasksInPeriod', 'No tasks recorded for this period.')}</Text>}
                 </Stack>
 
                 <UnstyledButton
@@ -224,7 +193,7 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
                 <Group gap={6} align="center" mb={10}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: 'var(--mantine-color-orange-filled)' }} />
                   <Text size="xs" fw={700} style={{ fontSize: 13 }}>
-                    {t('dashboard.inProgressAndPending', 'In progress & pending')} ({inProgressTasks?.length || 2})
+                    {t('dashboard.inProgressAndPending', 'In progress & pending')} ({inProgressTasks?.length ?? 0})
                   </Text>
                 </Group>
 
@@ -245,14 +214,13 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
                             <Text size="xs" fw={500} truncate style={{ minWidth: 0 }}>
                               {task.title}
                             </Text>
-                            <Text size="xs" c="dimmed" style={{ fontSize: 10 }}>
-                              Started: {task.startedDate ? dayjs(task.startedDate).format('D MMM YYYY') : '21 Aug 2026'}
-                            </Text>
+                            {task.startedDate && <Text size="xs" c="dimmed" style={{ fontSize: 10 }}>{t('dashboard.startedDateLabel', 'Started')}: {dayjs(task.startedDate).format('D MMM YYYY')}</Text>}
                           </div>
                         </Group>
                       </Group>
                     </Paper>
                   ))}
+                  {displayedInProgressTasks.length === 0 && <Text size="xs" c="dimmed">{t('reports.noTasksInPeriod', 'No tasks recorded for this period.')}</Text>}
                 </Stack>
 
                 <UnstyledButton
@@ -291,6 +259,7 @@ export const WeeklyDashboard: React.FC<WeeklyDashboardProps> = ({
                     />
                   </div>
                 ))}
+                {displayedProjectProgress.length === 0 && <Text size="xs" c="dimmed">{t('dashboard.noData', 'No data')}</Text>}
               </Stack>
             </Paper>
           </Stack>

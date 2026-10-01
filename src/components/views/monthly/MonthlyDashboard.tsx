@@ -1,6 +1,5 @@
 import React from 'react';
-import { Group, Paper, Stack, Text } from '@mantine/core';
-import { IconInfoCircle } from '@tabler/icons-react';
+import { Group, Stack, Text } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import type { TaskMeta } from '../../../types';
 import { PeriodKpiCards } from '../period/PeriodKpiCards';
@@ -12,7 +11,6 @@ export type { MonthlyHeatmapDay, MonthlyStatusDistribution, MonthlyWeeklyProgres
 interface MonthlyDashboardProps {
   isDark: boolean;
   daysInMonth: number;
-  previousMonthLabel: string;
   activeDaysCount: number;
   completedTasksCount: number;
   totalTasksCount: number;
@@ -29,7 +27,6 @@ interface MonthlyDashboardProps {
 export const MonthlyDashboard: React.FC<MonthlyDashboardProps> = ({
   isDark,
   daysInMonth,
-  previousMonthLabel,
   activeDaysCount,
   completedTasksCount,
   totalTasksCount,
@@ -58,43 +55,9 @@ export const MonthlyDashboard: React.FC<MonthlyDashboardProps> = ({
                   </Text>
                 </Group>
               }
-              daysLoggedDelta={
-                <>
-                  vs {previousMonthLabel} <span style={{ fontWeight: 700 }}>+1 day</span>
-                </>
-              }
               tasksCompletedValue={`${completedTasksCount} of ${totalTasksCount}`}
-              tasksCompletedDelta={
-                <>
-                  vs {previousMonthLabel} <span style={{ fontWeight: 700 }}>+2</span>
-                </>
-              }
               completionRatePercent={completionPercent}
-              completionRateDelta={
-                <>
-                  vs {previousMonthLabel} <span style={{ fontWeight: 700 }}>+40 pp</span>
-                </>
-              }
             />
-
-            {/* Slim Informational Banner replacing 4th card */}
-            <Paper
-              px="md"
-              py="xs"
-              radius="md"
-              withBorder
-              style={{
-                backgroundColor: isDark ? 'rgba(59, 130, 246, 0.08)' : 'rgba(59, 130, 246, 0.05)',
-                borderColor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.15)',
-              }}
-            >
-              <Group gap={8} wrap="nowrap" align="center">
-                <IconInfoCircle size={16} color="var(--mantine-primary-color-filled)" style={{ flexShrink: 0 }} />
-                <Text size="xs" style={{ fontSize: 12, color: 'var(--app-text-primary)' }}>
-                  {t('dashboard.monthJustStartedBanner', 'The month has just begun — more data will appear as you log your work.')}
-                </Text>
-              </Group>
-            </Paper>
 
             <MonthlyActivityPanels
               isDark={isDark}

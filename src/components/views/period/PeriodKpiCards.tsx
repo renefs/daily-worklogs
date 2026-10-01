@@ -29,13 +29,13 @@ export const ThemeIconWrapper: React.FC<{ color: string; children: React.ReactNo
 export interface PeriodKpiCardsProps {
   daysLoggedContent: React.ReactNode;
   daysLoggedSubtitle?: string;
-  daysLoggedDelta: React.ReactNode;
+  daysLoggedDelta?: React.ReactNode;
   tasksCompletedValue: string;
   tasksCompletedSubtitle?: string;
-  tasksCompletedDelta: React.ReactNode;
+  tasksCompletedDelta?: React.ReactNode;
   completionRatePercent: number;
   completionRateSubtitle?: string;
-  completionRateDelta: React.ReactNode;
+  completionRateDelta?: React.ReactNode;
   calendarIconType?: 'week' | 'month';
 }
 
@@ -89,9 +89,7 @@ export const PeriodKpiCards: React.FC<PeriodKpiCardsProps> = ({
                 {daysLoggedSubtitle}
               </Text>
             )}
-            <Text size="xs" c="teal.7" fw={600} mt={6} style={{ fontSize: 11 }}>
-              {daysLoggedDelta}
-            </Text>
+            {daysLoggedDelta && <Text size="xs" c="teal.7" fw={600} mt={6} style={{ fontSize: 11 }}>{daysLoggedDelta}</Text>}
           </div>
         </Group>
       </Paper>
@@ -122,9 +120,7 @@ export const PeriodKpiCards: React.FC<PeriodKpiCardsProps> = ({
                 {tasksCompletedSubtitle}
               </Text>
             )}
-            <Text size="xs" c="teal.7" fw={600} mt={6} style={{ fontSize: 11 }}>
-              {tasksCompletedDelta}
-            </Text>
+            {tasksCompletedDelta && <Text size="xs" c="teal.7" fw={600} mt={6} style={{ fontSize: 11 }}>{tasksCompletedDelta}</Text>}
           </div>
         </Group>
       </Paper>
@@ -159,9 +155,7 @@ export const PeriodKpiCards: React.FC<PeriodKpiCardsProps> = ({
                 {completionRateSubtitle}
               </Text>
             )}
-            <Text size="xs" c="teal.7" fw={600} mt={6} style={{ fontSize: 11 }}>
-              {completionRateDelta}
-            </Text>
+            {completionRateDelta && <Text size="xs" c="teal.7" fw={600} mt={6} style={{ fontSize: 11 }}>{completionRateDelta}</Text>}
           </div>
         </Group>
       </Paper>

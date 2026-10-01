@@ -12,20 +12,10 @@ interface MonthlyTaskListsProps {
   onViewTasks: () => void;
 }
 
-const fallbackCompletedTasks: TaskMeta[] = [
-  { id: '1', filename: '1.md', filepath: '', title: 'Change password of sasentrywebcast service account', status: 'done', created: '2026-09-01', completedDate: '2026-09-01' },
-  { id: '2', filename: '2.md', filepath: '', title: 'Remove webcastd service account', status: 'done', created: '2026-09-01', completedDate: '2026-09-01' },
-];
-
-const fallbackInProgressTasks: TaskMeta[] = [
-  { id: '3', filename: '3.md', filepath: '', title: 'Implement secure tokens and referer protection in Wowza', status: 'in_progress', created: '2026-09-01' },
-  { id: '4', filename: '4.md', filepath: '', title: 'Migrate encoders-manager to Postgresql', status: 'in_progress', created: '2026-09-01' },
-];
-
 export const MonthlyTaskLists: React.FC<MonthlyTaskListsProps> = ({ completedTasks, inProgressTasks, onOpenTask, onViewTasks }) => {
   const { t } = useTranslation();
-  const displayedCompletedTasks = completedTasks ?? fallbackCompletedTasks;
-  const displayedInProgressTasks = inProgressTasks ?? fallbackInProgressTasks;
+  const displayedCompletedTasks = completedTasks ?? [];
+  const displayedInProgressTasks = inProgressTasks ?? [];
   return (
     <>
             {/* Equal-Height Bottom 2-Column Grid: Key achievements & In progress & carried over */}
@@ -64,6 +54,7 @@ export const MonthlyTaskLists: React.FC<MonthlyTaskListsProps> = ({ completedTas
                       </Group>
                     </Paper>
                   ))}
+                  {displayedCompletedTasks.length === 0 && <Text size="xs" c="dimmed">{t('reports.noTasksInPeriod', 'No tasks recorded for this period.')}</Text>}
                 </Stack>
 
                 <UnstyledButton
@@ -103,6 +94,7 @@ export const MonthlyTaskLists: React.FC<MonthlyTaskListsProps> = ({ completedTas
                       </Group>
                     </Paper>
                   ))}
+                  {displayedInProgressTasks.length === 0 && <Text size="xs" c="dimmed">{t('reports.noTasksInPeriod', 'No tasks recorded for this period.')}</Text>}
                 </Stack>
 
                 <UnstyledButton
