@@ -20,11 +20,13 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/es';
 import 'dayjs/locale/en';
 import { formatTemplateContent } from '../src/utils/dateTemplate';
+import type { TaskItem, TaskMeta } from '../src/types';
 import { mapWithConcurrency } from './utils/async';
-import { requireIsoDate, requireTaskFilename, requireTaskWriteInput, resolvePathInside } from './utils/security';
+import { requireIsoDate, resolvePathInside } from './utils/security';
 import { atomicWriteFile, atomicWriteFileSync } from './utils/atomicFile';
 import { ensureImagesDir, ensureTasksDir, ensureVaultDir, ensureYearDir, getNoteFilePath, getYearFromDate, listDailyNoteFiles } from './services/vaultService';
 import { parseNumericTaskId, parseTaskCounts, readTaskFiles, type TaskFileRead } from './services/taskFileService';
+import { registerTaskHandlers } from './ipc/taskHandlers';
 
 // Register custom protocol scheme before app ready
 protocol.registerSchemesAsPrivileged([
@@ -1645,8 +1647,22 @@ function buildTaskFromFile(
   filename: string,
   rawContent: string,
   stat: fs.Stats,
+  includeDetail: false
+): TaskMeta;
+function buildTaskFromFile(
+  filepath: string,
+  filename: string,
+  rawContent: string,
+  stat: fs.Stats,
+  includeDetail?: true
+): TaskItem;
+function buildTaskFromFile(
+  filepath: string,
+  filename: string,
+  rawContent: string,
+  stat: fs.Stats,
   includeDetail = true
-) {
+): TaskItem | TaskMeta {
   const parsed = matter(rawContent);
   const data = parsed.data || {};
 
@@ -1702,216 +1718,15 @@ async function parseTaskFile(filepath: string, filename: string) {
   return buildTaskFromFile(filepath, filename, rawContent, stat);
 }
 
-// Task IPC Handlers
-ipcMain.handle('list-tasks', async () => {
-  const { vaultPath } = getSettings();
-  const tasksDir = ensureTasksDir(vaultPath);
-  try {
-    await ensureTasksHaveIds(tasksDir);
-    const reads = await readTaskFiles(tasksDir);
-    const tasks = reads.map((read) =>
-      buildTaskFromFile(read.filepath, read.filename, read.raw, read.stat, false)
-    );
-
-    return tasks.sort((a, b) => (b.lastModified || '').localeCompare(a.lastModified || ''));
-  } catch (err) {
-    console.error('Error listing tasks:', err);
-    return [];
-  }
-});
-
-ipcMain.handle('search-task-contents', async (_event, rawQuery: string) => {
-  const query = String(rawQuery || '').trim().toLocaleLowerCase();
-  if (!query) return [];
-
-  const { vaultPath } = getSettings();
-  const tasksDir = ensureTasksDir(vaultPath);
-  const reads = await readTaskFiles(tasksDir);
-  return reads
-    .filter((read) => read.raw.toLocaleLowerCase().includes(query))
-    .map((read) => read.filename);
-});
-
-ipcMain.handle('read-task', async (_event, filename: string) => {
-  const { vaultPath } = getSettings();
-  const tasksDir = ensureTasksDir(vaultPath);
-  const safeFilename = requireTaskFilename(filename);
-  const filepath = resolvePathInside(tasksDir, safeFilename);
-
-  if (fs.existsSync(filepath)) {
-    return await parseTaskFile(filepath, safeFilename);
-  }
-  return null;
-});
-
-ipcMain.handle('write-task', async (_event, rawTaskData: unknown) => {
-  const taskData = requireTaskWriteInput(rawTaskData);
-  const { vaultPath } = getSettings();
-  const tasksDir = ensureTasksDir(vaultPath);
-
-  let filename = taskData.filename;
-  if (!filename) {
-    const slug = slugify(taskData.title) || 'task';
-    const datePrefix = new Date().toISOString().split('T')[0];
-    filename = `${datePrefix}-${slug}.md`;
-
-    // Handle duplicate filenames
-    let counter = 1;
-    while (fs.existsSync(path.join(tasksDir, filename))) {
-      filename = `${datePrefix}-${slug}-${counter}.md`;
-      counter++;
-    }
-  } else {
-    filename = requireTaskFilename(filename);
-  }
-
-  const filepath = path.join(tasksDir, filename);
-  let existingData: Record<string, any> = {};
-  if (fs.existsSync(filepath)) {
-    try {
-      const existingRaw = fs.readFileSync(filepath, 'utf-8');
-      existingData = matter(existingRaw).data || {};
-    } catch (e) {
-      console.warn('Could not read existing task frontmatter:', e);
-    }
-  }
-
-  // Determine taskId: preserve existing or allocate next maxId + 1
-  let taskId = parseNumericTaskId(taskData) || parseNumericTaskId(existingData);
-  if (!taskId) {
-    const maxId = await getMaxTaskId(tasksDir);
-    taskId = maxId + 1;
-  }
-
-  const todayStr = new Date().toISOString().split('T')[0];
-  const nextStatus = taskData.status || existingData.status || 'todo';
-  const behavior = getColumnBehavior(nextStatus);
-  const isDoneOrCancelled = behavior === 'done' || behavior === 'cancelled';
-  const prevBehavior = existingData.status ? getColumnBehavior(existingData.status) : undefined;
-  const wasDoneOrCancelled = prevBehavior === 'done' || prevBehavior === 'cancelled';
-
-  let startedDate = taskData.startedDate !== undefined ? taskData.startedDate : existingData.startedDate;
-  let completedDate = taskData.completedDate !== undefined ? taskData.completedDate : existingData.completedDate;
-
-  // Auto-stamp startedDate when moving to in_progress if not already set
-  if (behavior === 'in_progress' && !startedDate) {
-    startedDate = todayStr;
-  }
-  // Auto-stamp completedDate when moving to done or cancelled
-  if (isDoneOrCancelled && !completedDate) {
-    completedDate = todayStr;
-  } else if (!isDoneOrCancelled && taskData.completedDate === undefined && wasDoneOrCancelled) {
-    // If moving away from done/cancelled, remove completedDate unless explicitly supplied
-    completedDate = undefined;
-  }
-
-  const frontmatterData: Record<string, any> = {
-    ...existingData,
-    id: taskId,
-    title: taskData.title,
-    status: nextStatus,
-    priority: taskData.priority || 'medium',
-    created: taskData.created || existingData.created || todayStr,
-    tags: Array.isArray(taskData.tags) ? taskData.tags : existingData.tags || [],
-  };
-
-  if (taskData.area !== undefined) {
-    if (taskData.area && taskData.area.trim()) {
-      frontmatterData.area = taskData.area.trim();
-    } else {
-      delete frontmatterData.area;
-    }
-  }
-
-  if (taskData.project !== undefined) {
-    if (taskData.project && taskData.project.trim()) {
-      frontmatterData.project = taskData.project.trim();
-    } else {
-      delete frontmatterData.project;
-    }
-  }
-
-  if (startedDate) {
-    frontmatterData.startedDate = startedDate;
-  } else {
-    delete frontmatterData.startedDate;
-  }
-
-  if (completedDate) {
-    frontmatterData.completedDate = completedDate;
-  } else {
-    delete frontmatterData.completedDate;
-  }
-
-  if (taskData.due) {
-    frontmatterData.due = taskData.due;
-  } else if ('due' in taskData && !taskData.due) {
-    delete frontmatterData.due;
-  }
-
-  const content = taskData.content !== undefined ? taskData.content : '';
-  const fileContent = matter.stringify(content, frontmatterData);
-
-  await writeInternalFile(filepath, fileContent);
-  const savedTask = await parseTaskFile(filepath, filename);
-
-  return { success: true, task: savedTask };
-});
-
-ipcMain.handle('update-task-status', async (_event, filename: string, status: string) => {
-  const { vaultPath } = getSettings();
-  const tasksDir = ensureTasksDir(vaultPath);
-  const safeFilename = requireTaskFilename(filename);
-  const filepath = resolvePathInside(tasksDir, safeFilename);
-
-  if (!fs.existsSync(filepath)) {
-    return { success: false, error: 'Task file not found' };
-  }
-
-  const rawContent = fs.readFileSync(filepath, 'utf-8');
-  const parsed = matter(rawContent);
-  const todayStr = new Date().toISOString().split('T')[0];
-
-  const prevStatus = parsed.data.status || 'todo';
-  const prevBehavior = getColumnBehavior(prevStatus);
-  const nextBehavior = getColumnBehavior(status);
-  const isDoneOrCancelled = nextBehavior === 'done' || nextBehavior === 'cancelled';
-  const wasDoneOrCancelled = prevBehavior === 'done' || prevBehavior === 'cancelled';
-
-  const updatedData: Record<string, any> = {
-    ...parsed.data,
-    status,
-    updatedAt: new Date().toISOString(),
-  };
-
-  if (isDoneOrCancelled && !updatedData.completedDate) {
-    updatedData.completedDate = todayStr;
-  } else if (!isDoneOrCancelled && wasDoneOrCancelled) {
-    delete updatedData.completedDate;
-  }
-
-  if (nextBehavior === 'in_progress' && !updatedData.startedDate) {
-    updatedData.startedDate = todayStr;
-  }
-
-  const updatedRaw = matter.stringify(parsed.content, updatedData);
-  await writeInternalFile(filepath, updatedRaw);
-  const savedTask = await parseTaskFile(filepath, safeFilename);
-
-  return { success: true, task: savedTask };
-});
-
-ipcMain.handle('delete-task', async (_event, filename: string) => {
-  const { vaultPath } = getSettings();
-  const tasksDir = ensureTasksDir(vaultPath);
-  const safeFilename = requireTaskFilename(filename);
-  const filepath = resolvePathInside(tasksDir, safeFilename);
-
-  if (fs.existsSync(filepath)) {
-    fs.unlinkSync(filepath);
-    return { success: true };
-  }
-  return { success: false };
+registerTaskHandlers({
+  getVaultPath: () => getSettings().vaultPath,
+  ensureTasksHaveIds,
+  getMaxTaskId,
+  getColumnBehavior,
+  slugify,
+  writeInternalFile,
+  parseTaskFile,
+  buildTaskMetadata: (read) => buildTaskFromFile(read.filepath, read.filename, read.raw, read.stat, false),
 });
 
 ipcMain.handle('log-task-to-daily-note', async (_event, { date, taskTitle, status, priority, filename, taskId }) => {

@@ -40,8 +40,10 @@ This document defines the architecture, design principles, domain models, techno
 ```
 daily-worklog/
 ├── electron/
-│   ├── main.ts                     # Electron main process, window creation, IPC handlers & FS operations
-│   └── preload.ts                  # Secure contextBridge API exposing window.electronAPI
+│   ├── main.ts                     # Electron main process, window creation, and app lifecycle
+│   ├── ipc/                        # Domain-scoped IPC handler registration
+│   ├── preload.ts                  # Secure contextBridge API exposing window.electronAPI
+│   └── services/                   # Vault and task file operations
 ├── src/
 │   ├── components/
 │   │   ├── editor/                 # CodeMirror 6 Markdown editor, live formatting & #tag autocompletion

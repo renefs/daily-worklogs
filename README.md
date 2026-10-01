@@ -67,8 +67,9 @@ npm run build
 ```
 daily-worklog/
 ├── electron/
-│   ├── main.ts              # Electron main process, IPC handlers, and OS integrations
+│   ├── main.ts              # Electron process startup, window lifecycle, and OS integrations
 │   ├── preload.ts           # Typed ContextBridge API
+│   ├── ipc/                 # Domain-scoped IPC handler registration
 │   ├── services/            # Vault file and path operations
 │   └── utils/               # Security, atomic writes, and bounded concurrency
 ├── src/
