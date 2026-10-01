@@ -10,7 +10,6 @@ interface ImageHandlerDependencies {
 }
 
 interface SaveImagePayload {
-  sourcePath?: string;
   buffer?: ArrayBuffer | Uint8Array;
   base64Data?: string;
   originalName?: string;
@@ -65,9 +64,7 @@ export function registerImageHandlers(dependencies: ImageHandlerDependencies): v
       const imagesDir = ensureImagesDir(getVaultPath());
       const filename = generateUniqueImageFilename(imagesDir, payload.originalName, payload.mimeType);
       const destPath = path.join(imagesDir, filename);
-      if (payload.sourcePath && fs.existsSync(payload.sourcePath)) {
-        fs.copyFileSync(payload.sourcePath, destPath);
-      } else if (payload.buffer) {
+      if (payload.buffer) {
         const bytes = payload.buffer instanceof ArrayBuffer ? new Uint8Array(payload.buffer) : payload.buffer;
         fs.writeFileSync(destPath, Buffer.from(bytes));
       } else if (payload.base64Data) {
