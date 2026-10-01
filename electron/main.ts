@@ -22,11 +22,12 @@ import 'dayjs/locale/en';
 import { formatTemplateContent } from '../src/utils/dateTemplate';
 import type { TaskItem, TaskMeta } from '../src/types';
 import { mapWithConcurrency } from './utils/async';
-import { requireIsoDate, resolvePathInside } from './utils/security';
+import { resolvePathInside } from './utils/security';
 import { atomicWriteFile, atomicWriteFileSync } from './utils/atomicFile';
-import { ensureImagesDir, ensureTasksDir, ensureVaultDir, ensureYearDir, getNoteFilePath, getYearFromDate, listDailyNoteFiles } from './services/vaultService';
+import { ensureImagesDir, ensureTasksDir, ensureVaultDir, ensureYearDir, getNoteFilePath, getYearFromDate } from './services/vaultService';
 import { parseNumericTaskId, parseTaskCounts, readTaskFiles, type TaskFileRead } from './services/taskFileService';
 import { registerTaskHandlers } from './ipc/taskHandlers';
+import { registerNoteHandlers } from './ipc/noteHandlers';
 
 // Register custom protocol scheme before app ready
 protocol.registerSchemesAsPrivileged([
@@ -1044,94 +1045,15 @@ ipcMain.handle('select-vault-directory', async () => {
   return null;
 });
 
-ipcMain.handle('read-note', async (_event, date: string) => {
-  date = requireIsoDate(date);
-  const { vaultPath } = getSettings();
-  ensureVaultDir(vaultPath);
-  const { filepath, exists, filename, relativePath } = getNoteFilePath(vaultPath, date);
-
-  if (exists) {
-    const content = fs.readFileSync(filepath, 'utf-8');
-    const stat = fs.statSync(filepath);
-    const { tasksCompleted, tasksTotal } = parseTaskCounts(content);
-    return {
-      date,
-      filename,
-      filepath,
-      relativePath,
-      content,
-      exists: true,
-      lastModified: stat.mtime.toISOString(),
-      tasksCompleted,
-      tasksTotal,
-    };
-  }
-
-  // If note doesn't exist yet, construct initial content from chosen default template
-  const settings = getSettings();
-  const template = settings.templates.find((t: any) => t.id === settings.defaultTemplateId) || settings.templates[0] || DEFAULT_TEMPLATES[0];
-  const initialContent = formatTemplateContent(template.content, date, settings.dateFormat, settings.language);
-
-  return {
-    date,
-    filename,
-    filepath,
-    relativePath,
-    content: initialContent,
-    exists: false,
-    tasksCompleted: 0,
-    tasksTotal: 0,
-  };
-});
-
-ipcMain.handle('write-note', async (_event, date: string, content: string) => {
-  date = requireIsoDate(date);
-  if (typeof content !== 'string') throw new Error('Invalid note content');
-  const { vaultPath } = getSettings();
-  const year = getYearFromDate(date);
-  const yearDir = ensureYearDir(vaultPath, year);
-  const filename = `${date}.md`;
-  const filepath = path.join(yearDir, filename);
-
-  await writeInternalFile(filepath, content);
-  const stat = fs.statSync(filepath);
-
-  return {
-    success: true,
-    filepath,
-    relativePath: `${year}/${filename}`,
-    lastModified: stat.mtime.toISOString(),
-  };
-});
-
-ipcMain.handle('delete-note', async (_event, date: string) => {
-  date = requireIsoDate(date);
-  const { vaultPath } = getSettings();
-  const year = getYearFromDate(date);
-  const yearFilePath = path.join(vaultPath, year, `${date}.md`);
-  const rootFilePath = path.join(vaultPath, `${date}.md`);
-
-  let deleted = false;
-  if (fs.existsSync(yearFilePath)) {
-    fs.unlinkSync(yearFilePath);
-    deleted = true;
-  }
-  if (fs.existsSync(rootFilePath)) {
-    fs.unlinkSync(rootFilePath);
-    deleted = true;
-  }
-
-  return { success: deleted };
-});
-
-ipcMain.handle('list-notes', async () => {
-  const { vaultPath } = getSettings();
-  try {
-    return await listDailyNoteFiles(vaultPath, FILE_READ_CONCURRENCY);
-  } catch (err) {
-    console.error('Error listing notes:', err);
-    return [];
-  }
+registerNoteHandlers({
+  getSettings,
+  defaultTemplates: DEFAULT_TEMPLATES,
+  ensureVaultDir,
+  ensureYearDir,
+  getNoteFilePath,
+  getYearFromDate,
+  writeInternalFile,
+  fileReadConcurrency: FILE_READ_CONCURRENCY,
 });
 
 ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: string) => {
