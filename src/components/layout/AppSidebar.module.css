@@ -13,17 +13,10 @@
   background-color: var(--app-sidebar-active) !important;
 }
 
-.datepickerContainer {
+.workspaceBadge {
   background-color: var(--app-card-bg) !important;
   border: 1px solid var(--app-sidebar-border) !important;
-  border-radius: 10px !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
-}
-
-.workspaceBadge {
-  background-color: var(--app-subtle-bg) !important;
-  border: 1px solid var(--app-sidebar-border) !important;
-  border-radius: 8px !important;
+  border-radius: 14px !important;
   transition: background-color 0.15s ease !important;
 }
 
@@ -31,3 +24,6 @@
   background-color: var(--app-sidebar-hover) !important;
 }
 
+
+
+.historySidebar { display: flex; flex-direction: column; width: rem(260px); min-width: 0; height: 100%; padding: rem(12px) rem(10px); gap: rem(12px); }

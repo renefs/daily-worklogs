@@ -1,0 +1,3 @@
+.day { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+.dot { position: absolute; bottom: rem(2px); width: rem(4px); height: rem(4px); border-radius: 50%; background: var(--mantine-primary-color-filled); }
+.day[data-selected] .dot { background: white; }

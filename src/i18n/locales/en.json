@@ -25,7 +25,12 @@
     "worklog": "Worklog",
     "collapseSidebar": "Collapse sidebar",
     "expandSidebar": "Expand sidebar",
-    "reports": "Reports"
+    "reports": "Reports",
+    "mainNavigation": "Main navigation",
+    "brand": "Worklog",
+    "openSettings": "Open settings",
+    "notes": "Notes",
+    "chooseNoteDate": "Choose note date"
   },
   "tasks": {
     "title": "Task Board",

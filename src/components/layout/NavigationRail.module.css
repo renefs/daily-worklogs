@@ -1,0 +1,9 @@
+.rail {
+  width: rem(56px);
+  flex: 0 0 rem(56px);
+  height: 100%;
+  padding: rem(12px) rem(7px);
+  align-items: center;
+  background: var(--app-header-bg);
+  border-right: 1px solid var(--app-sidebar-border);
+}

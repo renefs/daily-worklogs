@@ -111,6 +111,8 @@ export const App: React.FC = () => {
       primaryColor: 'primary',
       colors: {
         primary: primaryShades,
+        gray: ['#fafafa', '#f5f5f5', '#ededed', '#e0e0e0', '#cccccc', '#b3b3b3', '#8f8f8f', '#666666', '#444444', '#242424'],
+        dark: ['#ececec', '#d4d4d4', '#b4b4b4', '#9b9b9b', '#676767', '#424242', '#2f2f2f', '#212121', '#171717', '#0f0f0f'],
         blue: modernBlueColors,
         claude: claudeColors,
         terracotta: claudeColors,

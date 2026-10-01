@@ -9,13 +9,10 @@ import {
   UnstyledButton,
   Badge,
   Paper,
-  ActionIcon,
-  Tooltip,
   Menu,
   Modal,
   Collapse,
 } from '@mantine/core';
-import { DatePicker } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 import {
   IconPlus,
@@ -27,21 +24,15 @@ import {
   IconEdit,
   IconChevronRight,
   IconChevronDown,
-  IconCalendarEvent,
-  IconCalendarWeek,
-  IconCalendarMonth,
-  IconCalendarStats,
-  IconLayoutKanban,
-  IconChevronsLeft,
-  IconChevronsRight,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import clsx from 'clsx';
-import { useAppStoreSelector } from '../../store/useAppStore';
+import { useAppStore, useAppStoreSelector } from '../../store/useAppStore';
 import { DailyNoteMeta } from '../../types';
 import { capitalizeFirstLetter, formatTemplateDate } from '../../utils/dateTemplate';
 import classes from './AppSidebar.module.css';
+import { SidebarCalendar } from './SidebarCalendar';
 
 export const AppSidebar: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -63,8 +54,6 @@ export const AppSidebar: React.FC = () => {
     notesList,
     settings,
     deleteActiveNote,
-    isSidebarCollapsed,
-    toggleSidebarCollapse,
   } = useAppStoreSelector((state) => ({
     currentView: state.currentView,
     selectedDate: state.selectedDate,
@@ -73,15 +62,9 @@ export const AppSidebar: React.FC = () => {
     notesList: state.notesList,
     settings: state.settings,
     deleteActiveNote: state.deleteActiveNote,
-    isSidebarCollapsed: state.isSidebarCollapsed,
-    toggleSidebarCollapse: state.toggleSidebarCollapse,
   }));
 
   const todayStr = dayjs().format('YYYY-MM-DD');
-  const todayNoteExists = useMemo(() => {
-    return notesList.some((n) => n.date === todayStr);
-  }, [notesList, todayStr]);
-
   // Set of dates that have notes
   const notesDateSet = useMemo(() => {
     return new Set((notesList || []).filter((n) => n && n.date).map((n) => n.date));
@@ -119,14 +102,13 @@ export const AppSidebar: React.FC = () => {
     return groups;
   }, [filteredNotes, i18n.language]);
 
-  const handleSelectDate = (dateStr: string) => {
-    setSelectedDate(dateStr);
-    setCurrentView('daily');
+  const handleSelectDate = async (dateStr: string) => {
+    await setSelectedDate(dateStr);
+    if (useAppStore.getState().selectedDate === dateStr) await setCurrentView('daily');
   };
 
   const handleOpenToday = () => {
-    setSelectedDate(todayStr);
-    setCurrentView('daily');
+    void handleSelectDate(todayStr);
   };
 
   const handleConfirmDelete = async () => {
@@ -149,236 +131,34 @@ export const AppSidebar: React.FC = () => {
     }));
   };
 
-  // Render Collapsed Slim Rail (58px)
-  if (isSidebarCollapsed) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          height: '100%',
-          padding: '12px 6px',
-          justifyContent: 'space-between',
-          backgroundColor: 'var(--app-sidebar-bg)',
-        }}
-      >
-        <Stack gap={8} align="center" style={{ width: '100%' }}>
-          {/* Expand sidebar button */}
-          <Tooltip label={t('nav.expandSidebar', 'Expand sidebar')} position="right">
-            <ActionIcon
-              variant="subtle"
-              size="md"
-              radius="md"
-              onClick={() => toggleSidebarCollapse(false)}
-            >
-              <IconChevronsRight size={18} />
-            </ActionIcon>
-          </Tooltip>
-
-          {/* Quick access to today's note */}
-          <Tooltip label={t('nav.newToday')} position="right">
-            <ActionIcon
-              variant={todayNoteExists ? 'light' : 'filled'}
-              color="primary"
-              size="md"
-              radius="md"
-              onClick={handleOpenToday}
-            >
-              <IconPlus size={16} />
-            </ActionIcon>
-          </Tooltip>
-
-          <div style={{ width: '80%', height: 1, backgroundColor: 'var(--app-sidebar-border)', margin: '4px 0' }} />
-
-          {/* Quick view navigation icons */}
-          <Tooltip label={t('nav.daily')} position="right">
-            <ActionIcon
-              variant={currentView === 'daily' ? 'filled' : 'subtle'}
-              color={currentView === 'daily' ? 'primary' : 'gray'}
-              size="md"
-              radius="md"
-              onClick={() => setCurrentView('daily')}
-            >
-              <IconCalendarEvent size={18} />
-            </ActionIcon>
-          </Tooltip>
-
-          <Tooltip label={t('nav.weekly')} position="right">
-            <ActionIcon
-              variant={currentView === 'weekly' ? 'filled' : 'subtle'}
-              color={currentView === 'weekly' ? 'primary' : 'gray'}
-              size="md"
-              radius="md"
-              onClick={() => setCurrentView('weekly')}
-            >
-              <IconCalendarWeek size={18} />
-            </ActionIcon>
-          </Tooltip>
-
-          <Tooltip label={t('nav.monthly')} position="right">
-            <ActionIcon
-              variant={currentView === 'monthly' ? 'filled' : 'subtle'}
-              color={currentView === 'monthly' ? 'primary' : 'gray'}
-              size="md"
-              radius="md"
-              onClick={() => setCurrentView('monthly')}
-            >
-              <IconCalendarMonth size={18} />
-            </ActionIcon>
-          </Tooltip>
-
-          <Tooltip label={t('nav.yearly')} position="right">
-            <ActionIcon
-              variant={currentView === 'yearly' ? 'filled' : 'subtle'}
-              color={currentView === 'yearly' ? 'primary' : 'gray'}
-              size="md"
-              radius="md"
-              onClick={() => setCurrentView('yearly')}
-            >
-              <IconCalendarStats size={18} />
-            </ActionIcon>
-          </Tooltip>
-
-          <Tooltip label={t('nav.tasks')} position="right">
-            <ActionIcon
-              variant={currentView === 'tasks' || currentView === 'task' ? 'filled' : 'subtle'}
-              color={currentView === 'tasks' || currentView === 'task' ? 'primary' : 'gray'}
-              size="md"
-              radius="md"
-              onClick={() => setCurrentView('tasks')}
-            >
-              <IconLayoutKanban size={18} />
-            </ActionIcon>
-          </Tooltip>
-        </Stack>
-
-        {/* Bottom Rail Actions */}
-        <Stack gap={8} align="center">
-          {settings && (
-            <Tooltip label={settings.vaultPath.split(/[/\\]/).pop() || 'Vault'} position="right">
-              <ActionIcon
-                variant="subtle"
-                color="gray"
-                size="md"
-                radius="md"
-                onClick={() => {
-                  if (window.electronAPI && settings?.vaultPath) {
-                    window.electronAPI.openInFileManager(settings.vaultPath);
-                  }
-                }}
-              >
-                <IconFolder size={17} />
-              </ActionIcon>
-            </Tooltip>
-          )}
-
-          <Tooltip label={t('nav.expandSidebar', 'Expand sidebar')} position="right">
-            <ActionIcon
-              variant="subtle"
-              color="gray"
-              size="sm"
-              onClick={() => toggleSidebarCollapse(false)}
-            >
-              <IconChevronsRight size={15} />
-            </ActionIcon>
-          </Tooltip>
-        </Stack>
-      </div>
-    );
-  }
-
-  // Render Full Sidebar (280px)
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        padding: '12px',
-        gap: '10px',
-      }}
-    >
-      {/* Top Action Row: Open Today's Note + Collapse Button */}
+    <div className={classes.historySidebar}>
+      <Group justify="space-between" px={6} py={4}>
+        <Text fw={600} size="md">{t('nav.notes')}</Text>
+        {currentView === 'daily' && <SidebarCalendar selectedDate={selectedDate} notesDateSet={notesDateSet}
+          locale={i18n.language === 'es' ? 'es' : 'en'} weekStartDay={settings?.weekStartDay ?? 1}
+          onSelectDate={(date) => { void handleSelectDate(date); }} />}
+      </Group>
+      {/* Open today's note */}
       <Group justify="space-between" gap="xs" wrap="nowrap">
         <Button
           fullWidth
           size="xs"
-          variant={todayNoteExists ? 'light' : 'filled'}
-          color="primary"
+          variant="subtle"
+          color="gray"
           leftSection={<IconPlus size={15} />}
           onClick={handleOpenToday}
           radius="md"
           style={{
             fontWeight: 600,
-            boxShadow: todayNoteExists ? 'none' : '0 1px 3px rgba(0, 0, 0, 0.08)',
+            justifyContent: 'flex-start',
           }}
         >
           {t('nav.newToday')}
         </Button>
 
-        <Tooltip label={t('nav.collapseSidebar', 'Collapse sidebar')} withArrow>
-          <ActionIcon
-            variant="subtle"
-            size="md"
-            radius="md"
-            color="gray"
-            onClick={() => toggleSidebarCollapse(true)}
-            aria-label="Collapse sidebar"
-          >
-            <IconChevronsLeft size={16} />
-          </ActionIcon>
-        </Tooltip>
+
       </Group>
-
-      {/* Mini Date Picker */}
-      <Paper p="xs" radius="md" className={clsx(classes.datepickerContainer, 'sidebar-datepicker-container')}>
-        <DatePicker
-          locale={i18n.language === 'es' ? 'es' : 'en'}
-          value={dayjs(selectedDate).toDate()}
-          onChange={(val) => {
-            if (val) handleSelectDate(dayjs(val).format('YYYY-MM-DD'));
-          }}
-          size="xs"
-          firstDayOfWeek={settings?.weekStartDay ?? 1}
-          renderDay={(date) => {
-            const dateStr = dayjs(date).format('YYYY-MM-DD');
-            const hasNote = notesDateSet.has(dateStr);
-            const isSelected = dateStr === selectedDate;
-            const isToday = dateStr === todayStr;
-
-            return (
-              <div
-                style={{
-                  position: 'relative',
-                  width: '100%',
-                  height: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: hasNote ? 700 : isToday ? 600 : 'normal',
-                }}
-              >
-                <span>{date.getDate()}</span>
-                {hasNote && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      bottom: 2,
-                      width: 4,
-                      height: 4,
-                      borderRadius: '50%',
-                      backgroundColor: isSelected
-                        ? '#ffffff'
-                        : 'var(--mantine-primary-color-filled)',
-                    }}
-                  />
-                )}
-              </div>
-            );
-          }}
-        />
-      </Paper>
 
       {/* Search Filter */}
       <TextInput
@@ -402,7 +182,7 @@ export const AppSidebar: React.FC = () => {
         <Text
           size="xs"
           fw={700}
-          tt="uppercase"
+
           mb={6}
           px={4}
           style={{
@@ -472,7 +252,7 @@ export const AppSidebar: React.FC = () => {
                                   size={14}
                                   style={{
                                     color: isSelected
-                                      ? 'var(--mantine-primary-color-filled)'
+                                      ? 'var(--app-text-primary)'
                                       : 'var(--app-sidebar-text-dimmed)',
                                     flexShrink: 0,
                                   }}
@@ -483,7 +263,7 @@ export const AppSidebar: React.FC = () => {
                                   truncate
                                   style={{
                                     color: isSelected
-                                      ? 'var(--mantine-primary-color-filled)'
+                                      ? 'var(--app-text-primary)'
                                       : 'var(--app-sidebar-text)',
                                     fontSize: 12,
                                   }}

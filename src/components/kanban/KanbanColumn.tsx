@@ -7,7 +7,6 @@ import {
   ScrollArea,
   Stack,
   Button,
-  useComputedColorScheme,
 } from '@mantine/core';
 import { IconPlus, IconLayoutKanban } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
@@ -20,6 +19,7 @@ import {
 } from '../../types';
 import { getColumnIcon, getColumnTitle } from './columnUtils';
 import { KanbanCard } from './KanbanCard';
+import classes from './KanbanColumn.module.css';
 
 export interface KanbanColumnProps {
   column: KanbanColumnConfig;
@@ -65,8 +65,6 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
   storeAllTags,
 }) => {
   const { t } = useTranslation();
-  const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
-  const isDark = computedColorScheme === 'dark';
 
   const colTitle = getColumnTitle(column, t);
 
@@ -75,39 +73,12 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
       onDragOver={(e) => onDragOver(e, column.id)}
       onDragLeave={(e) => onDragLeave(e, column.id)}
       onDrop={(e) => onDrop(e, column.id)}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        borderRadius: 10,
-        backgroundColor: isTargeted
-          ? isDark
-            ? 'rgba(59, 130, 246, 0.15)'
-            : 'rgba(59, 130, 246, 0.08)'
-          : isDark
-          ? 'var(--mantine-color-dark-7)'
-          : 'var(--mantine-color-gray-1)',
-        border: isTargeted
-          ? '2px dashed var(--mantine-primary-color-filled)'
-          : '1px solid var(--mantine-color-default-border)',
-        transition: 'all 0.18s ease',
-        flex: '1 1 260px',
-        minWidth: 240,
-        maxWidth: 420,
-        overflow: 'hidden',
-      }}
+      className={classes.column}
+      data-targeted={isTargeted || undefined}
+      style={{ '--column-color': `var(--mantine-color-${column.color || 'blue'}-filled)` } as React.CSSProperties}
     >
       {/* Column Header */}
-      <div
-        style={{
-          padding: '8px 12px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: '1px solid var(--mantine-color-default-border)',
-          backgroundColor: isDark ? 'var(--mantine-color-dark-6)' : 'var(--mantine-color-gray-0)',
-        }}
-      >
+      <div className={classes.header}>
         <Group gap={6} wrap="nowrap">
           <span style={{ color: `var(--mantine-color-${column.color || 'blue'}-filled)` }}>
             {getColumnIcon(column.iconName, 16)}
@@ -124,7 +95,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
           <ActionIcon
             variant="subtle"
             size="xs"
-            color="gray"
+            color={column.color || 'blue'}
             onClick={() => onQuickAdd(column.id)}
           >
             <IconPlus size={14} />

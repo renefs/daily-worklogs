@@ -21,6 +21,7 @@ import { MarkdownEditor } from '../editor/MarkdownEditor';
 import { MarkdownViewer } from '../viewer/MarkdownViewer';
 import { ExportModal } from '../modals/ExportModal';
 import { DailyRoutinesPanel } from '../routines/DailyRoutinesPanel';
+import classes from './DailyView.module.css';
 import { formatLocalizedDateTitle } from '../../utils/dateTemplate';
 
 export const DailyView: React.FC = () => {
@@ -89,9 +90,9 @@ export const DailyView: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 12 }}>
+    <div className={classes.view}>
       {/* Daily View Single-Row Sub-Header */}
-      <Group justify="space-between" align="center" wrap="nowrap">
+      <Group justify="space-between" align="center" wrap="nowrap" className={classes.toolbar}>
         <Group gap="xs" wrap="nowrap">
           <ActionIcon variant="default" size="sm" onClick={handlePrevDay} radius="md">
             <IconChevronLeft size={16} />

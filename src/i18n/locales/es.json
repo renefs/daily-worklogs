@@ -25,7 +25,12 @@
     "worklog": "Worklog",
     "collapseSidebar": "Contraer barra lateral",
     "expandSidebar": "Expandir barra lateral",
-    "reports": "Informes"
+    "reports": "Informes",
+    "mainNavigation": "Navegación principal",
+    "brand": "Worklog",
+    "openSettings": "Abrir configuración",
+    "notes": "Notas",
+    "chooseNoteDate": "Elegir fecha de la nota"
   },
   "tasks": {
     "title": "Tablero de Tareas",

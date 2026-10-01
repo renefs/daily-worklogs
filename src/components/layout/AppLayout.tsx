@@ -10,14 +10,14 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore, useAppStoreSelector } from '../../store/useAppStore';
 import { AppHeader } from './AppHeader';
 import { AppSidebar } from './AppSidebar';
+import { NavigationRail } from './NavigationRail';
+import { isReportView } from '../../utils/reportPeriod';
 import { flushTaskEditor } from '../../services/editorSession';
 import classes from './AppLayout.module.css';
 import clsx from 'clsx';
 
 const DailyView = React.lazy(() => import('../views/DailyView').then((module) => ({ default: module.DailyView })));
-const WeeklyView = React.lazy(() => import('../views/WeeklyView').then((module) => ({ default: module.WeeklyView })));
-const MonthlyView = React.lazy(() => import('../views/MonthlyView').then((module) => ({ default: module.MonthlyView })));
-const YearlyView = React.lazy(() => import('../views/YearlyView').then((module) => ({ default: module.YearlyView })));
+const ReportsView = React.lazy(() => import('../views/ReportsView').then((module) => ({ default: module.ReportsView })));
 const KanbanView = React.lazy(() => import('../views/KanbanView').then((module) => ({ default: module.KanbanView })));
 const TaskView = React.lazy(() => import('../views/TaskView').then((module) => ({ default: module.TaskView })));
 
@@ -145,12 +145,12 @@ export const AppLayout: React.FC = () => {
     );
   }
 
-  const sidebarWidth = isSidebarCollapsed ? 58 : 280;
+  const sidebarWidth = isSidebarCollapsed ? 56 : 316;
 
   return (
     <AppShell
       header={{ height: 48 }}
-      navbar={{ width: sidebarWidth, breakpoint: 'sm' }}
+      navbar={{ width: sidebarWidth, breakpoint: 'sm', collapsed: { mobile: true } }}
       padding="md"
       className={classes.shell}
     >
@@ -159,15 +159,16 @@ export const AppLayout: React.FC = () => {
       </AppShell.Header>
 
       <AppShell.Navbar className={clsx(classes.sidebarNavbar, 'app-sidebar-navbar')}>
-        <AppSidebar />
+        <div className={classes.sidebarLayout}>
+          <NavigationRail />
+          {!isSidebarCollapsed && <AppSidebar />}
+        </div>
       </AppShell.Navbar>
 
       <AppShell.Main className={clsx(classes.mainContent, 'app-main-content')}>
         <React.Suspense fallback={<Center h="100%"><Loader size="md" /></Center>}>
           {currentView === 'daily' && <DailyView />}
-          {currentView === 'weekly' && <WeeklyView />}
-          {currentView === 'monthly' && <MonthlyView />}
-          {currentView === 'yearly' && <YearlyView />}
+          {isReportView(currentView) && <ReportsView />}
           {currentView === 'tasks' && <KanbanView />}
           {currentView === 'task' && <TaskView />}
         </React.Suspense>

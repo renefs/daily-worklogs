@@ -1,0 +1,13 @@
+.panel {
+  width: rem(300px);
+  flex-shrink: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--app-card-bg);
+  border-color: var(--app-card-border);
+  border-radius: rem(18px);
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+}
+@media (max-width: 64em) { .panel { width: rem(250px); } }

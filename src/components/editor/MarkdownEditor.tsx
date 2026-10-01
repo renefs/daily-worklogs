@@ -361,12 +361,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       <Paper
         p="xs"
         withBorder
-        style={{
-          borderRadius: '8px 8px 0 0',
-          borderBottom: 'none',
-          backgroundColor: 'var(--app-subtle-bg)',
-          borderColor: 'var(--app-card-border)',
-        }}
+        className={classes.toolbar}
       >
         <Group justify="space-between" gap="xs" wrap="nowrap">
           <EditorToolbar
@@ -403,15 +398,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onPaste={handlePaste}
-        className={isDraggingOver ? clsx(classes.editorDropzoneActive, 'editor-dropzone-active') : undefined}
-        style={{
-          flex: 1,
-          overflow: 'hidden',
-          border: '1px solid var(--app-card-border)',
-          borderRadius: '0 0 8px 8px',
-          backgroundColor: 'var(--app-card-bg)',
-          fontSize: `${settings?.editorFontSize || 15}px`,
-        }}
+        className={clsx(classes.editorSurface, isDraggingOver && classes.editorDropzoneActive, isDraggingOver && 'editor-dropzone-active')}
+        style={{ fontSize: `${settings?.editorFontSize || 15}px` }}
       >
         <CodeMirror
           ref={editorRef}

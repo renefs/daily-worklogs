@@ -10,55 +10,55 @@
   --font-serif: 'Tiempos Headline', 'Charter', 'Bitstream Charter', 'Sitka Text', 'Cambria', 'Georgia', serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, Consolas, monospace;
 
-  /* Clean Neutral Palette (Light Mode) */
-  --app-sidebar-bg: #f8f9fa;
-  --app-sidebar-border: #e9ecef;
-  --app-sidebar-hover: #f1f3f5;
-  --app-sidebar-active: #e9ecef;
-  --app-sidebar-text: #212529;
-  --app-sidebar-text-dimmed: #6c757d;
+  /* Neutral workspace surfaces inspired by the reference interface. */
+  --app-sidebar-bg: #f9f9f9;
+  --app-sidebar-border: #e8e8e8;
+  --app-sidebar-hover: #ededed;
+  --app-sidebar-active: #eaeaea;
+  --app-sidebar-text: #202123;
+  --app-sidebar-text-dimmed: #707070;
 
   --app-main-bg: #ffffff;
-  --app-header-bg: #ffffff;
-  --app-header-border: #e9ecef;
+  --app-header-bg: #f3f3f3;
+  --app-header-border: #e8e8e8;
   --app-card-bg: #ffffff;
-  --app-card-border: #e9ecef;
-  --app-subtle-bg: #f8f9fa;
-  --app-subtle-border: #dee2e6;
+  --app-card-border: #e8e8e8;
+  --app-subtle-bg: #f5f5f5;
+  --app-subtle-border: #e3e3e3;
 
-  --app-text-primary: #212529;
-  --app-text-secondary: #6c757d;
+  --app-text-primary: #202123;
+  --app-text-secondary: #707070;
 
   /* Mantine Theme Surface Overrides (Light Mode) */
   --mantine-color-body: #ffffff;
-  --mantine-color-default-border: #e9ecef;
-  --mantine-color-default-hover: #f8f9fa;
+  --mantine-color-default-border: #e8e8e8;
+  --mantine-color-default-hover: #f5f5f5;
 }
 
 [data-mantine-color-scheme="dark"] {
-  /* Sleek Neutral Dark Palette (Dark Mode) */
-  --app-sidebar-bg: #121214;
-  --app-sidebar-border: #232328;
-  --app-sidebar-hover: #1b1b1f;
-  --app-sidebar-active: #232329;
-  --app-sidebar-text: #ededef;
-  --app-sidebar-text-dimmed: #8e8e98;
+  /* Layered charcoal surfaces for dark mode. */
+  --app-sidebar-bg: #171717;
+  --app-sidebar-border: #303030;
+  --app-sidebar-hover: #282828;
+  --app-sidebar-active: #303030;
+  --app-sidebar-text: #ececec;
+  --app-sidebar-text-dimmed: #9b9b9b;
 
-  --app-main-bg: #18181b;
-  --app-header-bg: #141416;
-  --app-header-border: #232328;
-  --app-card-bg: #1c1c1f;
-  --app-card-border: #28282e;
-  --app-subtle-bg: #202024;
-  --app-subtle-border: #2c2c33;
+  --app-main-bg: #212121;
+  --app-header-bg: #1b1b1b;
+  --app-header-border: #303030;
+  --app-card-bg: #252525;
+  --app-card-border: #383838;
+  --app-subtle-bg: #2c2c2c;
+  --app-subtle-border: #404040;
 
-  --app-text-primary: #ededef;
-  --app-text-secondary: #909099;
+  --app-text-primary: #ececec;
+  --app-text-secondary: #a0a0a0;
 
   /* Mantine Theme Surface Overrides (Dark Mode) */
-  --mantine-color-body: #18181b;
-  --mantine-color-default-border: #28282e;
-  --mantine-color-default-hover: #222227;
+  --mantine-color-body: #212121;
+  --mantine-color-default-border: #383838;
+  --mantine-color-default-hover: #303030;
 }
 
 body {
@@ -271,12 +271,12 @@ textarea {
   --cm-hl-name: #93c5fd;
   --cm-hl-function: #c084fc;
   --cm-hl-constant: #60a5fa;
-  --cm-hl-definition: #ededef;
+  --cm-hl-definition: #ececec;
   --cm-hl-type: #fb923c;
   --cm-hl-operator: #93c5fd;
   --cm-hl-comment: #71717a;
   --cm-hl-link: #60a5fa;
-  --cm-hl-heading: #ededef;
+  --cm-hl-heading: #ececec;
   --cm-hl-atom: #f472b6;
   --cm-hl-string: #4ade80;
   --cm-hl-invalid: #f87171;

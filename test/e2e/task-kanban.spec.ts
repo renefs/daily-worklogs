@@ -5,8 +5,8 @@ import fs from 'node:fs';
 test.describe('Task Management & Kanban Board', () => {
   test('creates a new task via modal and saves markdown file to disk', async ({ page, testVaultDir }) => {
     // Navigate to Tasks / Kanban view
-    await page.click('.header-tasks-button');
-    await expect(page.locator('.header-tasks-button')).toHaveAttribute('data-active', 'true');
+    await page.getByRole('button', { name: 'Tasks', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Tasks', exact: true })).toHaveAttribute('aria-current', 'page');
 
     // Click "New Task" button
     await page.click('button:has-text("New Task")');

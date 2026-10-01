@@ -14,6 +14,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 - Unified weekly, monthly, and yearly reporting in a spacious Reports workspace with shared date navigation, accessible period pickers, and dashboard drill-downs.
+- Added a persistent navigation rail and collapsible note-history sidebar across Daily, Reports, and Tasks; a compact calendar popover in Daily leaves more room for note history.
+- Refined light and dark themes with neutral surfaces, restrained accents, and rounded editor and routine panels inspired by the ChatGPT interface.
 - Moved report loading into Zustand with stale-response protection, retryable errors, and vault-driven refreshes.
 - Split React runtime modules into a shared renderer vendor chunk to keep the app entry below the chunk warning threshold.
 - Decoupled Markdown preview URL sanitization from CodeMirror utilities and split CodeMirror vendor modules into bounded renderer chunks.

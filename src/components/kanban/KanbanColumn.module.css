@@ -1,0 +1,27 @@
+
+.column {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  flex: 1 1 260px;
+  min-width: rem(240px);
+  max-width: rem(420px);
+  overflow: hidden;
+  border-radius: rem(12px);
+  border: 1px solid var(--app-card-border);
+  background: var(--app-subtle-bg);
+  transition: background 180ms ease, border-color 180ms ease;
+}
+.column[data-targeted] {
+  background: color-mix(in srgb, var(--column-color) 14%, var(--app-main-bg));
+  outline: 2px dashed var(--column-color);
+  outline-offset: -2px;
+}
+.header {
+  padding: rem(10px) rem(12px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--app-card-border);
+  background: var(--app-card-bg);
+}

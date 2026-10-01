@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import classes from './DailyRoutinesPanel.module.css';
 import {
   Paper,
   Stack,
@@ -113,15 +114,7 @@ export const DailyRoutinesPanel: React.FC = () => {
     <Paper
       withBorder
       radius="md"
-      style={{
-        width: 330,
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        backgroundColor: 'var(--app-subtle-bg)',
-        borderColor: 'var(--app-subtle-border)',
-        overflow: 'hidden',
-      }}
+      className={classes.panel}
     >
       {/* Header */}
       <Box

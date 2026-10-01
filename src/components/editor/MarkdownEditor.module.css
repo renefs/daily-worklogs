@@ -59,3 +59,21 @@
   }
 }
 
+
+.toolbar {
+  border-radius: rem(18px) rem(18px) 0 0;
+  border-bottom: none;
+  background: var(--app-card-bg);
+  border-color: var(--app-card-border);
+  padding: rem(12px);
+}
+.editorSurface {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--app-card-border);
+  border-top: none;
+  border-radius: 0 0 rem(18px) rem(18px);
+  background: var(--app-card-bg);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+}

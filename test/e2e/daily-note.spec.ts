@@ -6,7 +6,7 @@ import dayjs from 'dayjs';
 test.describe('Daily Note Editor & Persistence', () => {
   test('renders markdown editor and saves daily note to disk', async ({ page, testVaultDir }) => {
     // Ensure we are on Daily view
-    await page.click('.header-segmented-control label:has-text("Daily")');
+    await page.getByRole('button', { name: 'Daily', exact: true }).click();
 
     // Wait for the CodeMirror editor to mount
     const editor = page.locator('.cm-content');
@@ -35,6 +35,7 @@ test.describe('Daily Note Editor & Persistence', () => {
     const savedContent = fs.readFileSync(expectedFilePath, 'utf-8');
     expect(savedContent).toContain('Automated E2E verification entry');
     expect(savedContent).toContain('Follow-up task');
+    await page.screenshot({ path: '/private/tmp/worklog-daily-light.png' });
   });
 });
 
