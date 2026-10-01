@@ -80,7 +80,8 @@ daily-worklog/
 │   │   ├── modals/          # Settings, onboarding, task, routine, and export dialogs
 │   │   ├── settings/        # Areas, projects, and tag management
 │   │   ├── tasks/           # Shared task detail and property components
-│   │   └── views/           # Daily, period, yearly, Kanban, and task views
+│   │   ├── views/           # Daily, period, yearly, Kanban, and task views
+│   │   │   └── yearly/      # Yearly dashboard sections
 │   ├── i18n/                # Translation catalogs (en.json, es.json)
 │   ├── store/               # Zustand store composed from domain slices
 │   ├── styles/              # Mantine CSS imports & typography

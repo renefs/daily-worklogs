@@ -68,6 +68,8 @@ daily-worklog/
 │   │       ├── WeeklyView.tsx      # Continuous weekly aggregated report & KPI breakdown
 │   │       ├── MonthlyView.tsx     # Continuous monthly aggregated report & KPI breakdown
 │   │       ├── YearlyView.tsx      # Annual worklog and task analytics tracking view
+│   │       ├── yearly/              # Focused yearly dashboard sections
+│   │       │   └── YearlyDashboard.tsx
 │   │       ├── KanbanView.tsx      # Drag-and-drop task board with Area/Project tabs & progress bars
 │   │       ├── TaskView.tsx        # Dedicated fullscreen task editor & detail manager
 │   │       ├── PeriodDaysList.tsx  # Note summaries list for period aggregation views
