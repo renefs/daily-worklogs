@@ -308,3 +308,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Editor Tab Layout**: Redesigned editor tab bar with a compact layout preventing label wrapping on smaller screens.
 - **Date Localization**: Enhanced calendar and period view headers to format dates according to the active locale and user format.
 - **Build & Packaging**: Improved multi-platform build scripts, Electron preload bundling, and test verification suite.
+## [Unreleased]
+
+### Changed
+- Decomposed the monthly dashboard into focused summary, activity panel, and task list components.

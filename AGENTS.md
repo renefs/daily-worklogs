@@ -67,6 +67,10 @@ daily-worklog/
 │   │       ├── DailyView.tsx       # Daily worklog note editor, templates, and routines panel
 │   │       ├── WeeklyView.tsx      # Continuous weekly aggregated report & KPI breakdown
 │   │       ├── MonthlyView.tsx     # Continuous monthly aggregated report & KPI breakdown
+│   │       ├── monthly/            # Focused monthly dashboard sections
+│   │       │   ├── MonthlyDashboard.tsx
+│   │       │   ├── MonthlyActivityPanels.tsx
+│   │       │   └── MonthlyTaskLists.tsx
 │   │       ├── YearlyView.tsx      # Annual worklog and task analytics tracking view
 │   │       ├── yearly/              # Focused yearly dashboard sections
 │   │       │   └── YearlyDashboard.tsx
