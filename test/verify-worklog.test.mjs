@@ -1083,10 +1083,12 @@ assert.strictEqual(parsedB.data.id, 5, 'Next unassigned task should be assigned 
 console.log('✓ Automatic sequential task IDs (GitHub-style #1, #2...) parsing, auto-assignment, and persistence tests passed');
 
 // 19. Application Menu and Save Shortcut & Notification Verification
-const mainTsPath = path.resolve('electron/main.ts');
-const mainTsContent = fs.readFileSync(mainTsPath, 'utf-8');
+const menuSourcePath = fs.existsSync(path.resolve('electron/services/menuService.ts'))
+  ? path.resolve('electron/services/menuService.ts')
+  : path.resolve('electron/main.ts');
+const menuContent = fs.readFileSync(menuSourcePath, 'utf-8');
 assert.strictEqual(
-  mainTsContent.includes("label: 'Save'") && mainTsContent.includes("accelerator: 'CmdOrCtrl+S'"),
+  menuContent.includes("label: 'Save'") && menuContent.includes("accelerator: 'CmdOrCtrl+S'"),
   true,
   'Application File menu must include Save option with CmdOrCtrl+S accelerator'
 );

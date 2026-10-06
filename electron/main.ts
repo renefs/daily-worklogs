@@ -1,35 +1,58 @@
 import {
   app,
   BrowserWindow,
-  ipcMain,
   dialog,
-  shell,
-  protocol,
-  net,
-  Menu,
-  MenuItemConstructorOptions,
+  ipcMain,
   nativeTheme,
+  net,
+  protocol,
+  shell,
 } from 'electron';
-import path from 'node:path';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
-import os from 'node:os';
+import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import matter from 'gray-matter';
 import 'dayjs/locale/es';
 import 'dayjs/locale/en';
 import { formatTemplateContent } from '../src/utils/dateTemplate';
-import type { TaskItem, TaskMeta } from '../src/types';
+import type { TaskItem } from '../src/types';
 import { mapWithConcurrency } from './utils/async';
 import { resolvePathInside } from './utils/security';
-import { atomicWriteFile, atomicWriteFileSync } from './utils/atomicFile';
-import { ensureImagesDir, ensureTasksDir, ensureVaultDir, ensureYearDir, getNoteFilePath, getYearFromDate } from './services/vaultService';
-import { parseNumericTaskId, parseTaskCounts, readTaskFiles, type TaskFileRead } from './services/taskFileService';
+import { atomicWriteFile } from './utils/atomicFile';
+import {
+  ensureImagesDir,
+  ensureTasksDir,
+  ensureVaultDir,
+  ensureYearDir,
+  getNoteFilePath,
+  getYearFromDate,
+} from './services/vaultService';
+import {
+  parseNumericTaskId,
+  readTaskFiles,
+  buildTaskFromFile,
+  type TaskFileRead,
+} from './services/taskFileService';
+import {
+  DEFAULT_AREAS,
+  DEFAULT_TEMPLATES,
+  getColumnBehavior,
+  getSettings,
+  getVaultConfigPath,
+  invalidateSettingsCache,
+  saveSettings,
+  VAULT_CONFIG_DIR,
+  writeVaultConfig,
+} from './services/settingsService';
+import { setupApplicationMenu } from './services/menuService';
 import { registerTaskHandlers } from './ipc/taskHandlers';
 import { registerNoteHandlers } from './ipc/noteHandlers';
 import { registerImageHandlers } from './ipc/imageHandlers';
 import { registerOrganizationHandlers } from './ipc/organizationHandlers';
-import { summarizeDailyNotesInRange } from './services/dailyNoteRangeService';
+import { registerReportHandlers } from './ipc/reportHandlers';
+import { registerSettingsHandlers } from './ipc/settingsHandlers';
+import { registerSystemHandlers } from './ipc/systemHandlers';
 
 // Register custom protocol scheme before app ready
 protocol.registerSchemesAsPrivileged([
@@ -48,11 +71,21 @@ protocol.registerSchemesAsPrivileged([
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Path constants
 let mainWindow: BrowserWindow | null = null;
 let vaultWatcher: fs.FSWatcher | null = null;
 const internalWrites = new Map<string, { deadline: number; expectedContent: Buffer }>();
 let allowWindowClose = false;
+
+const FILE_READ_CONCURRENCY = 16;
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
 
 async function writeInternalFile(filePath: string, content: string | NodeJS.ArrayBufferView): Promise<void> {
   const resolved = path.resolve(filePath);
@@ -75,39 +108,47 @@ function setupVaultWatcher(vaultPath: string): void {
   const pending = new Map<string, NodeJS.Timeout>();
   try {
     vaultWatcher = fs.watch(vaultPath, { recursive: true }, (_eventType, rawFilename) => {
-    if (!rawFilename || !mainWindow || mainWindow.isDestroyed()) return;
-    const relativePath = rawFilename.toString().replaceAll('\\', '/');
-    const pathParts = relativePath.split('/');
-    if (pathParts.some((part, index) => part.startsWith('.') && !(index === 0 && part === VAULT_CONFIG_DIR))) return;
-    const absolutePath = path.resolve(vaultPath, relativePath);
-    const existingTimer = pending.get(relativePath);
-    if (existingTimer) clearTimeout(existingTimer);
-    pending.set(relativePath, setTimeout(async () => {
-      pending.delete(relativePath);
-      const internalWrite = internalWrites.get(absolutePath);
-      if (internalWrite) {
-        if (internalWrite.deadline >= Date.now() && fs.existsSync(absolutePath)) {
-          try {
-            const actualContent = await fsp.readFile(absolutePath);
-            if (actualContent.equals(internalWrite.expectedContent)) return;
-          } catch {
-            // Reconcile through the normal external-change path below.
+      if (!rawFilename || !mainWindow || mainWindow.isDestroyed()) return;
+      const relativePath = rawFilename.toString().replaceAll('\\', '/');
+      const pathParts = relativePath.split('/');
+      if (pathParts.some((part, index) => part.startsWith('.') && !(index === 0 && part === VAULT_CONFIG_DIR))) return;
+      const absolutePath = path.resolve(vaultPath, relativePath);
+      const existingTimer = pending.get(relativePath);
+      if (existingTimer) clearTimeout(existingTimer);
+      pending.set(
+        relativePath,
+        setTimeout(async () => {
+          pending.delete(relativePath);
+          const internalWrite = internalWrites.get(absolutePath);
+          if (internalWrite) {
+            if (internalWrite.deadline >= Date.now() && fs.existsSync(absolutePath)) {
+              try {
+                const actualContent = await fsp.readFile(absolutePath);
+                if (actualContent.equals(internalWrite.expectedContent)) return;
+              } catch {
+                // Reconcile through the normal external-change path below.
+              }
+            }
+            internalWrites.delete(absolutePath);
           }
-        }
-        internalWrites.delete(absolutePath);
-      }
-      if (relativePath.startsWith(`${VAULT_CONFIG_DIR}/`)) invalidateSettingsCache();
-      const noteMatch = /(?:^|\/)(\d{4}-\d{2}-\d{2})\.md$/.exec(relativePath);
-      if (noteMatch) {
-        const date = noteMatch[1];
-        const note = getNoteFilePath(vaultPath, date);
-        const payload = note.exists
-          ? { date, content: await fsp.readFile(note.filepath, 'utf-8'), lastModified: (await fsp.stat(note.filepath)).mtime.toISOString(), exists: true }
-          : { date, content: '', exists: false };
-        mainWindow?.webContents.send('note-file-changed', payload);
-      }
-      mainWindow?.webContents.send('vault-files-changed', { relativePath });
-    }, 200));
+          if (relativePath.startsWith(`${VAULT_CONFIG_DIR}/`)) invalidateSettingsCache();
+          const noteMatch = /(?:^|\/)(\d{4}-\d{2}-\d{2})\.md$/.exec(relativePath);
+          if (noteMatch) {
+            const date = noteMatch[1];
+            const note = getNoteFilePath(vaultPath, date);
+            const payload = note.exists
+              ? {
+                  date,
+                  content: await fsp.readFile(note.filepath, 'utf-8'),
+                  lastModified: (await fsp.stat(note.filepath)).mtime.toISOString(),
+                  exists: true,
+                }
+              : { date, content: '', exists: false };
+            mainWindow?.webContents.send('note-file-changed', payload);
+          }
+          mainWindow?.webContents.send('vault-files-changed', { relativePath });
+        }, 200)
+      );
     });
     vaultWatcher.on('error', (error) => console.error('Vault watcher error:', error));
   } catch (error) {
@@ -116,444 +157,21 @@ function setupVaultWatcher(vaultPath: string): void {
   }
 }
 
-// Settings file path
-const settingsPath = path.join(app.getPath('userData'), 'settings.json');
-
-// Default templates
-const DEFAULT_TEMPLATES = [
-  {
-    id: 'standard-worklog',
-    name: 'Standard Daily Worklog',
-    description: 'Structured template with Goals, Completed Tasks, In Progress, and Blockers',
-    content: `# {{date}} - Daily Worklog
-
-## 🎯 Today's Goals & Priorities
-- [ ] 
-
-## ✅ Accomplishments & Completed Tasks
-- [ ] 
-
-## ⏳ In Progress
-- [ ] 
-
-## 🚧 Blockers & Notes
-- None
-
-## 📝 General Meeting & Discussion Notes
-- 
-`,
-  },
-  {
-    id: 'simple-tasks',
-    name: 'Simple Checklist',
-    description: 'Quick task list with notes',
-    content: `# {{date}}
-
-## Tasks
-- [ ] 
-
-## Notes
-`,
-  },
-  {
-    id: 'standup',
-    name: 'Daily Standup (Yesterday, Today, Blockers)',
-    description: 'Agile daily standup format',
-    content: `# Standup - {{date}}
-
-### 1. What did I achieve yesterday?
-- 
-
-### 2. What will I work on today?
-- [ ] 
-
-### 3. Are there any impediments or blockers?
-- None
-`,
-  },
-  {
-    id: 'blank',
-    name: 'Blank Note',
-    description: 'Completely blank note with date header',
-    content: `# {{date}}
-
-`,
-  },
-];
-
-// Default Kanban Columns
-const DEFAULT_KANBAN_COLUMNS = [
-  {
-    id: 'backlog',
-    title: 'Backlog',
-    titleKey: 'tasks.columnBacklog',
-    color: 'gray',
-    iconName: 'inbox',
-    visible: true,
-    behavior: 'backlog',
-  },
-  {
-    id: 'todo',
-    title: 'To do',
-    titleKey: 'tasks.columnTodo',
-    color: 'blue',
-    iconName: 'circle-dot',
-    visible: true,
-    behavior: 'todo',
-  },
-  {
-    id: 'in_progress',
-    title: 'In progress',
-    titleKey: 'tasks.columnInProgress',
-    color: 'indigo',
-    iconName: 'player-play',
-    visible: true,
-    behavior: 'in_progress',
-  },
-  {
-    id: 'waiting',
-    title: 'Waiting',
-    titleKey: 'tasks.columnWaiting',
-    color: 'yellow',
-    iconName: 'hourglass',
-    visible: true,
-    behavior: 'waiting',
-  },
-  {
-    id: 'done',
-    title: 'Done',
-    titleKey: 'tasks.columnDone',
-    color: 'teal',
-    iconName: 'circle-check',
-    visible: true,
-    behavior: 'done',
-  },
-];
-
-// Default Routines
-const DEFAULT_ROUTINES = [
-  {
-    id: 'routine-email',
-    title: 'Check Email & Messages',
-    description: 'Review inbox and team chat channels',
-    url: '',
-    schedule: 'weekdays' as const,
-    enabled: true,
-  },
-  {
-    id: 'routine-calendar',
-    title: 'Check Calendar & Schedule',
-    description: 'Review meetings and agenda for today',
-    url: '',
-    schedule: 'weekdays' as const,
-    enabled: true,
-  },
-  {
-    id: 'routine-monitoring',
-    title: 'Check System Status & Monitoring',
-    description: 'Verify server health, alerts and dashboards',
-    url: 'https://uptimerobot.com',
-    schedule: 'everyday' as const,
-    enabled: true,
-  },
-];
-
-// Default Areas (Permanent Containers - Things 3 / OmniFocus model)
-const DEFAULT_AREAS = [
-  {
-    id: 'webcast',
-    name: 'Webcast',
-    color: 'indigo',
-    icon: 'broadcast',
-    description: 'Streaming, live events, recording & encoding services',
-    defaultTags: ['webcast'],
-  },
-  {
-    id: 'vc',
-    name: 'VC',
-    color: 'teal',
-    icon: 'video',
-    description: 'Videoconference rooms, endpoints & unified communications',
-    defaultTags: ['vc'],
-  },
-  {
-    id: 'asr',
-    name: 'ASR',
-    color: 'violet',
-    icon: 'microphone',
-    description: 'Automatic speech recognition, audio processing & transcription',
-    defaultTags: ['asr'],
-  },
-  {
-    id: 'infra',
-    name: 'Infrastructure',
-    color: 'blue',
-    icon: 'server',
-    description: 'Core servers, networks, cloud services & deployments',
-    defaultTags: ['infra'],
-  },
-  {
-    id: 'general',
-    name: 'General',
-    color: 'gray',
-    icon: 'folder',
-    description: 'General administrative & miscellaneous tasks',
-    defaultTags: [],
-  },
-];
-
-// Default Projects (Concrete efforts with deadlines and progress within Areas)
-const DEFAULT_PROJECTS = [
-  {
-    id: 'proj-wowza',
-    name: 'Migración Wowza',
-    areaName: 'Webcast',
-    description: 'Migración de arquitectura de streaming a nueva versión de Wowza',
-    color: 'indigo',
-    status: 'active' as const,
-  },
-  {
-    id: 'proj-sala1',
-    name: 'Renovación Sala 1',
-    areaName: 'VC',
-    description: 'Renovación de hardware y cableado de videoconferencia en Sala 1',
-    color: 'teal',
-    status: 'active' as const,
-  },
-];
-
-// Default Settings
-const defaultVaultPath = path.join(os.homedir(), 'Documents', 'DailyWorklog');
-const DEFAULT_SETTINGS = {
-  vaultPath: defaultVaultPath,
-  language: 'en' as const,
-  themeColor: 'indigo',
-  colorScheme: 'auto' as const,
-  weekStartDay: 1 as const, // 1 = Monday
-  defaultTemplateId: 'standard-worklog',
-  templates: DEFAULT_TEMPLATES,
-  kanbanColumns: DEFAULT_KANBAN_COLUMNS,
-  autoSave: true,
-  autoSaveDelay: 1000,
-  dateFormat: 'YYYY-MM-DD',
-  editorFontSize: 15,
-  hideCompletedOlderThan30Days: false,
-  routines: DEFAULT_ROUTINES,
-  routineCompletions: {} as Record<string, string[]>,
-  showDailyRoutinesPanel: true,
-  hasCompletedOnboarding: false,
-  areas: DEFAULT_AREAS,
-  projects: DEFAULT_PROJECTS,
-};
-
-function getColumnBehavior(status: string): string {
-  const settings = getSettings();
-  const cols = settings.kanbanColumns || DEFAULT_KANBAN_COLUMNS;
-  const match = cols.find((c: any) => c.id === status);
-  if (match) return match.behavior;
-  if (status === 'done' || status === 'completed') return 'done';
-  if (status === 'cancelled') return 'cancelled';
-  if (status === 'in_progress') return 'in_progress';
-  if (status === 'waiting') return 'waiting';
-  if (status === 'backlog') return 'backlog';
-  return 'todo';
-}
-
-function getSystemLanguage(): 'en' | 'es' {
-  try {
-    const locale = (app.getLocale() || '').toLowerCase();
-    const primary = locale.split(/[-_]/)[0];
-    if (primary === 'es') return 'es';
-    if (primary === 'en') return 'en';
-  } catch (err) {
-    // fallback
-  }
-  return 'en';
-}
-
-const VAULT_CONFIG_DIR = '.daily-worklogs';
-const VAULT_CONFIG_FILE = 'config.json';
-const ROUTINE_COMPLETIONS_DIR = 'routine-completions';
-
-function getVaultConfigPath(vaultPath: string): string {
-  return path.join(vaultPath, VAULT_CONFIG_DIR, VAULT_CONFIG_FILE);
-}
-
-function readVaultConfig(vaultPath: string): any | null {
-  try {
-    if (!vaultPath || !fs.existsSync(vaultPath)) return null;
-    const cfgPath = getVaultConfigPath(vaultPath);
-    if (fs.existsSync(cfgPath)) {
-      const data = fs.readFileSync(cfgPath, 'utf-8');
-      return JSON.parse(data);
-    }
-  } catch (err) {
-    console.error('Error reading vault config:', err);
-  }
-  return null;
-}
-
-function writeVaultConfig(vaultPath: string, config: any): void {
-  try {
-    if (!vaultPath) return;
-    const configDir = path.join(vaultPath, VAULT_CONFIG_DIR);
-    if (!fs.existsSync(configDir)) {
-      fs.mkdirSync(configDir, { recursive: true });
-    }
-    const cfgPath = path.join(configDir, VAULT_CONFIG_FILE);
-    // Exclude machine-specific vaultPath from portable vault config
-    const { vaultPath: _ignored, routineCompletions: _legacyCompletions, ...portableConfig } = config;
-    const payload = {
-      version: 1,
-      updatedAt: new Date().toISOString(),
-      ...portableConfig,
-    };
-    atomicWriteFileSync(cfgPath, JSON.stringify(payload, null, 2));
-    invalidateSettingsCache();
-  } catch (err) {
-    console.error('Error writing vault config:', err);
+function showAbout(): void {
+  if (process.platform === 'darwin') {
+    app.showAboutPanel();
+  } else {
+    dialog.showMessageBox(mainWindow || (undefined as any), {
+      type: 'info',
+      title: 'About Daily Worklog',
+      message: 'Daily Worklog',
+      detail: `Version: ${app.getVersion() || '1.14.0'}\nElectron: ${process.versions.electron}\nChromium: ${process.versions.chrome}\nNode.js: ${process.versions.node}\nOS: ${process.platform} (${process.arch})\n\nCross-platform Daily Worklog Desktop Application`,
+      buttons: ['OK'],
+    });
   }
 }
 
-function getDefaultSettings() {
-  return {
-    ...DEFAULT_SETTINGS,
-    language: getSystemLanguage(),
-  };
-}
-
-// getSettings() is called from nearly every handler and helper - getColumnBehavior()
-// calls it once per task - and each call used to synchronously read the portable config
-// from inside the vault. On a cloud-synced vault that turned one report into dozens of
-// blocking reads. The resolved settings are memoized for a short window instead, and any
-// write invalidates the cache immediately, so cross-machine config changes are still
-// picked up on the next poll without stalling the main process.
-const SETTINGS_CACHE_TTL_MS = 500;
-let settingsCache: { value: any; readAt: number } | null = null;
-
-function invalidateSettingsCache(): void {
-  settingsCache = null;
-}
-
-function getSettings() {
-  if (settingsCache && Date.now() - settingsCache.readAt < SETTINGS_CACHE_TTL_MS) {
-    return settingsCache.value;
-  }
-  const resolved = readSettingsFromDisk();
-  settingsCache = { value: resolved, readAt: Date.now() };
-  return resolved;
-}
-
-function readSettingsFromDisk() {
-  let localSettings: any = getDefaultSettings();
-  try {
-    if (fs.existsSync(settingsPath)) {
-      const data = fs.readFileSync(settingsPath, 'utf-8');
-      localSettings = { ...getDefaultSettings(), ...JSON.parse(data) };
-    }
-  } catch (err) {
-    console.error('Error reading local settings:', err);
-  }
-
-  // If vault exists and contains .daily-worklogs/config.json, merge portable workspace settings
-  if (localSettings.vaultPath && fs.existsSync(localSettings.vaultPath)) {
-    const vaultConfig = readVaultConfig(localSettings.vaultPath);
-    if (vaultConfig) {
-      const { version: _v, updatedAt: _u, ...restVaultConfig } = vaultConfig;
-      localSettings = {
-        ...localSettings,
-        ...restVaultConfig,
-        vaultPath: localSettings.vaultPath, // Preserve local machine vaultPath
-      };
-    }
-  }
-
-  if (!Array.isArray(localSettings.areas) || localSettings.areas.length === 0) {
-    localSettings.areas = DEFAULT_AREAS;
-  }
-  if (!Array.isArray(localSettings.projects)) {
-    localSettings.projects = DEFAULT_PROJECTS;
-  }
-
-  return localSettings;
-}
-
-function saveSettings(newSettings: any) {
-  try {
-    const current = getSettings();
-    const merged = { ...current, ...newSettings };
-    const { routineCompletions: _legacyCompletions, ...settingsWithoutCompletions } = merged;
-    fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
-    atomicWriteFileSync(settingsPath, JSON.stringify(settingsWithoutCompletions, null, 2));
-    invalidateSettingsCache();
-
-    // Sync portable settings to vault folder if vaultPath exists
-    if (merged.vaultPath && fs.existsSync(merged.vaultPath)) {
-      writeVaultConfig(merged.vaultPath, settingsWithoutCompletions);
-    }
-
-    if (merged.colorScheme) {
-      nativeTheme.themeSource = merged.colorScheme === 'auto' ? 'system' : merged.colorScheme;
-    }
-    return settingsWithoutCompletions;
-  } catch (err) {
-    console.error('Error saving settings:', err);
-    return getSettings();
-  }
-}
-
-function getRoutineCompletionsPath(vaultPath: string, year: string): string {
-  return path.join(vaultPath, VAULT_CONFIG_DIR, ROUTINE_COMPLETIONS_DIR, `${year}.json`);
-}
-
-function readRoutineCompletionsForYear(vaultPath: string, year: string): Record<string, string[]> {
-  try {
-    const filePath = getRoutineCompletionsPath(vaultPath, year);
-    if (fs.existsSync(filePath)) {
-      const parsed = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-      return parsed.completions && typeof parsed.completions === 'object' ? parsed.completions : {};
-    }
-  } catch (err) {
-    console.error('Error reading routine completions:', err);
-  }
-
-  const legacy = getSettings().routineCompletions || {};
-  return Object.fromEntries(
-    Object.entries(legacy).filter(([date]) => date.startsWith(`${year}-`))
-  ) as Record<string, string[]>;
-}
-
-function writeRoutineCompletionsForYear(
-  vaultPath: string,
-  year: string,
-  completions: Record<string, string[]>
-): void {
-  const filePath = getRoutineCompletionsPath(vaultPath, year);
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  atomicWriteFileSync(
-    filePath,
-    JSON.stringify({ version: 1, year, completions }, null, 2)
-  );
-}
-
-// Whole-directory scans (a year of daily notes, every document in vault/tasks) touch
-// hundreds of files. Doing that with synchronous fs calls blocks the Electron main
-// process, which freezes the whole app - painfully so on cloud-synced vaults (iCloud
-// Drive, Dropbox) where a single read can stall for hundreds of milliseconds while the
-// file is materialized. These helpers keep fan-out scans on async I/O so the event loop
-// stays free to serve IPC and paint.
-const FILE_READ_CONCURRENCY = 16;
-
-function slugify(text: string) {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, '')
-    .replace(/[\s_-]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
-function createWindow() {
+function createWindow(): void {
   allowWindowClose = false;
   const settings = getSettings();
   ensureVaultDir(settings.vaultPath);
@@ -567,7 +185,6 @@ function createWindow() {
   }
 
   const preloadPath = path.join(__dirname, 'preload.cjs');
-
   const iconPath = fs.existsSync(path.join(__dirname, '../resources/icon.png'))
     ? path.join(__dirname, '../resources/icon.png')
     : path.join(__dirname, '../public/icon.png');
@@ -577,6 +194,8 @@ function createWindow() {
     height: 840,
     minWidth: 900,
     minHeight: 600,
+    show: false,
+    backgroundColor: settings.colorScheme === 'dark' ? '#1a1b1e' : '#ffffff',
     title: 'Daily Worklog',
     icon: iconPath,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
@@ -589,6 +208,10 @@ function createWindow() {
     },
   });
 
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.show();
+  });
+
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (/^(?:https?:|mailto:)/i.test(url)) void shell.openExternal(url);
     return { action: 'deny' };
@@ -599,15 +222,14 @@ function createWindow() {
 
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
-    // mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
   mainWindow.on('close', (event) => {
-    if (process.env.NODE_ENV === 'test' || allowWindowClose || !mainWindow || mainWindow.webContents.isDestroyed()) return;
+    if (allowWindowClose) return;
     event.preventDefault();
-    mainWindow.webContents.send('request-editor-flush-before-close');
+    mainWindow?.webContents.send('request-editor-flush-before-close');
   });
 
   mainWindow.on('closed', () => {
@@ -616,8 +238,7 @@ function createWindow() {
 }
 
 ipcMain.on('editor-flush-before-close-complete', async (_event, succeeded: boolean) => {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-  if (!succeeded) {
+  if (!succeeded && mainWindow) {
     const isSpanish = getSettings().language === 'es';
     const result = await dialog.showMessageBox(mainWindow, {
       type: 'warning',
@@ -636,158 +257,122 @@ ipcMain.on('editor-flush-before-close-complete', async (_event, succeeded: boole
     if (result.response !== 1 || !mainWindow || mainWindow.isDestroyed()) return;
   }
   allowWindowClose = true;
-  mainWindow.close();
+  mainWindow?.close();
 });
 
-function showAbout() {
-  if (process.platform === 'darwin') {
-    app.showAboutPanel();
-  } else {
-    dialog.showMessageBox(mainWindow || (undefined as any), {
-      type: 'info',
-      title: 'About Daily Worklog',
-      message: 'Daily Worklog',
-      detail: `Version: ${app.getVersion() || '1.14.0'}\nElectron: ${process.versions.electron}\nChromium: ${process.versions.chrome}\nNode.js: ${process.versions.node}\nOS: ${os.type()} ${os.release()} (${os.arch()})\n\nCross-platform Daily Worklog Desktop Application`,
-      buttons: ['OK'],
-    });
+// Task helper methods
+async function loadAllTasks(tasksDir: string) {
+  const reads = await readTaskFiles(tasksDir, FILE_READ_CONCURRENCY);
+  return reads.map((read) => buildTaskFromFile(read.filepath, read.filename, read.raw, read.stat));
+}
+
+async function updateTaskFrontmatter(
+  tasksDir: string,
+  mapper: (data: Record<string, unknown>, read: TaskFileRead) => Record<string, unknown> | null
+): Promise<number> {
+  const reads = await readTaskFiles(tasksDir, FILE_READ_CONCURRENCY);
+  const pending: Array<{ filepath: string; filename: string; content: string }> = [];
+
+  for (const read of reads) {
+    try {
+      const parsed = matter(read.raw);
+      const data = parsed.data || {};
+      const updatedData = mapper(data, read);
+      if (updatedData) {
+        pending.push({
+          filepath: read.filepath,
+          filename: read.filename,
+          content: matter.stringify(parsed.content, updatedData),
+        });
+      }
+    } catch (fileErr) {
+      console.warn(`Error updating task file ${read.filename}:`, fileErr);
+    }
+  }
+
+  const written = await mapWithConcurrency(pending, FILE_READ_CONCURRENCY, async (item) => {
+    try {
+      await fsp.writeFile(item.filepath, item.content, 'utf-8');
+      return true;
+    } catch (fileErr) {
+      console.warn(`Error writing task file ${item.filename}:`, fileErr);
+      return false;
+    }
+  });
+
+  return written.filter(Boolean).length;
+}
+
+async function getMaxTaskId(tasksDir: string): Promise<number> {
+  try {
+    const reads = await readTaskFiles(tasksDir, FILE_READ_CONCURRENCY);
+    let maxId = 0;
+    for (const read of reads) {
+      try {
+        const taskId = parseNumericTaskId(matter(read.raw).data);
+        if (taskId && taskId > maxId) {
+          maxId = taskId;
+        }
+      } catch {}
+    }
+    return maxId;
+  } catch (err) {
+    console.error('Error getting max task id:', err);
+    return 0;
   }
 }
 
-function setupApplicationMenu() {
-  const isMac = process.platform === 'darwin';
+async function ensureTasksHaveIds(tasksDir: string): Promise<void> {
+  try {
+    const reads = await readTaskFiles(tasksDir, FILE_READ_CONCURRENCY);
+    const unassignedFiles: Array<{ read: TaskFileRead; createdTime: number }> = [];
+    let maxId = 0;
 
-  const template: MenuItemConstructorOptions[] = [
-    ...(isMac
-      ? [
-        {
-          label: 'Daily Worklog',
-          submenu: [
-            {
-              label: 'About Daily Worklog',
-              click: () => showAbout(),
-            },
-            { type: 'separator' as const },
-            {
-              label: 'Preferences...',
-              accelerator: 'CmdOrCtrl+,',
-              click: () => {
-                if (mainWindow) {
-                  mainWindow.webContents.send('open-settings');
-                }
-              },
-            },
-            { type: 'separator' as const },
-            { role: 'services' as const },
-            { type: 'separator' as const },
-            { role: 'hide' as const },
-            { role: 'hideOthers' as const },
-            { role: 'unhide' as const },
-            { type: 'separator' as const },
-            { role: 'quit' as const },
-          ],
-        },
-      ]
-      : []),
-    {
-      label: 'File',
-      submenu: [
-        {
-          label: 'Save',
-          accelerator: 'CmdOrCtrl+S',
-          click: () => {
-            if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send('trigger-save');
-            }
-          },
-        },
-        { type: 'separator' as const },
-        {
-          label: 'Preferences...',
-          accelerator: 'CmdOrCtrl+,',
-          click: () => {
-            if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send('open-settings');
-            }
-          },
-        },
-        {
-          label: 'Open Vault in File Manager',
-          click: () => {
-            const { vaultPath } = getSettings();
-            if (vaultPath && fs.existsSync(vaultPath)) {
-              shell.openPath(vaultPath);
-            }
-          },
-        },
-        { type: 'separator' as const },
-        isMac ? { role: 'close' as const } : { role: 'quit' as const },
-      ],
-    },
-    {
-      label: 'Edit',
-      submenu: [
-        { role: 'undo' as const },
-        { role: 'redo' as const },
-        { type: 'separator' as const },
-        { role: 'cut' as const },
-        { role: 'copy' as const },
-        { role: 'paste' as const },
-        { role: 'selectAll' as const },
-      ],
-    },
-    {
-      label: 'View',
-      submenu: [
-        { role: 'reload' as const },
-        { role: 'forceReload' as const },
-        { role: 'toggleDevTools' as const },
-        { type: 'separator' as const },
-        { role: 'resetZoom' as const },
-        { role: 'zoomIn' as const },
-        { role: 'zoomOut' as const },
-        { type: 'separator' as const },
-        { role: 'togglefullscreen' as const },
-      ],
-    },
-    {
-      label: 'Window',
-      submenu: [
-        { role: 'minimize' as const },
-        { role: 'zoom' as const },
-        ...(isMac
-          ? [
-            { type: 'separator' as const },
-            { role: 'front' as const },
-            { type: 'separator' as const },
-            { role: 'window' as const },
-          ]
-          : [{ role: 'close' as const }]),
-      ],
-    },
-    {
-      role: 'help',
-      submenu: [
-        {
-          label: 'Daily Worklog GitHub',
-          click: async () => {
-            await shell.openExternal('https://github.com/renefs/daily-worklogs');
-          },
-        },
-        ...(!isMac
-          ? [
-            { type: 'separator' as const },
-            {
-              label: 'About Daily Worklog',
-              click: () => showAbout(),
-            },
-          ]
-          : []),
-      ],
-    },
-  ];
+    for (const read of reads) {
+      try {
+        const parsed = matter(read.raw);
+        const taskId = parseNumericTaskId(parsed.data);
+        if (taskId) {
+          if (taskId > maxId) maxId = taskId;
+        } else {
+          const createdTime = parsed.data?.created
+            ? new Date(parsed.data.created).getTime()
+            : read.stat.birthtimeMs || read.stat.mtimeMs;
+          unassignedFiles.push({ read, createdTime });
+        }
+      } catch {}
+    }
 
-  const menu = Menu.buildFromTemplate(template);
-  Menu.setApplicationMenu(menu);
+    if (unassignedFiles.length === 0) return;
+
+    unassignedFiles.sort(
+      (a, b) => a.createdTime - b.createdTime || a.read.filename.localeCompare(b.read.filename)
+    );
+    const assignments = unassignedFiles.map((item) => {
+      maxId++;
+      return { read: item.read, id: maxId };
+    });
+
+    await mapWithConcurrency(assignments, FILE_READ_CONCURRENCY, async ({ read, id }) => {
+      try {
+        const parsed = matter(read.raw);
+        const updatedContent = matter.stringify(parsed.content, { ...parsed.data, id });
+        await fsp.writeFile(read.filepath, updatedContent, 'utf-8');
+      } catch (e) {
+        console.warn('Could not auto-assign ID to task file:', read.filename, e);
+      }
+    });
+  } catch (err) {
+    console.error('Error ensuring task IDs:', err);
+  }
+}
+
+async function parseTaskFile(filepath: string, filename: string): Promise<TaskItem> {
+  const [rawContent, stat] = await Promise.all([
+    fsp.readFile(filepath, 'utf-8'),
+    fsp.stat(filepath),
+  ]);
+  return buildTaskFromFile(filepath, filename, rawContent, stat);
 }
 
 // App lifecycle
@@ -807,7 +392,111 @@ app.whenReady().then(() => {
     credits: 'Cross-platform desktop application to store, edit, and visualize daily worklogs using Markdown.',
   });
 
-  setupApplicationMenu();
+  setupApplicationMenu({
+    getMainWindow: () => mainWindow,
+    showAbout,
+    getSettings,
+  });
+
+  // Register domain IPC handlers
+  registerSettingsHandlers({
+    getMainWindow: () => mainWindow,
+    setupVaultWatcher,
+  });
+
+  registerSystemHandlers({
+    getMainWindow: () => mainWindow,
+    getSettings,
+    showAbout,
+  });
+
+  registerNoteHandlers({
+    getSettings,
+    defaultTemplates: DEFAULT_TEMPLATES,
+    ensureVaultDir,
+    ensureYearDir,
+    getNoteFilePath,
+    getYearFromDate,
+    writeInternalFile,
+    fileReadConcurrency: FILE_READ_CONCURRENCY,
+  });
+
+  registerReportHandlers({
+    getSettings,
+    fileReadConcurrency: FILE_READ_CONCURRENCY,
+  });
+
+  registerTaskHandlers({
+    getVaultPath: () => getSettings().vaultPath,
+    ensureTasksHaveIds,
+    getMaxTaskId,
+    getColumnBehavior: (status) => getColumnBehavior(status, getSettings()),
+    slugify,
+    writeInternalFile,
+    parseTaskFile,
+    buildTaskMetadata: (read) => buildTaskFromFile(read.filepath, read.filename, read.raw, read.stat, false),
+  });
+
+  // Log task to daily note handler
+  ipcMain.handle('log-task-to-daily-note', async (_event, { date, taskTitle, status, priority, filename, taskId }) => {
+    const { vaultPath } = getSettings();
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    const year = getYearFromDate(targetDate);
+    const yearDir = ensureYearDir(vaultPath, year);
+    const filepath = path.join(yearDir, `${targetDate}.md`);
+
+    let content = '';
+    if (fs.existsSync(filepath)) {
+      content = fs.readFileSync(filepath, 'utf-8');
+    } else {
+      const settings = getSettings();
+      const template =
+        settings.templates.find((t: any) => t.id === settings.defaultTemplateId) ||
+        settings.templates[0] ||
+        DEFAULT_TEMPLATES[0];
+      content = formatTemplateContent(template.content, targetDate, settings.dateFormat, settings.language);
+    }
+
+    const behavior = getColumnBehavior(status, getSettings());
+    const isDone = behavior === 'done' || behavior === 'cancelled';
+    const checkbox = isDone ? '- [x]' : '- [ ]';
+    const statusBadge = behavior === 'cancelled' ? ' [Cancelled]' : '';
+    const priorityStr = priority ? ` [${priority}]` : '';
+    const idBadge = taskId ? ` (#${taskId})` : (filename ? ` (\`${filename}\`)` : '');
+    const logLine = `${checkbox} Worked on **${taskTitle}**${idBadge}${statusBadge}${priorityStr}`;
+
+    if (!content.includes(taskTitle)) {
+      if (isDone && content.includes('## ✅ Accomplishments')) {
+        content = content.replace(/(## ✅ Accomplishments[^\n]*\n)/, `$1${logLine}\n`);
+      } else if (!isDone && content.includes('## ⏳ In Progress')) {
+        content = content.replace(/(## ⏳ In Progress[^\n]*\n)/, `$1${logLine}\n`);
+      } else if (content.includes("## 🎯 Today's Goals")) {
+        content = content.replace(/(## 🎯 Today's Goals[^\n]*\n)/, `$1${logLine}\n`);
+      } else if (content.includes('## Tasks')) {
+        content = content.replace(/(## Tasks[^\n]*\n)/, `$1${logLine}\n`);
+      } else {
+        content = `${content.trim()}\n\n### 📋 Task Log\n${logLine}\n`;
+      }
+      fs.writeFileSync(filepath, content, 'utf-8');
+    }
+
+    return { success: true };
+  });
+
+  registerImageHandlers({
+    getVaultPath: () => getSettings().vaultPath,
+    getMainWindow: () => mainWindow,
+    ensureImagesDir,
+  });
+
+  registerOrganizationHandlers({
+    getSettings,
+    saveSettings,
+    defaultAreas: DEFAULT_AREAS,
+    ensureTasksDir,
+    loadAllTasks,
+    updateTaskFrontmatter,
+  });
 
   // Handle worklog-media protocol for local vault images
   protocol.handle('worklog-media', async (request) => {
@@ -844,722 +533,4 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
-});
-
-// IPC Handlers
-ipcMain.handle('get-app-version', () => {
-  return app.getVersion() || '1.14.0';
-});
-
-ipcMain.handle('get-app-info', () => {
-  return {
-    name: 'Daily Worklog',
-    version: app.getVersion() || '1.14.0',
-    electron: process.versions.electron,
-    chrome: process.versions.chrome,
-    node: process.versions.node,
-    v8: process.versions.v8,
-    platform: process.platform,
-    arch: process.arch,
-    osRelease: `${os.type()} ${os.release()}`,
-  };
-});
-
-ipcMain.handle('get-memory-metrics', () => {
-  const memoryUsage = process.memoryUsage();
-  return {
-    capturedAt: new Date().toISOString(),
-    main: {
-      rss: memoryUsage.rss,
-      heapTotal: memoryUsage.heapTotal,
-      heapUsed: memoryUsage.heapUsed,
-      external: memoryUsage.external,
-      arrayBuffers: memoryUsage.arrayBuffers,
-    },
-    processes: app.getAppMetrics().map((metric) => ({
-      pid: metric.pid,
-      type: metric.type,
-      cpuPercent: metric.cpu.percentCPUUsage,
-      workingSetBytes: metric.memory.workingSetSize * 1024,
-      peakWorkingSetBytes: metric.memory.peakWorkingSetSize * 1024,
-    })),
-  };
-});
-
-ipcMain.handle('show-about-dialog', () => {
-  showAbout();
-  return { success: true };
-});
-
-ipcMain.handle('get-settings', () => {
-  return getSettings();
-});
-
-ipcMain.handle('save-settings', (_event, partialSettings) => {
-  const previousVaultPath = getSettings().vaultPath;
-  const updated = saveSettings(partialSettings);
-  if (updated.vaultPath) {
-    ensureVaultDir(updated.vaultPath);
-  }
-  if (updated.vaultPath !== previousVaultPath) setupVaultWatcher(updated.vaultPath);
-  return updated;
-});
-
-ipcMain.handle('get-routine-completions', (_event, date: string) => {
-  const { vaultPath } = getSettings();
-  const year = getYearFromDate(date);
-  const completions = readRoutineCompletionsForYear(vaultPath, year);
-  return completions[date] || [];
-});
-
-ipcMain.handle(
-  'update-routine-completions',
-  (_event, date: string, routineIds: string[]) => {
-    const settings = getSettings();
-    const year = getYearFromDate(date);
-    const completions = readRoutineCompletionsForYear(settings.vaultPath, year);
-    const uniqueIds = Array.from(new Set((routineIds || []).filter(Boolean)));
-    if (uniqueIds.length > 0) completions[date] = uniqueIds;
-    else delete completions[date];
-    writeRoutineCompletionsForYear(settings.vaultPath, year, completions);
-
-    if (settings.routineCompletions) saveSettings({ routineCompletions: undefined });
-    return uniqueIds;
-  }
-);
-
-ipcMain.handle('get-default-vault-path', () => {
-  return defaultVaultPath;
-});
-
-ipcMain.handle('select-vault-directory', async () => {
-  if (!mainWindow) return null;
-  const currentSettings = getSettings();
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory', 'createDirectory'],
-    title: 'Select Worklog Vault Folder',
-    defaultPath: currentSettings.vaultPath,
-  });
-
-  if (!result.canceled && result.filePaths.length > 0) {
-    const selected = result.filePaths[0];
-    ensureVaultDir(selected);
-
-    // If selected directory already contains .daily-worklogs/config.json, merge its configuration
-    const vaultConfig = readVaultConfig(selected);
-    if (vaultConfig) {
-      const { version: _v, updatedAt: _u, ...restVaultConfig } = vaultConfig;
-      saveSettings({
-        ...restVaultConfig,
-        vaultPath: selected,
-        hasCompletedOnboarding: true,
-      });
-    } else {
-      saveSettings({ vaultPath: selected });
-      writeVaultConfig(selected, currentSettings);
-    }
-    setupVaultWatcher(selected);
-    return selected;
-  }
-  return null;
-});
-
-registerNoteHandlers({
-  getSettings,
-  defaultTemplates: DEFAULT_TEMPLATES,
-  ensureVaultDir,
-  ensureYearDir,
-  getNoteFilePath,
-  getYearFromDate,
-  writeInternalFile,
-  fileReadConcurrency: FILE_READ_CONCURRENCY,
-});
-
-ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: string) => {
-  const settings = getSettings();
-  const vaultPath = settings.vaultPath;
-  const dailySummary = await summarizeDailyNotesInRange(vaultPath, startDate, endDate, FILE_READ_CONCURRENCY);
-  const { days, totalTasks: dailyTasksTotal, completedTasks: dailyTasksCompleted, activeDays, dailyChecklistItems } = dailySummary;
-  let totalTasks = dailyTasksTotal;
-  let completedTasks = dailyTasksCompleted;
-
-  // Load and include standalone task documents from vault/tasks
-  let periodTaskCount = 0;
-  const completedTasksList: any[] = [];
-  const inProgressTasksList: any[] = [];
-  const waitingTasksList: any[] = [];
-  const backlogTasksList: any[] = [];
-  const tagBreakdown: Record<string, { total: number; completed: number; inProgress: number }> = {};
-  const serviceBreakdown: Record<
-    string,
-    {
-      service: string;
-      total: number;
-      completed: number;
-      inProgress: number;
-      projects: Record<string, { total: number; completed: number; inProgress: number }>;
-    }
-  > = {};
-  const projectBreakdown: Record<
-    string,
-    {
-      service: string;
-      project: string;
-      total: number;
-      completed: number;
-      inProgress: number;
-    }
-  > = {};
-
-  const priorityBreakdown: Record<string, { total: number; completed: number }> = {
-    urgent: { total: 0, completed: 0 },
-    high: { total: 0, completed: 0 },
-    medium: { total: 0, completed: 0 },
-    low: { total: 0, completed: 0 },
-  };
-
-  const configuredTags: Array<{ name: string; service?: string; project?: string; color?: string }> =
-    settings.tags || [];
-
-  const resolveTagHierarchy = (rawTag: string) => {
-    const trimmed = rawTag.trim();
-    const match = configuredTags.find((t) => t.name.toLowerCase() === trimmed.toLowerCase());
-    if (match && (match.service || match.project)) {
-      return {
-        service: match.service || 'General',
-        project: match.project || match.name,
-      };
-    }
-    if (trimmed.includes('/')) {
-      const parts = trimmed.split('/');
-      const s = parts[0].trim();
-      const p = parts.slice(1).join('/').trim();
-      return {
-        service: s ? s.charAt(0).toUpperCase() + s.slice(1) : 'General',
-        project: p || trimmed,
-      };
-    }
-    if (trimmed.includes(':')) {
-      const parts = trimmed.split(':');
-      const s = parts[0].trim();
-      const p = parts.slice(1).join(':').trim();
-      return {
-        service: s ? s.charAt(0).toUpperCase() + s.slice(1) : 'General',
-        project: p || trimmed,
-      };
-    }
-    return {
-      service: 'General',
-      project: trimmed,
-    };
-  };
-
-  try {
-    const tasksDir = ensureTasksDir(vaultPath);
-    if (fs.existsSync(tasksDir)) {
-      const taskReads = await readTaskFiles(tasksDir);
-      const taskMetadata = taskReads.map((read) =>
-        buildTaskFromFile(read.filepath, read.filename, read.raw, read.stat, false)
-      );
-      for (const task of taskMetadata) {
-        const createdDate = task.created || '';
-        const dueDate = task.due || '';
-        const startedDate = task.startedDate || '';
-        const completedDate = task.completedDate || '';
-        const modifiedDate = task.lastModified ? task.lastModified.split('T')[0] : '';
-
-        // Accurate period inclusion check
-        const taskBehavior = getColumnBehavior(task.status);
-        const isDoneOrCancelled = taskBehavior === 'done' || taskBehavior === 'cancelled';
-        const isInProgress = taskBehavior === 'in_progress';
-        const wasCompletedInPeriod = completedDate >= startDate && completedDate <= endDate;
-        const wasStartedInPeriod = startedDate >= startDate && startedDate <= endDate;
-        const wasDueInPeriod = dueDate >= startDate && dueDate <= endDate;
-        const wasCreatedInPeriod = createdDate >= startDate && createdDate <= endDate;
-        const wasActiveInPeriod = startedDate && startedDate <= endDate && (!isDoneOrCancelled || (completedDate && completedDate >= startDate));
-        const wasModifiedInPeriod = modifiedDate >= startDate && modifiedDate <= endDate;
-
-        const inRange =
-          wasCompletedInPeriod ||
-          wasStartedInPeriod ||
-          wasDueInPeriod ||
-          wasCreatedInPeriod ||
-          wasActiveInPeriod ||
-          wasModifiedInPeriod;
-
-        if (inRange) {
-          periodTaskCount += 1;
-          totalTasks += 1;
-          if (isDoneOrCancelled) {
-            completedTasks += 1;
-          }
-
-          // Categorized lists based on lifecycle behavior
-          if (taskBehavior === 'done' || taskBehavior === 'cancelled') {
-            completedTasksList.push(task);
-          } else if (taskBehavior === 'in_progress') {
-            inProgressTasksList.push(task);
-          } else if (taskBehavior === 'waiting') {
-            waitingTasksList.push(task);
-          } else {
-            backlogTasksList.push(task);
-          }
-
-          // Tag breakdown
-          if (task.tags && task.tags.length > 0) {
-            for (const tag of task.tags) {
-              if (!tagBreakdown[tag]) {
-                tagBreakdown[tag] = { total: 0, completed: 0, inProgress: 0 };
-              }
-              tagBreakdown[tag].total += 1;
-              if (isDoneOrCancelled) {
-                tagBreakdown[tag].completed += 1;
-              }
-              if (isInProgress) {
-                tagBreakdown[tag].inProgress += 1;
-              }
-            }
-          }
-
-          // Area/Service and Project resolution (from frontmatter or tag fallback)
-          let taskArea = task.area ? String(task.area).trim() : '';
-          let taskProject = task.project ? String(task.project).trim() : '';
-
-          if (!taskArea && task.tags && task.tags.length > 0) {
-            for (const tag of task.tags) {
-              const { service, project } = resolveTagHierarchy(tag);
-              if (service && service !== 'General') {
-                taskArea = service;
-                if (!taskProject && project && project !== 'General' && project !== service) {
-                  taskProject = project;
-                }
-                break;
-              }
-            }
-          }
-
-          if (!taskArea) {
-            taskArea = 'General';
-          }
-
-          // Update service / area breakdown
-          if (!serviceBreakdown[taskArea]) {
-            serviceBreakdown[taskArea] = {
-              service: taskArea,
-              total: 0,
-              completed: 0,
-              inProgress: 0,
-              projects: {},
-            };
-          }
-          serviceBreakdown[taskArea].total += 1;
-          if (isDoneOrCancelled) {
-            serviceBreakdown[taskArea].completed += 1;
-          }
-          if (isInProgress) {
-            serviceBreakdown[taskArea].inProgress += 1;
-          }
-
-          if (taskProject) {
-            const projectKey = `${taskArea} / ${taskProject}`;
-            if (!projectBreakdown[projectKey]) {
-              projectBreakdown[projectKey] = {
-                service: taskArea,
-                project: taskProject,
-                total: 0,
-                completed: 0,
-                inProgress: 0,
-              };
-            }
-            projectBreakdown[projectKey].total += 1;
-            if (isDoneOrCancelled) {
-              projectBreakdown[projectKey].completed += 1;
-            }
-            if (isInProgress) {
-              projectBreakdown[projectKey].inProgress += 1;
-            }
-            if (!serviceBreakdown[taskArea].projects[taskProject]) {
-              serviceBreakdown[taskArea].projects[taskProject] = {
-                total: 0,
-                completed: 0,
-                inProgress: 0,
-              };
-            }
-            serviceBreakdown[taskArea].projects[taskProject].total += 1;
-            if (isDoneOrCancelled) {
-              serviceBreakdown[taskArea].projects[taskProject].completed += 1;
-            }
-            if (isInProgress) {
-              serviceBreakdown[taskArea].projects[taskProject].inProgress += 1;
-            }
-          }
-
-          // Priority breakdown
-          const p = task.priority || 'medium';
-          if (!priorityBreakdown[p]) {
-            priorityBreakdown[p] = { total: 0, completed: 0 };
-          }
-          priorityBreakdown[p].total += 1;
-          if (isDoneOrCancelled) {
-            priorityBreakdown[p].completed += 1;
-          }
-        }
-      }
-    }
-  } catch (err) {
-    console.error('Error calculating tasks in range:', err);
-  }
-
-  return {
-    startDate,
-    endDate,
-    title: `${startDate} to ${endDate}`,
-    totalDays: days.length,
-    activeDays,
-    totalTasks,
-    completedTasks,
-    days,
-    periodTaskCount,
-    completedTasksList,
-    inProgressTasksList,
-    waitingTasksList,
-    backlogTasksList,
-    dailyChecklistItems,
-    tagBreakdown,
-    priorityBreakdown,
-    serviceBreakdown,
-    projectBreakdown,
-  };
-});
-
-
-
-ipcMain.handle('export-document', async (_event, { title, defaultPath, content, format }) => {
-  if (!mainWindow) return { success: false };
-
-  const ext = format === 'html' ? 'html' : format === 'txt' ? 'txt' : 'md';
-  const result = await dialog.showSaveDialog(mainWindow, {
-    title: `Export ${title}`,
-    defaultPath: defaultPath || `${title}.${ext}`,
-    filters: [
-      { name: format.toUpperCase(), extensions: [ext] },
-      { name: 'All Files', extensions: ['*'] },
-    ],
-  });
-
-  if (!result.canceled && result.filePath) {
-    fs.writeFileSync(result.filePath, content, 'utf-8');
-    return { success: true, filePath: result.filePath };
-  }
-
-  return { success: false };
-});
-
-ipcMain.handle('open-in-file-manager', async (_event, targetPath?: string) => {
-  try {
-    const settings = getSettings();
-    const resolvedPath = targetPath || settings.vaultPath || defaultVaultPath;
-
-    // Ensure the folder exists if it's a directory or does not exist yet
-    if (!fs.existsSync(resolvedPath)) {
-      ensureVaultDir(resolvedPath);
-    }
-
-    if (fs.existsSync(resolvedPath)) {
-      const stat = fs.statSync(resolvedPath);
-      if (stat.isDirectory()) {
-        const errorMsg = await shell.openPath(resolvedPath);
-        if (errorMsg) {
-          console.warn('shell.openPath failed, falling back to showItemInFolder:', errorMsg);
-          shell.showItemInFolder(resolvedPath);
-        }
-      } else {
-        shell.showItemInFolder(resolvedPath);
-      }
-      return { success: true };
-    }
-    return { success: false, error: 'Path not found' };
-  } catch (err: any) {
-    console.error('Error opening in file manager:', err);
-    return { success: false, error: err?.message };
-  }
-});
-
-ipcMain.handle('open-external-url', async (_event, targetUrl: string) => {
-  try {
-    if (targetUrl) {
-      let formattedUrl = targetUrl.trim();
-      if (!/^https?:\/\//i.test(formattedUrl)) {
-        formattedUrl = `https://${formattedUrl}`;
-      }
-      await shell.openExternal(formattedUrl);
-      return { success: true };
-    }
-    return { success: false, error: 'Empty URL' };
-  } catch (err: any) {
-    console.error('Error opening external URL:', err);
-    return { success: false, error: err?.message };
-  }
-});
-
-// Loads and parses every task document in the tasks directory.
-async function loadAllTasks(tasksDir: string) {
-  const reads = await readTaskFiles(tasksDir);
-  return reads.map((read) => buildTaskFromFile(read.filepath, read.filename, read.raw, read.stat));
-}
-
-// Applies an in-place frontmatter edit to every task document. The mapper returns the
-// updated frontmatter for files it wants rewritten, or null to leave a file untouched;
-// rewrites are issued concurrently. Resolves to the number of files changed.
-async function updateTaskFrontmatter(
-  tasksDir: string,
-  mapper: (data: Record<string, unknown>, read: TaskFileRead) => Record<string, unknown> | null
-): Promise<number> {
-  const reads = await readTaskFiles(tasksDir);
-  const pending: Array<{ filepath: string; filename: string; content: string }> = [];
-
-  for (const read of reads) {
-    try {
-      const parsed = matter(read.raw);
-      const data = parsed.data || {};
-      const updatedData = mapper(data, read);
-      if (updatedData) {
-        pending.push({
-          filepath: read.filepath,
-          filename: read.filename,
-          content: matter.stringify(parsed.content, updatedData),
-        });
-      }
-    } catch (fileErr) {
-      console.warn(`Error updating task file ${read.filename}:`, fileErr);
-    }
-  }
-
-  const written = await mapWithConcurrency(pending, FILE_READ_CONCURRENCY, async (item) => {
-    try {
-      await fsp.writeFile(item.filepath, item.content, 'utf-8');
-      return true;
-    } catch (fileErr) {
-      console.warn(`Error writing task file ${item.filename}:`, fileErr);
-      return false;
-    }
-  });
-
-  return written.filter(Boolean).length;
-}
-
-// Helper to get highest assigned numeric taskId in tasksDir
-async function getMaxTaskId(tasksDir: string): Promise<number> {
-  try {
-    const reads = await readTaskFiles(tasksDir);
-    let maxId = 0;
-    for (const read of reads) {
-      try {
-        const taskId = parseNumericTaskId(matter(read.raw).data);
-        if (taskId && taskId > maxId) {
-          maxId = taskId;
-        }
-      } catch {}
-    }
-    return maxId;
-  } catch (err) {
-    console.error('Error getting max task id:', err);
-    return 0;
-  }
-}
-
-// Helper to ensure all task files have a persistent numeric ID
-async function ensureTasksHaveIds(tasksDir: string): Promise<void> {
-  try {
-    const reads = await readTaskFiles(tasksDir);
-    const unassignedFiles: Array<{ read: TaskFileRead; createdTime: number }> = [];
-    let maxId = 0;
-
-    for (const read of reads) {
-      try {
-        const parsed = matter(read.raw);
-        const taskId = parseNumericTaskId(parsed.data);
-        if (taskId) {
-          if (taskId > maxId) maxId = taskId;
-        } else {
-          const createdTime = parsed.data?.created
-            ? new Date(parsed.data.created).getTime()
-            : read.stat.birthtimeMs || read.stat.mtimeMs;
-          unassignedFiles.push({ read, createdTime });
-        }
-      } catch {}
-    }
-
-    if (unassignedFiles.length === 0) return;
-
-    // Assign ids oldest unassigned file first, then persist the rewrites concurrently.
-    unassignedFiles.sort(
-      (a, b) => a.createdTime - b.createdTime || a.read.filename.localeCompare(b.read.filename)
-    );
-    const assignments = unassignedFiles.map((item) => {
-      maxId++;
-      return { read: item.read, id: maxId };
-    });
-
-    await mapWithConcurrency(assignments, FILE_READ_CONCURRENCY, async ({ read, id }) => {
-      try {
-        const parsed = matter(read.raw);
-        const updatedContent = matter.stringify(parsed.content, { ...parsed.data, id });
-        await fsp.writeFile(read.filepath, updatedContent, 'utf-8');
-      } catch (e) {
-        console.warn('Could not auto-assign ID to task file:', read.filename, e);
-      }
-    });
-  } catch (err) {
-    console.error('Error ensuring task IDs:', err);
-  }
-}
-
-// Helper to build a task object from an already-read task file
-function buildTaskFromFile(
-  filepath: string,
-  filename: string,
-  rawContent: string,
-  stat: fs.Stats,
-  includeDetail: false
-): TaskMeta;
-function buildTaskFromFile(
-  filepath: string,
-  filename: string,
-  rawContent: string,
-  stat: fs.Stats,
-  includeDetail?: true
-): TaskItem;
-function buildTaskFromFile(
-  filepath: string,
-  filename: string,
-  rawContent: string,
-  stat: fs.Stats,
-  includeDetail = true
-): TaskItem | TaskMeta {
-  const parsed = matter(rawContent);
-  const data = parsed.data || {};
-
-  // Fallback title: frontmatter title -> first markdown heading -> filename without extension
-  let title = data.title;
-  if (!title) {
-    const headingMatch = parsed.content.match(/^#\s+(.+)$/m);
-    title = headingMatch ? headingMatch[1].trim() : filename.replace(/\.md$/i, '').replace(/[-_]/g, ' ');
-  }
-
-  const status = data.status ? String(data.status).trim() : 'todo';
-  const taskId = parseNumericTaskId(data);
-
-  const { tasksCompleted, tasksTotal } = parseTaskCounts(parsed.content);
-
-  const metadata = {
-    id: filename.replace(/\.md$/i, ''),
-    taskId,
-    filename,
-    filepath,
-    title,
-    status,
-    priority: data.priority || 'medium',
-    area: data.area ? String(data.area).trim() : undefined,
-    project: data.project ? String(data.project).trim() : undefined,
-    created: data.created || stat.birthtime.toISOString().split('T')[0],
-    due: data.due || undefined,
-    startedDate: data.startedDate || undefined,
-    completedDate: data.completedDate || undefined,
-    tags: Array.isArray(data.tags) ? data.tags : [],
-    lastModified: stat.mtime.toISOString(),
-    checklistTotal: tasksTotal,
-    checklistCompleted: tasksCompleted,
-  };
-
-  if (!includeDetail) return metadata;
-
-  return {
-    ...metadata,
-    content: parsed.content.trim(),
-    rawContent,
-    frontmatter: data,
-    activityLog: Array.isArray(data.activityLog) ? data.activityLog : [],
-  };
-}
-
-// Helper to parse a task file with frontmatter
-async function parseTaskFile(filepath: string, filename: string) {
-  const [rawContent, stat] = await Promise.all([
-    fsp.readFile(filepath, 'utf-8'),
-    fsp.stat(filepath),
-  ]);
-  return buildTaskFromFile(filepath, filename, rawContent, stat);
-}
-
-registerTaskHandlers({
-  getVaultPath: () => getSettings().vaultPath,
-  ensureTasksHaveIds,
-  getMaxTaskId,
-  getColumnBehavior,
-  slugify,
-  writeInternalFile,
-  parseTaskFile,
-  buildTaskMetadata: (read) => buildTaskFromFile(read.filepath, read.filename, read.raw, read.stat, false),
-});
-
-ipcMain.handle('log-task-to-daily-note', async (_event, { date, taskTitle, status, priority, filename, taskId }) => {
-  const { vaultPath } = getSettings();
-  const targetDate = date || new Date().toISOString().split('T')[0];
-  const year = getYearFromDate(targetDate);
-  const yearDir = ensureYearDir(vaultPath, year);
-  const filepath = path.join(yearDir, `${targetDate}.md`);
-
-  let content = '';
-  if (fs.existsSync(filepath)) {
-    content = fs.readFileSync(filepath, 'utf-8');
-  } else {
-    const settings = getSettings();
-    const template =
-      settings.templates.find((t: any) => t.id === settings.defaultTemplateId) ||
-      settings.templates[0] ||
-      DEFAULT_TEMPLATES[0];
-    content = formatTemplateContent(template.content, targetDate, settings.dateFormat, settings.language);
-  }
-
-  const behavior = getColumnBehavior(status);
-  const isDone = behavior === 'done' || behavior === 'cancelled';
-  const checkbox = isDone ? '- [x]' : '- [ ]';
-  const statusBadge = behavior === 'cancelled' ? ' [Cancelled]' : '';
-  const priorityStr = priority ? ` [${priority}]` : '';
-  const idBadge = taskId ? ` (#${taskId})` : (filename ? ` (\`${filename}\`)` : '');
-  const logLine = `${checkbox} Worked on **${taskTitle}**${idBadge}${statusBadge}${priorityStr}`;
-
-  // If not already in content, insert appropriately
-  if (!content.includes(taskTitle)) {
-    if (isDone && content.includes('## ✅ Accomplishments')) {
-      content = content.replace(/(## ✅ Accomplishments[^\n]*\n)/, `$1${logLine}\n`);
-    } else if (!isDone && content.includes('## ⏳ In Progress')) {
-      content = content.replace(/(## ⏳ In Progress[^\n]*\n)/, `$1${logLine}\n`);
-    } else if (content.includes('## 🎯 Today\'s Goals')) {
-      content = content.replace(/(## 🎯 Today\'s Goals[^\n]*\n)/, `$1${logLine}\n`);
-    } else if (content.includes('## Tasks')) {
-      content = content.replace(/(## Tasks[^\n]*\n)/, `$1${logLine}\n`);
-    } else {
-      content = `${content.trim()}\n\n### 📋 Task Log\n${logLine}\n`;
-    }
-    fs.writeFileSync(filepath, content, 'utf-8');
-  }
-
-  return { success: true };
-});
-
-registerImageHandlers({
-  getVaultPath: () => getSettings().vaultPath,
-  getMainWindow: () => mainWindow,
-  ensureImagesDir,
-});
-
-registerOrganizationHandlers({
-  getSettings,
-  saveSettings,
-  defaultAreas: DEFAULT_AREAS,
-  ensureTasksDir,
-  loadAllTasks,
-  updateTaskFrontmatter,
 });

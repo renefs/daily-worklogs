@@ -59,79 +59,84 @@ export function registerTaskHandlers(dependencies: TaskHandlerDependencies): voi
   });
 
   ipcMain.handle('write-task', async (_event, rawTaskData: unknown) => {
-    const taskData: TaskWriteInput = requireTaskWriteInput(rawTaskData);
-    const tasksDir = ensureTasksDir(getVaultPath());
-    let filename = taskData.filename;
+    try {
+      const taskData: TaskWriteInput = requireTaskWriteInput(rawTaskData);
+      const tasksDir = ensureTasksDir(getVaultPath());
+      let filename = taskData.filename;
 
-    if (!filename) {
-      const slug = slugify(taskData.title) || 'task';
-      const datePrefix = new Date().toISOString().split('T')[0];
-      filename = `${datePrefix}-${slug}.md`;
-      let counter = 1;
-      while (fs.existsSync(path.join(tasksDir, filename))) {
-        filename = `${datePrefix}-${slug}-${counter}.md`;
-        counter++;
+      if (!filename) {
+        const slug = slugify(taskData.title) || 'task';
+        const datePrefix = new Date().toISOString().split('T')[0];
+        filename = `${datePrefix}-${slug}.md`;
+        let counter = 1;
+        while (fs.existsSync(path.join(tasksDir, filename))) {
+          filename = `${datePrefix}-${slug}-${counter}.md`;
+          counter++;
+        }
+      } else {
+        filename = requireTaskFilename(filename);
       }
-    } else {
-      filename = requireTaskFilename(filename);
-    }
 
-    const filepath = path.join(tasksDir, filename);
-    let existingData: Record<string, any> = {};
-    if (fs.existsSync(filepath)) {
-      try {
-        existingData = matter(fs.readFileSync(filepath, 'utf-8')).data || {};
-      } catch (error) {
-        console.warn('Could not read existing task frontmatter:', error);
+      const filepath = path.join(tasksDir, filename);
+      let existingData: Record<string, any> = {};
+      if (fs.existsSync(filepath)) {
+        try {
+          existingData = matter(fs.readFileSync(filepath, 'utf-8')).data || {};
+        } catch (error) {
+          console.warn('Could not read existing task frontmatter:', error);
+        }
       }
+
+      let taskId = parseNumericTaskId(taskData) || parseNumericTaskId(existingData);
+      if (!taskId) taskId = (await getMaxTaskId(tasksDir)) + 1;
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      const nextStatus = taskData.status || existingData.status || 'todo';
+      const behavior = getColumnBehavior(nextStatus);
+      const isDoneOrCancelled = behavior === 'done' || behavior === 'cancelled';
+      const prevBehavior = existingData.status ? getColumnBehavior(existingData.status) : undefined;
+      const wasDoneOrCancelled = prevBehavior === 'done' || prevBehavior === 'cancelled';
+
+      let startedDate = taskData.startedDate !== undefined ? taskData.startedDate : existingData.startedDate;
+      let completedDate = taskData.completedDate !== undefined ? taskData.completedDate : existingData.completedDate;
+      if (behavior === 'in_progress' && !startedDate) startedDate = todayStr;
+      if (isDoneOrCancelled && !completedDate) {
+        completedDate = todayStr;
+      } else if (!isDoneOrCancelled && taskData.completedDate === undefined && wasDoneOrCancelled) {
+        completedDate = undefined;
+      }
+
+      const frontmatterData: Record<string, any> = {
+        ...existingData,
+        id: taskId,
+        title: taskData.title,
+        status: nextStatus,
+        priority: taskData.priority || 'medium',
+        created: taskData.created || existingData.created || todayStr,
+        tags: Array.isArray(taskData.tags) ? taskData.tags : existingData.tags || [],
+      };
+
+      if (taskData.area !== undefined) {
+        if (taskData.area.trim()) frontmatterData.area = taskData.area.trim();
+        else delete frontmatterData.area;
+      }
+      if (taskData.project !== undefined) {
+        if (taskData.project.trim()) frontmatterData.project = taskData.project.trim();
+        else delete frontmatterData.project;
+      }
+      if (startedDate) frontmatterData.startedDate = startedDate;
+      else delete frontmatterData.startedDate;
+      if (completedDate) frontmatterData.completedDate = completedDate;
+      else delete frontmatterData.completedDate;
+      if (taskData.due) frontmatterData.due = taskData.due;
+      else if ('due' in taskData && !taskData.due) delete frontmatterData.due;
+
+      await writeInternalFile(filepath, matter.stringify(taskData.content || '', frontmatterData));
+      return { success: true, task: await parseTaskFile(filepath, filename) };
+    } catch (error) {
+      console.error('Error writing task:', error);
+      return { success: false, error: (error as Error).message };
     }
-
-    let taskId = parseNumericTaskId(taskData) || parseNumericTaskId(existingData);
-    if (!taskId) taskId = (await getMaxTaskId(tasksDir)) + 1;
-
-    const todayStr = new Date().toISOString().split('T')[0];
-    const nextStatus = taskData.status || existingData.status || 'todo';
-    const behavior = getColumnBehavior(nextStatus);
-    const isDoneOrCancelled = behavior === 'done' || behavior === 'cancelled';
-    const prevBehavior = existingData.status ? getColumnBehavior(existingData.status) : undefined;
-    const wasDoneOrCancelled = prevBehavior === 'done' || prevBehavior === 'cancelled';
-
-    let startedDate = taskData.startedDate !== undefined ? taskData.startedDate : existingData.startedDate;
-    let completedDate = taskData.completedDate !== undefined ? taskData.completedDate : existingData.completedDate;
-    if (behavior === 'in_progress' && !startedDate) startedDate = todayStr;
-    if (isDoneOrCancelled && !completedDate) {
-      completedDate = todayStr;
-    } else if (!isDoneOrCancelled && taskData.completedDate === undefined && wasDoneOrCancelled) {
-      completedDate = undefined;
-    }
-
-    const frontmatterData: Record<string, any> = {
-      ...existingData,
-      id: taskId,
-      title: taskData.title,
-      status: nextStatus,
-      priority: taskData.priority || 'medium',
-      created: taskData.created || existingData.created || todayStr,
-      tags: Array.isArray(taskData.tags) ? taskData.tags : existingData.tags || [],
-    };
-
-    if (taskData.area !== undefined) {
-      if (taskData.area.trim()) frontmatterData.area = taskData.area.trim();
-      else delete frontmatterData.area;
-    }
-    if (taskData.project !== undefined) {
-      if (taskData.project.trim()) frontmatterData.project = taskData.project.trim();
-      else delete frontmatterData.project;
-    }
-    if (startedDate) frontmatterData.startedDate = startedDate;
-    else delete frontmatterData.startedDate;
-    if (completedDate) frontmatterData.completedDate = completedDate;
-    else delete frontmatterData.completedDate;
-    if (taskData.due) frontmatterData.due = taskData.due;
-    else if ('due' in taskData && !taskData.due) delete frontmatterData.due;
-
-    await writeInternalFile(filepath, matter.stringify(taskData.content, frontmatterData));
-    return { success: true, task: await parseTaskFile(filepath, filename) };
   });
 
   ipcMain.handle('update-task-status', async (_event, filename: string, status: string) => {
