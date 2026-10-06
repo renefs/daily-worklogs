@@ -1,28 +1,22 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useComputedColorScheme } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconCheck, IconTrash } from '@tabler/icons-react';
-import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { useAppStoreSelector } from '../../store/useAppStore';
-import { DEFAULT_KANBAN_COLUMNS, TaskItem, TaskPriority, TaskStatus } from '../../types';
-import { MarkdownEditor } from '../editor/MarkdownEditor';
-import { MarkdownViewer } from '../viewer/MarkdownViewer';
+import { TaskItem } from '../../types';
 import { ExportModal } from '../modals/ExportModal';
-import {
-  DEFAULT_AREAS,
-  getAreaColor,
-  getProjectColor,
-} from '../../utils/areaProjectUtils';
+import { DEFAULT_AREAS } from '../../utils/areaProjectUtils';
 import { registerTaskEditorFlush } from '../../services/editorSession';
 import { TaskHeader } from '../tasks/TaskHeader';
-import { TaskInspector } from '../tasks/TaskInspector';
 import { TaskDeleteModal } from '../tasks/TaskDeleteModal';
+import { useTaskForm } from '../tasks/useTaskForm';
+import { TaskWorkspace } from './task/TaskWorkspace';
 import clsx from 'clsx';
 import classes from './TaskView.module.css';
 
 export const TaskView: React.FC = () => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
   const isDark = computedColorScheme === 'dark';
 
@@ -58,148 +52,41 @@ export const TaskView: React.FC = () => {
     taskModalInitialStatus: state.taskModalInitialStatus,
   }));
 
-  const [title, setTitle] = useState('');
-  const [area, setArea] = useState<string>('General');
-  const [project, setProject] = useState<string | null>(null);
-  const [status, setStatus] = useState<TaskStatus>('todo');
-  const [priority, setPriority] = useState<TaskPriority>('medium');
-  const [dueDate, setDueDate] = useState<Date | null>(null);
-  const [startedDate, setStartedDate] = useState<Date | null>(null);
-  const [completedDate, setCompletedDate] = useState<Date | null>(null);
-  const [tags, setTags] = useState<string[]>([]);
-  const [content, setContent] = useState('');
+  const form = useTaskForm({
+    task: activeTask,
+    defaultStatus: taskModalInitialStatus,
+    kanbanColumns: settings?.kanbanColumns,
+    areas,
+    projects,
+  });
 
-  const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [taskSaveError, setTaskSaveError] = useState<string | null>(null);
   const [isLogging, setIsLogging] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const persistedTaskRef = useRef<TaskItem | null>(activeTask);
-  const initializedTaskKeyRef = useRef<string | null>(null);
   const failedDraftSignatureRef = useRef<string | null>(null);
   const taskSaveInFlightRef = useRef<Promise<TaskItem | null> | null>(null);
   const handleSaveRef = useRef<(options?: { showNotification?: boolean }) => Promise<TaskItem | null>>(
     async () => null
   );
 
-  const draftSignature = JSON.stringify({
-    title,
-    area,
-    project,
-    status,
-    priority,
-    dueDate: dueDate?.toISOString() || null,
-    startedDate: startedDate?.toISOString() || null,
-    completedDate: completedDate?.toISOString() || null,
-    tags,
-    content,
-  });
-  const latestDraftSignatureRef = useRef(draftSignature);
-  latestDraftSignatureRef.current = draftSignature;
+  useEffect(() => {
+    persistedTaskRef.current = activeTask;
+  }, [activeTask]);
 
   useEffect(() => {
-    if (taskSaveError && failedDraftSignatureRef.current !== draftSignature) {
+    if (taskSaveError && failedDraftSignatureRef.current !== form.draftSignature) {
       setTaskSaveError(null);
     }
-  }, [draftSignature, taskSaveError]);
-
-  const availableColumns = useMemo(() => {
-    return settings?.kanbanColumns && settings.kanbanColumns.length > 0
-      ? settings.kanbanColumns
-      : DEFAULT_KANBAN_COLUMNS;
-  }, [settings?.kanbanColumns]);
-
-  const currentStatusObj = useMemo(() => {
-    return availableColumns.find((c) => c.id === status);
-  }, [availableColumns, status]);
-
-  const isClosed = useMemo(() => {
-    const behavior = currentStatusObj?.behavior || status;
-    return behavior === 'done' || behavior === 'cancelled';
-  }, [currentStatusObj, status]);
-
-  const currentAreaColor = useMemo(() => getAreaColor(area, areas), [area, areas]);
-  const currentProjectColor = useMemo(
-    () => getProjectColor(project || undefined, area, projects, areas),
-    [project, area, projects, areas]
-  );
-
-  const taskIdentityKey = activeTask
-    ? activeTask.filename || `${activeTask.id || 'task'}:${activeTask.title}`
-    : 'new-task';
-
-  // Initialize or reset form state when active task identity changes
-  useEffect(() => {
-    if (initializedTaskKeyRef.current === taskIdentityKey) {
-      return;
-    }
-
-    initializedTaskKeyRef.current = taskIdentityKey;
-    persistedTaskRef.current = activeTask;
-    failedDraftSignatureRef.current = null;
-    setTaskSaveError(null);
-
-    if (activeTask) {
-      setTitle(activeTask.title || '');
-      setArea(activeTask.area || 'General');
-      setProject(activeTask.project || null);
-      setStatus(activeTask.status || 'todo');
-      setPriority(activeTask.priority || 'medium');
-      setDueDate(activeTask.due ? new Date(activeTask.due) : null);
-      setStartedDate(activeTask.startedDate ? new Date(activeTask.startedDate) : null);
-      setCompletedDate(activeTask.completedDate ? new Date(activeTask.completedDate) : null);
-      setTags(activeTask.tags || []);
-      setContent(activeTask.content || '');
-      setIsDirty(false);
-    } else {
-      setTitle('');
-      setArea('General');
-      setProject(null);
-      setStatus(taskModalInitialStatus || 'todo');
-      setPriority('medium');
-      setDueDate(null);
-      setStartedDate(null);
-      setCompletedDate(null);
-      setTags([]);
-      setContent('');
-      setIsDirty(false);
-    }
-  }, [activeTask, taskIdentityKey, taskModalInitialStatus]);
-
-  const handleStatusChange = (newStatus: TaskStatus) => {
-    setStatus(newStatus);
-    setIsDirty(true);
-    const today = new Date();
-    const targetCol = availableColumns.find((c) => c.id === newStatus);
-    const behavior = targetCol?.behavior || (newStatus === 'done' ? 'done' : newStatus === 'cancelled' ? 'cancelled' : 'todo');
-    const isDoneOrCancelled = behavior === 'done' || behavior === 'cancelled';
-
-    if (behavior === 'in_progress' && !startedDate) {
-      setStartedDate(today);
-    }
-    if (isDoneOrCancelled && !completedDate) {
-      setCompletedDate(today);
-    } else if (!isDoneOrCancelled && completedDate) {
-      setCompletedDate(null);
-    }
-  };
-
-  const handleToggleTaskInContent = (taskText: string, checked: boolean) => {
-    const cleanTaskText = taskText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').trim();
-    const pattern = new RegExp(`(-\\s*\\[)([ xX])(\\]\\s*${cleanTaskText})`, 'i');
-    const newContent = content.replace(pattern, (_match, p1, _p2, p3) => `${p1}${checked ? 'x' : ' '}${p3}`);
-    if (newContent !== content) {
-      setContent(newContent);
-      setIsDirty(true);
-    }
-  };
+  }, [form.draftSignature, taskSaveError]);
 
   const handleSave = useCallback(
     async (options?: { showNotification?: boolean }): Promise<TaskItem | null> => {
       const showNotification = options?.showNotification ?? false;
 
-      if (!title.trim()) {
+      if (!form.title.trim()) {
         const errorMsg = t('tasks.titleRequired', 'Title is required to save');
         setTaskSaveError(errorMsg);
         notifications.show({
@@ -214,38 +101,18 @@ export const TaskView: React.FC = () => {
         return taskSaveInFlightRef.current;
       }
 
-      const currentDraftSignature = latestDraftSignatureRef.current;
+      const currentDraftSignature = form.draftSignature;
       setIsSaving(true);
       setTaskSaveError(null);
 
       const savePromise = (async () => {
         try {
-          const currentTarget = persistedTaskRef.current;
-          const formattedDue = dueDate ? dayjs(dueDate).format('YYYY-MM-DD') : undefined;
-          const formattedStarted = startedDate ? dayjs(startedDate).format('YYYY-MM-DD') : undefined;
-          const formattedCompleted = completedDate ? dayjs(completedDate).format('YYYY-MM-DD') : undefined;
-
-          const taskData = {
-            id: currentTarget?.id,
-            taskId: currentTarget?.taskId,
-            filename: currentTarget?.filename,
-            title: title.trim(),
-            status,
-            priority,
-            area: area.trim() || undefined,
-            project: project ? project.trim() : undefined,
-            due: formattedDue,
-            startedDate: formattedStarted,
-            completedDate: formattedCompleted,
-            tags,
-            content,
-          };
-
-          const result = await createOrUpdateTask(taskData);
+          const payload = form.buildTaskPayload(persistedTaskRef.current);
+          const result = await createOrUpdateTask(payload);
           if (result) {
             persistedTaskRef.current = result;
             failedDraftSignatureRef.current = null;
-            setIsDirty(false);
+            form.setIsDirty(false);
 
             if (showNotification) {
               notifications.show({
@@ -261,7 +128,10 @@ export const TaskView: React.FC = () => {
           throw new Error(t('tasks.saveFailedMessage', 'Could not write task markdown file to disk.'));
         } catch (err) {
           failedDraftSignatureRef.current = currentDraftSignature;
-          const errorMessage = err instanceof Error ? err.message : t('tasks.saveFailedMessage', 'Could not write task markdown file to disk.');
+          const errorMessage =
+            err instanceof Error
+              ? err.message
+              : t('tasks.saveFailedMessage', 'Could not write task markdown file to disk.');
           setTaskSaveError(errorMessage);
           notifications.show({
             title: t('tasks.saveFailedTitle', 'Task Save Failed'),
@@ -278,23 +148,23 @@ export const TaskView: React.FC = () => {
       taskSaveInFlightRef.current = savePromise;
       return savePromise;
     },
-    [title, dueDate, startedDate, completedDate, status, priority, area, project, tags, content, createOrUpdateTask, t]
+    [form, createOrUpdateTask, t]
   );
 
   handleSaveRef.current = handleSave;
 
   // Autosave when dirty
   useEffect(() => {
-    if (!settings?.autoSave || !isDirty || isSaving || taskSaveError) return;
+    if (!settings?.autoSave || !form.isDirty || isSaving || taskSaveError) return;
 
     const timer = setTimeout(() => {
       void handleSave();
     }, settings.autoSaveDelay ?? 1000);
 
     return () => clearTimeout(timer);
-  }, [isDirty, isSaving, taskSaveError, settings?.autoSave, settings?.autoSaveDelay, handleSave]);
+  }, [form.isDirty, isSaving, taskSaveError, settings?.autoSave, settings?.autoSaveDelay, handleSave]);
 
-  // Listen to global app save trigger (Cmd+S, File -> Save menu)
+  // Global app save listener (Cmd+S)
   useEffect(() => {
     const handleAppSave = () => {
       void handleSave({ showNotification: true });
@@ -305,35 +175,25 @@ export const TaskView: React.FC = () => {
     };
   }, [handleSave]);
 
-  // Register task editor flush before app shutdown
+  // Flush before shutdown
   useEffect(() => {
     return registerTaskEditorFlush(async () => {
-      if (!isDirty) return true;
+      if (!form.isDirty) return true;
       const saved = await handleSaveRef.current({ showNotification: false });
       return Boolean(saved);
     });
-  }, [isDirty]);
+  }, [form.isDirty]);
 
   const handleLogToDaily = async () => {
-    if (!title.trim()) return;
+    if (!form.title.trim()) return;
     setIsLogging(true);
     try {
-      const taskToLog: TaskItem = persistedTaskRef.current || {
-        id: 'new',
-        filename: '',
-        filepath: '',
-        title: title.trim(),
-        status,
-        priority,
-        created: dayjs().format('YYYY-MM-DD'),
-        content,
-      };
-
-      const success = await logTaskToDailyNote(taskToLog);
+      const payload = form.buildTaskPayload(persistedTaskRef.current);
+      const success = await logTaskToDailyNote(payload);
       if (success) {
         notifications.show({
           title: t('tasks.taskLoggedToDaily'),
-          message: title.trim(),
+          message: form.title.trim(),
           color: 'teal',
           icon: <IconCheck size={16} />,
         });
@@ -380,55 +240,34 @@ export const TaskView: React.FC = () => {
     }
   };
 
-  const dateBadgeText = useMemo(() => {
-    if (completedDate) {
-      return `${t('tasks.completedDate')}: ${dayjs(completedDate).locale(i18n.language).format('D MMM YYYY')}`;
-    }
-    if (dueDate) {
-      return `${t('tasks.dueDate')}: ${dayjs(dueDate).locale(i18n.language).format('D MMM YYYY')}`;
-    }
-    if (startedDate) {
-      return `${t('tasks.startedDate')}: ${dayjs(startedDate).locale(i18n.language).format('D MMM')}`;
-    }
-    return null;
-  }, [startedDate, completedDate, dueDate, i18n.language, t]);
-
-  const taskStatsForEditor = useMemo(() => {
-    const matches = content.match(/^[ \t]*-[ \t]+\[([ xX])\]/gm) || [];
-    const totalCount = matches.length;
-    const completedCount = matches.filter((m) => /\[[xX]\]/.test(m)).length;
-    return { total: totalCount, completed: completedCount };
-  }, [content]);
-
   return (
     <div className={clsx(classes.container, 'task-view-container')}>
-      {/* Header */}
       <TaskHeader
         activeTask={persistedTaskRef.current}
-        title={title}
+        title={form.title}
         onTitleChange={(val) => {
-          setTitle(val);
-          setIsDirty(true);
+          form.setTitle(val);
+          form.setIsDirty(true);
         }}
-        isClosed={isClosed}
+        isClosed={form.isClosed}
         isDark={isDark}
-        area={area}
-        project={project}
-        priority={priority}
-        dateBadgeText={dateBadgeText}
-        currentAreaColor={currentAreaColor}
-        currentProjectColor={currentProjectColor}
+        area={form.area}
+        project={form.project}
+        priority={form.priority}
+        dateBadgeText={form.dateBadgeText}
+        currentAreaColor={form.currentAreaColor}
+        currentProjectColor={form.currentProjectColor}
         layoutMode={taskEditorLayoutMode}
         onLayoutModeChange={setTaskEditorLayoutMode}
         isPropertiesPanelOpen={isTaskPropertiesPanelOpen}
         onTogglePropertiesPanel={toggleTaskPropertiesPanel}
-        isDirty={isDirty}
+        isDirty={form.isDirty}
         isSaving={isSaving}
         taskSaveError={taskSaveError}
         onSave={() => handleSave({ showNotification: true })}
         onBack={() => {
           void (async () => {
-            if (isDirty && !(await handleSave({ showNotification: true }))) return;
+            if (form.isDirty && !(await handleSave({ showNotification: true }))) return;
             closeTaskEditor();
           })();
         }}
@@ -438,147 +277,86 @@ export const TaskView: React.FC = () => {
         onDeleteClick={() => setIsDeleteModalOpen(true)}
       />
 
-      {/* Main Content Workspace */}
-      <div className={clsx(classes.workspace, 'task-workspace')}>
-        <div className={clsx(classes.editorCanvas, 'task-editor-canvas')}>
-          {taskEditorLayoutMode === 'split' && (
-            <div className={clsx(classes.splitLayout, 'task-split-layout')}>
-              <div className={clsx(classes.splitPane, 'task-split-pane')}>
-                <MarkdownEditor
-                  content={content}
-                  onChange={(val) => {
-                    setContent(val);
-                    setIsDirty(true);
-                  }}
-                  onSave={() => handleSave({ showNotification: true })}
-                  isSaving={isSaving}
-                  isDirty={isDirty}
-                  showStatusAndActions={false}
-                  showTemplates={false}
-                  showDelete={false}
-                  showExport={false}
-                  placeholder={t('tasks.contentPlaceholder', 'Add descriptions, checklists, technical specs, and acceptance criteria...')}
-                  tasksStats={taskStatsForEditor}
-                />
-              </div>
-              <div className={clsx(classes.splitPane, 'task-split-pane', classes.previewPane, 'task-preview-pane')}>
-                <div className={clsx(classes.renderedContainer, 'task-rendered-container')}>
-                  <MarkdownViewer
-                    content={content || `_${t('tasks.noDescriptionProvided', 'No description provided')}_`}
-                    allowToggleTasks={true}
-                    onToggleTask={handleToggleTaskInContent}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
+      <TaskWorkspace
+        layoutMode={taskEditorLayoutMode}
+        content={form.content}
+        onContentChange={(val) => {
+          form.setContent(val);
+          form.setIsDirty(true);
+        }}
+        onSave={() => handleSave({ showNotification: true })}
+        isSaving={isSaving}
+        isDirty={form.isDirty}
+        taskStats={form.taskStatsForEditor}
+        onToggleTaskInContent={form.handleToggleTaskInContent}
+        isPropertiesPanelOpen={isTaskPropertiesPanelOpen}
+        area={form.area}
+        onAreaChange={(val) => {
+          form.setArea(val);
+          form.setIsDirty(true);
+        }}
+        project={form.project}
+        onProjectChange={(val) => {
+          form.setProject(val);
+          form.setIsDirty(true);
+        }}
+        status={form.status}
+        onStatusChange={form.handleStatusChange}
+        priority={form.priority}
+        onPriorityChange={(val) => {
+          form.setPriority(val);
+          form.setIsDirty(true);
+        }}
+        dueDate={form.dueDate}
+        onDueDateChange={(val) => {
+          form.setDueDate(val);
+          form.setIsDirty(true);
+        }}
+        startedDate={form.startedDate}
+        onStartedDateChange={(val) => {
+          form.setStartedDate(val);
+          form.setIsDirty(true);
+        }}
+        completedDate={form.completedDate}
+        onCompletedDateChange={(val) => {
+          form.setCompletedDate(val);
+          form.setIsDirty(true);
+        }}
+        tags={form.tags}
+        onTagsChange={(val) => {
+          form.setTags(val);
+          form.setIsDirty(true);
+        }}
+        areas={areas}
+        projects={projects}
+        availableColumns={form.availableColumns}
+        allTags={allTags}
+        isLogging={isLogging}
+        onLogToDaily={handleLogToDaily}
+        onExportClick={() => setIsExportModalOpen(true)}
+        onOpenFileManager={persistedTaskRef.current?.filepath ? handleOpenFileInFileManager : undefined}
+        onDeleteClick={() => setIsDeleteModalOpen(true)}
+        onScrollToHeading={handleScrollToHeading}
+      />
 
-          {taskEditorLayoutMode === 'edit' && (
-            <div style={{ height: '100%', width: '100%' }}>
-              <MarkdownEditor
-                content={content}
-                onChange={(val) => {
-                  setContent(val);
-                  setIsDirty(true);
-                }}
-                onSave={() => handleSave({ showNotification: true })}
-                isSaving={isSaving}
-                isDirty={isDirty}
-                showStatusAndActions={false}
-                showTemplates={false}
-                showDelete={false}
-                showExport={false}
-                placeholder={t('tasks.contentPlaceholder', 'Add descriptions, checklists, technical specs, and acceptance criteria...')}
-                tasksStats={taskStatsForEditor}
-              />
-            </div>
-          )}
-
-          {taskEditorLayoutMode === 'preview' && (
-            <div className={clsx(classes.previewOnlyContainer, 'task-preview-only-container')}>
-              <div className={clsx(classes.renderedContainer, 'task-rendered-container')}>
-                <MarkdownViewer
-                  content={content || `_${t('tasks.noDescriptionProvided', 'No description provided')}_`}
-                  allowToggleTasks={true}
-                  onToggleTask={handleToggleTaskInContent}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Task Properties Inspector Sidebar */}
-        {isTaskPropertiesPanelOpen && (
-          <TaskInspector
-            content={content}
-            area={area}
-            onAreaChange={(val) => {
-              setArea(val);
-              setIsDirty(true);
-            }}
-            project={project}
-            onProjectChange={(val) => {
-              setProject(val);
-              setIsDirty(true);
-            }}
-            status={status}
-            onStatusChange={handleStatusChange}
-            priority={priority}
-            onPriorityChange={(val) => {
-              setPriority(val);
-              setIsDirty(true);
-            }}
-            dueDate={dueDate}
-            onDueDateChange={(val) => {
-              setDueDate(val);
-              setIsDirty(true);
-            }}
-            startedDate={startedDate}
-            onStartedDateChange={(val) => {
-              setStartedDate(val);
-              setIsDirty(true);
-            }}
-            completedDate={completedDate}
-            onCompletedDateChange={(val) => {
-              setCompletedDate(val);
-              setIsDirty(true);
-            }}
-            tags={tags}
-            onTagsChange={(val) => {
-              setTags(val);
-              setIsDirty(true);
-            }}
-            areas={areas}
-            projects={projects}
-            availableColumns={availableColumns}
-            allTags={allTags}
-            isLogging={isLogging}
-            onLogToDaily={handleLogToDaily}
-            onExportClick={() => setIsExportModalOpen(true)}
-            onOpenFileManager={persistedTaskRef.current?.filepath ? handleOpenFileInFileManager : undefined}
-            onDeleteClick={() => setIsDeleteModalOpen(true)}
-            onScrollToHeading={handleScrollToHeading}
-          />
-        )}
-      </div>
-
-      {/* Delete Confirmation Modal */}
       <TaskDeleteModal
         opened={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        onDelete={handleDelete}
+        taskTitle={persistedTaskRef.current?.title || form.title}
         isSaving={isSaving}
-        taskTitle={title || persistedTaskRef.current?.title || ''}
-        filename={persistedTaskRef.current?.filename}
+        onDelete={handleDelete}
       />
 
-      {/* Export Modal */}
       <ExportModal
         opened={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
-        title={title || persistedTaskRef.current?.title || 'Export Task'}
-        content={content}
-        defaultFileName={persistedTaskRef.current?.filename ? persistedTaskRef.current.filename.replace(/\.md$/, '') : `task-${persistedTaskRef.current?.taskId || 'export'}`}
+        title={t('tasks.exportTask', 'Export Task')}
+        content={form.content}
+        defaultFileName={
+          persistedTaskRef.current?.filename?.replace(/\.md$/, '') ||
+          form.title ||
+          'task-export'
+        }
       />
     </div>
   );

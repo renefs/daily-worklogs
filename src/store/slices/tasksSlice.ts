@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import { TaskItem, TaskMeta, TaskStatus } from '../../types';
+import { TaskItem, TaskMeta, TaskPriority, TaskStatus } from '../../types';
 import { AppSlice, TasksSlice } from '../types';
 import { invalidateNotesRefresh } from './notesSlice';
 
@@ -47,11 +47,12 @@ export const createTasksSlice: AppSlice<TasksSlice> = (set, get) => ({
     if (!window.electronAPI) return null;
     try {
       const res = await window.electronAPI.writeTask(taskData);
-      if (res.success) {
+      if (res && res.success) {
         invalidateTasksRefresh();
         await get().refreshTasksList();
         return res.task;
       }
+      console.error('Failed to write task, IPC returned:', res);
       return null;
     } catch (err) {
       console.error('Failed to write task:', err);
@@ -96,7 +97,7 @@ export const createTasksSlice: AppSlice<TasksSlice> = (set, get) => ({
     }
   },
 
-  logTaskToDailyNote: async (task: TaskMeta, targetDate?: string) => {
+  logTaskToDailyNote: async (task: TaskMeta | { title: string; status: TaskStatus; priority?: TaskPriority; filename?: string; taskId?: number }, targetDate?: string) => {
     if (!window.electronAPI) return false;
     const dateToUse = targetDate || get().selectedDate || dayjs().format('YYYY-MM-DD');
     try {
@@ -126,11 +127,33 @@ export const createTasksSlice: AppSlice<TasksSlice> = (set, get) => ({
   },
 
   openTaskModal: async (task = null, defaultStatus = 'todo') => {
-    const detailedTask = task && 'content' in task
-      ? task
-      : task?.filename && window.electronAPI
-        ? await window.electronAPI.readTask(task.filename)
-        : null;
+    let detailedTask: TaskItem | null = null;
+    if (task) {
+      if ('content' in task && typeof task.content === 'string') {
+        detailedTask = task as TaskItem;
+      } else if (task.filename && window.electronAPI) {
+        detailedTask = await window.electronAPI.readTask(task.filename);
+      } else {
+        const partial = task as Partial<TaskItem>;
+        detailedTask = {
+          id: partial.id || '',
+          taskId: partial.taskId,
+          filename: partial.filename || '',
+          filepath: partial.filepath || '',
+          title: partial.title || '',
+          status: partial.status || defaultStatus,
+          priority: partial.priority || 'medium',
+          area: partial.area || 'General',
+          project: partial.project || undefined,
+          created: partial.created || dayjs().format('YYYY-MM-DD'),
+          due: partial.due,
+          startedDate: partial.startedDate,
+          completedDate: partial.completedDate,
+          tags: partial.tags || [],
+          content: partial.content || '',
+        };
+      }
+    }
     set({
       activeTask: detailedTask,
       taskModalInitialStatus: defaultStatus,
@@ -152,11 +175,33 @@ export const createTasksSlice: AppSlice<TasksSlice> = (set, get) => ({
     }
     const current = get().currentView;
     const prev = returnView || (current === 'task' ? get().previousView : current);
-    const detailedTask = task && 'content' in task
-      ? task
-      : task?.filename && window.electronAPI
-        ? await window.electronAPI.readTask(task.filename)
-        : null;
+    let detailedTask: TaskItem | null = null;
+    if (task) {
+      if ('content' in task && typeof task.content === 'string') {
+        detailedTask = task as TaskItem;
+      } else if (task.filename && window.electronAPI) {
+        detailedTask = await window.electronAPI.readTask(task.filename);
+      } else {
+        const partial = task as Partial<TaskItem>;
+        detailedTask = {
+          id: partial.id || '',
+          taskId: partial.taskId,
+          filename: partial.filename || '',
+          filepath: partial.filepath || '',
+          title: partial.title || '',
+          status: partial.status || defaultStatus,
+          priority: partial.priority || 'medium',
+          area: partial.area || 'General',
+          project: partial.project || undefined,
+          created: partial.created || dayjs().format('YYYY-MM-DD'),
+          due: partial.due,
+          startedDate: partial.startedDate,
+          completedDate: partial.completedDate,
+          tags: partial.tags || [],
+          content: partial.content || '',
+        };
+      }
+    }
     set({
       activeTask: detailedTask,
       taskModalInitialStatus: defaultStatus,

@@ -97,10 +97,10 @@ export interface TasksSlice {
   }) => Promise<TaskItem | null>;
   updateTaskStatus: (filename: string, status: TaskStatus) => Promise<void>;
   deleteTask: (filename: string) => Promise<void>;
-  logTaskToDailyNote: (task: TaskMeta, targetDate?: string) => Promise<boolean>;
-  openTaskModal: (task?: TaskMeta | TaskItem | null, defaultStatus?: TaskStatus) => void;
+  logTaskToDailyNote: (task: TaskMeta | { title: string; status: TaskStatus; priority?: TaskPriority; filename?: string; taskId?: number }, targetDate?: string) => Promise<boolean>;
+  openTaskModal: (task?: TaskMeta | TaskItem | Partial<TaskItem> | null, defaultStatus?: TaskStatus) => void;
   closeTaskModal: () => void;
-  openTaskEditor: (task?: TaskMeta | TaskItem | null, defaultStatus?: TaskStatus, returnView?: AppViewMode) => Promise<void>;
+  openTaskEditor: (task?: TaskMeta | TaskItem | Partial<TaskItem> | null, defaultStatus?: TaskStatus, returnView?: AppViewMode) => Promise<void>;
   closeTaskEditor: () => void;
   setActiveTask: (task: TaskItem | null) => void;
   setTaskEditorLayoutMode: (mode: 'live' | 'split' | 'edit' | 'preview') => void;

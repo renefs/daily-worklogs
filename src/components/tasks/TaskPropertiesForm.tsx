@@ -108,7 +108,7 @@ export const TaskPropertiesForm: React.FC<TaskPropertiesFormProps> = ({
     <Stack gap="sm">
       {/* Status Selector */}
       <Select
-        label={t('tasks.status')}
+        label={t('tasks.status', 'Status')}
         value={status}
         onChange={(val) => val && onStatusChange(val as TaskStatus)}
         data={statusOptions.map((o) => ({ value: o.value, label: o.label }))}
@@ -133,7 +133,7 @@ export const TaskPropertiesForm: React.FC<TaskPropertiesFormProps> = ({
       {/* Priority Selector */}
       <div>
         <Text size="xs" fw={500} mb={4}>
-          {t('tasks.priority')}
+          {t('tasks.priority', 'Priority')}
         </Text>
         <SegmentedControl
           value={priority}
@@ -194,8 +194,8 @@ export const TaskPropertiesForm: React.FC<TaskPropertiesFormProps> = ({
 
       {/* Dates */}
       <DatePickerInput
-        label={t('tasks.dueDate')}
-        placeholder={t('tasks.noDueDate')}
+        label={t('tasks.dueDate', 'Due Date')}
+        placeholder={t('tasks.noDueDate', 'No due date')}
         value={dueDate}
         onChange={onDueDateChange}
         leftSection={<IconCalendar size={14} />}
@@ -205,8 +205,8 @@ export const TaskPropertiesForm: React.FC<TaskPropertiesFormProps> = ({
       />
 
       <DatePickerInput
-        label={t('tasks.startedDate')}
-        placeholder={t('tasks.noStartedDate')}
+        label={t('tasks.startedDate', 'Started Date')}
+        placeholder={t('tasks.noStartedDate', 'Not started yet')}
         value={startedDate}
         onChange={onStartedDateChange}
         leftSection={<IconClockPlay size={14} />}
@@ -216,8 +216,8 @@ export const TaskPropertiesForm: React.FC<TaskPropertiesFormProps> = ({
       />
 
       <DatePickerInput
-        label={t('tasks.completedDate')}
-        placeholder={t('tasks.noCompletedDate')}
+        label={t('tasks.completedDate', 'Completed Date')}
+        placeholder={t('tasks.noCompletedDate', 'Not completed yet')}
         value={completedDate}
         onChange={onCompletedDateChange}
         leftSection={<IconClockCheck size={14} />}

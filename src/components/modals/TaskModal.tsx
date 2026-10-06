@@ -1,16 +1,12 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Modal,
-  TextInput,
   Button,
   Group,
-  Stack,
-  Tabs,
   Text,
   Badge,
   ActionIcon,
   Tooltip,
-  Paper,
   Divider,
   useComputedColorScheme,
 } from '@mantine/core';
@@ -19,26 +15,14 @@ import {
   IconCheck,
   IconTrash,
   IconDeviceFloppy,
-  IconEdit,
-  IconEye,
   IconListCheck,
   IconArrowsMaximize,
-  IconPhoto,
 } from '@tabler/icons-react';
-import CodeMirror, { ReactCodeMirrorRef } from '@uiw/react-codemirror';
-import { markdown } from '@codemirror/lang-markdown';
-import { GFM } from '@lezer/markdown';
-import { oneDark } from '@codemirror/theme-one-dark';
-import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { useAppStoreSelector } from '../../store/useAppStore';
-import { DEFAULT_KANBAN_COLUMNS, TaskPriority, TaskStatus } from '../../types';
-import { MarkdownViewer } from '../viewer/MarkdownViewer';
 import { DEFAULT_AREAS } from '../../utils/areaProjectUtils';
-import { createTagAutocompleteExtension } from '../editor/tagAutocompleteExtension';
-import { liveMarkdownExtension } from '../editor/liveMarkdownExtension';
-import { TaskPropertiesForm } from '../tasks/TaskPropertiesForm';
-import { TaskChecklistProgress } from '../tasks/TaskChecklistProgress';
+import { useTaskForm } from '../tasks/useTaskForm';
+import { TaskModalBody } from './task/TaskModalBody';
 import { TaskDeleteModal } from '../tasks/TaskDeleteModal';
 
 export const TaskModal: React.FC = () => {
@@ -74,141 +58,70 @@ export const TaskModal: React.FC = () => {
     projects: state.projects,
   }));
 
-  const allTagsRef = useRef(allTags);
-  useEffect(() => {
-    allTagsRef.current = allTags;
-  }, [allTags]);
-
-  const [title, setTitle] = useState('');
-  const [area, setArea] = useState<string>('General');
-  const [project, setProject] = useState<string | null>(null);
-  const [status, setStatus] = useState<TaskStatus>('todo');
-  const [priority, setPriority] = useState<TaskPriority>('medium');
-  const [dueDate, setDueDate] = useState<Date | null>(null);
-  const [startedDate, setStartedDate] = useState<Date | null>(null);
-  const [completedDate, setCompletedDate] = useState<Date | null>(null);
-  const [tags, setTags] = useState<string[]>([]);
-  const [content, setContent] = useState('');
+  const [activeTab, setActiveTab] = useState<'details' | 'description' | 'preview'>('details');
   const [isSaving, setIsSaving] = useState(false);
   const [isLogging, setIsLogging] = useState(false);
-  const [activeTab, setActiveTab] = useState<'details' | 'description' | 'preview'>('details');
-  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  const editorRef = useRef<ReactCodeMirrorRef>(null);
-
-  const availableColumns = useMemo(() => {
-    return settings?.kanbanColumns && settings.kanbanColumns.length > 0
-      ? settings.kanbanColumns
-      : DEFAULT_KANBAN_COLUMNS;
-  }, [settings?.kanbanColumns]);
-
-  useEffect(() => {
-    if (activeTask) {
-      setTitle(activeTask.title || '');
-      setArea(activeTask.area || 'General');
-      setProject(activeTask.project || null);
-      setStatus(activeTask.status || 'todo');
-      setPriority(activeTask.priority || 'medium');
-      setDueDate(activeTask.due ? new Date(activeTask.due) : null);
-      setStartedDate(activeTask.startedDate ? new Date(activeTask.startedDate) : null);
-      setCompletedDate(activeTask.completedDate ? new Date(activeTask.completedDate) : null);
-      setTags(activeTask.tags || []);
-      setContent(activeTask.content || '');
-      setActiveTab('details');
-    } else {
-      setTitle('');
-      setArea('General');
-      setProject(null);
-      setStatus(taskModalInitialStatus || 'todo');
-      setPriority('medium');
-      setDueDate(null);
-      setStartedDate(null);
-      setCompletedDate(null);
-      setTags([]);
-      setContent('');
-      setActiveTab('details');
-    }
-  }, [activeTask, isTaskModalOpen, taskModalInitialStatus]);
-
-  const handleStatusChange = (newStatus: TaskStatus) => {
-    setStatus(newStatus);
-    const today = new Date();
-    const targetCol = availableColumns.find((c) => c.id === newStatus);
-    const behavior = targetCol?.behavior || (newStatus === 'done' ? 'done' : newStatus === 'cancelled' ? 'cancelled' : 'todo');
-    const isDoneOrCancelled = behavior === 'done' || behavior === 'cancelled';
-
-    if (behavior === 'in_progress' && !startedDate) {
-      setStartedDate(today);
-    }
-    if (isDoneOrCancelled && !completedDate) {
-      setCompletedDate(today);
-    } else if (!isDoneOrCancelled && completedDate) {
-      setCompletedDate(null);
-    }
-  };
+  const form = useTaskForm({
+    task: activeTask,
+    defaultStatus: taskModalInitialStatus,
+    kanbanColumns: settings?.kanbanColumns,
+    areas,
+    projects,
+  });
 
   const handleSave = async () => {
-    if (!title.trim()) return;
+    if (!form.title.trim()) {
+      notifications.show({
+        title: t('common.error'),
+        message: t('tasks.titleRequired', 'Title is required'),
+        color: 'red',
+      });
+      return;
+    }
 
     setIsSaving(true);
     try {
-      const formattedDue = dueDate ? dayjs(dueDate).format('YYYY-MM-DD') : undefined;
-      const formattedStarted = startedDate ? dayjs(startedDate).format('YYYY-MM-DD') : undefined;
-      const formattedCompleted = completedDate ? dayjs(completedDate).format('YYYY-MM-DD') : undefined;
-
-      const result = await createOrUpdateTask({
-        id: activeTask?.id,
-        taskId: activeTask?.taskId,
-        filename: activeTask?.filename,
-        title: title.trim(),
-        status,
-        priority,
-        area: area.trim() || undefined,
-        project: project ? project.trim() : undefined,
-        due: formattedDue,
-        startedDate: formattedStarted,
-        completedDate: formattedCompleted,
-        tags,
-        content,
-      });
-
-      if (result) {
+      const payload = form.buildTaskPayload(activeTask);
+      const savedTask = await createOrUpdateTask(payload);
+      if (savedTask) {
         notifications.show({
-          title: t('tasks.taskSaved'),
-          message: `${result.title}`,
+          title: t('common.saved', 'Saved'),
+          message: savedTask.title,
           color: 'teal',
           icon: <IconCheck size={16} />,
         });
         closeTaskModal();
+      } else {
+        notifications.show({
+          title: t('common.error', 'Error'),
+          message: t('tasks.saveError', 'Failed to save task'),
+          color: 'red',
+        });
       }
     } catch (err) {
       console.error('Failed to save task:', err);
+      notifications.show({
+        title: t('common.error'),
+        message: t('tasks.saveError', 'Failed to save task'),
+        color: 'red',
+      });
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleLogToDaily = async () => {
-    if (!activeTask && !title.trim()) return;
+    if (!form.title.trim() && !activeTask) return;
     setIsLogging(true);
     try {
-      const taskToLog = activeTask || {
-        id: 'new',
-        filename: '',
-        filepath: '',
-        title: title.trim(),
-        status,
-        priority,
-        created: dayjs().format('YYYY-MM-DD'),
-        content,
-      };
-
-      const success = await logTaskToDailyNote(taskToLog);
+      const payload = form.buildTaskPayload(activeTask);
+      const success = await logTaskToDailyNote(payload);
       if (success) {
         notifications.show({
           title: t('tasks.taskLoggedToDaily'),
-          message: title.trim() || activeTask?.title || '',
+          message: form.title.trim() || activeTask?.title || '',
           color: 'teal',
           icon: <IconCheck size={16} />,
         });
@@ -221,7 +134,7 @@ export const TaskModal: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (!activeTask) return;
+    if (!activeTask?.filename) return;
     setIsSaving(true);
     try {
       await deleteTask(activeTask.filename);
@@ -240,42 +153,31 @@ export const TaskModal: React.FC = () => {
     }
   };
 
-  const processImageFiles = async (files: FileList | File[]) => {
-    if (!window.electronAPI) return;
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      if (!file.type.startsWith('image/') && !/\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(file.name)) {
-        continue;
-      }
-      try {
-        const buffer = await file.arrayBuffer();
-        const res = await window.electronAPI.saveImage({
-          buffer,
-          originalName: file.name,
-          mimeType: file.type,
-        });
-        if (res.success && res.relativePath) {
-          const imageMd = `\n![${res.filename || file.name}](${res.relativePath})\n`;
-          setContent((prev) => `${prev}${imageMd}`);
+  const processImageFiles = useCallback(
+    async (files: FileList | File[]) => {
+      if (!window.electronAPI) return;
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (!file.type.startsWith('image/') && !/\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(file.name)) {
+          continue;
         }
-      } catch (err) {
-        console.error('Failed to save dropped image in task modal:', err);
+        try {
+          const buffer = await file.arrayBuffer();
+          const res = await window.electronAPI.saveImage({
+            buffer,
+            originalName: file.name,
+            mimeType: file.type,
+          });
+          if (res.success && res.relativePath) {
+            form.setContent((prev) => `${prev}\n![${res.filename || file.name}](${res.relativePath})\n`);
+          }
+        } catch (err) {
+          console.error('Failed to save dropped image in task modal:', err);
+        }
       }
-    }
-  };
-
-  const extensions = useMemo(() => {
-    return [
-      markdown({ extensions: GFM }),
-      createTagAutocompleteExtension(() => allTagsRef.current),
-      liveMarkdownExtension({
-        copyCode: t('editor.copyCode'),
-        editTable: t('editor.editTable'),
-        imageNotFound: t('editor.imageNotFound'),
-        toggleTask: t('editor.toggleTask'),
-      }),
-    ];
-  }, [t]);
+    },
+    [form]
+  );
 
   return (
     <>
@@ -336,7 +238,7 @@ export const TaskModal: React.FC = () => {
                     radius="md"
                     onClick={() => {
                       closeTaskModal();
-                      openTaskEditor(activeTask);
+                      void openTaskEditor(activeTask);
                     }}
                   >
                     <IconArrowsMaximize size={15} />
@@ -350,175 +252,115 @@ export const TaskModal: React.FC = () => {
         centered
         radius="md"
       >
-        <Stack gap="md">
-          {/* Title */}
-          <TextInput
-            label={t('tasks.taskTitle')}
-            placeholder={t('tasks.titlePlaceholder')}
-            value={title}
-            onChange={(e) => setTitle(e.currentTarget.value)}
-            required
-            autoFocus
-            radius="md"
-          />
+        <TaskModalBody
+          title={form.title}
+          onTitleChange={(val) => {
+            form.setTitle(val);
+            form.setIsDirty(true);
+          }}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          content={form.content}
+          onContentChange={(val) => {
+            form.setContent(val);
+            form.setIsDirty(true);
+          }}
+          area={form.area}
+          onAreaChange={(val) => {
+            form.setArea(val);
+            form.setIsDirty(true);
+          }}
+          project={form.project}
+          onProjectChange={(val) => {
+            form.setProject(val);
+            form.setIsDirty(true);
+          }}
+          status={form.status}
+          onStatusChange={form.handleStatusChange}
+          priority={form.priority}
+          onPriorityChange={(val) => {
+            form.setPriority(val);
+            form.setIsDirty(true);
+          }}
+          dueDate={form.dueDate}
+          onDueDateChange={(val) => {
+            form.setDueDate(val);
+            form.setIsDirty(true);
+          }}
+          startedDate={form.startedDate}
+          onStartedDateChange={(val) => {
+            form.setStartedDate(val);
+            form.setIsDirty(true);
+          }}
+          completedDate={form.completedDate}
+          onCompletedDateChange={(val) => {
+            form.setCompletedDate(val);
+            form.setIsDirty(true);
+          }}
+          tags={form.tags}
+          onTagsChange={(val) => {
+            form.setTags(val);
+            form.setIsDirty(true);
+          }}
+          areas={areas}
+          projects={projects}
+          availableColumns={form.availableColumns}
+          allTags={allTags}
+          isDark={isDark}
+          onProcessImageFiles={processImageFiles}
+        />
 
-          <Tabs value={activeTab} onChange={(val) => val && setActiveTab(val as 'details' | 'description' | 'preview')} radius="md">
-            <Tabs.List mb="sm">
-              <Tabs.Tab value="details" leftSection={<IconListCheck size={15} />}>
-                {t('tasks.details', 'Details')}
-              </Tabs.Tab>
-              <Tabs.Tab value="description" leftSection={<IconEdit size={15} />}>
-                {t('tasks.description', 'Description')}
-              </Tabs.Tab>
-              <Tabs.Tab value="preview" leftSection={<IconEye size={15} />}>
-                {t('editor.preview')}
-              </Tabs.Tab>
-            </Tabs.List>
+        <Divider my="xs" />
 
-            <Tabs.Panel value="details">
-              <Stack gap="md">
-                <TaskChecklistProgress content={content} />
-                <TaskPropertiesForm
-                  area={area}
-                  onAreaChange={setArea}
-                  project={project}
-                  onProjectChange={setProject}
-                  status={status}
-                  onStatusChange={handleStatusChange}
-                  priority={priority}
-                  onPriorityChange={setPriority}
-                  dueDate={dueDate}
-                  onDueDateChange={setDueDate}
-                  startedDate={startedDate}
-                  onStartedDateChange={setStartedDate}
-                  completedDate={completedDate}
-                  onCompletedDateChange={setCompletedDate}
-                  tags={tags}
-                  onTagsChange={setTags}
-                  areas={areas}
-                  projects={projects}
-                  availableColumns={availableColumns}
-                  allTags={allTags}
-                />
-              </Stack>
-            </Tabs.Panel>
-
-            <Tabs.Panel value="description">
-              <Stack gap="xs">
-                <Group justify="space-between" align="center">
-                  <Text size="xs" c="dimmed">
-                    {t('tasks.descriptionHelp', 'Markdown supported. You can drop images or checklists here.')}
-                  </Text>
-                  <Button
-                    variant="subtle"
-                    size="compact-xs"
-                    leftSection={<IconPhoto size={13} />}
-                    onClick={async () => {
-                      if (!window.electronAPI) return;
-                      const res = await window.electronAPI.selectImageDialog();
-                      if (res.success && res.relativePath) {
-                        setContent((prev) => `${prev}\n![${res.filename || 'Image'}](${res.relativePath})\n`);
-                      }
-                    }}
-                  >
-                    {t('editor.insertImage')}
-                  </Button>
-                </Group>
-
-                <Paper
-                  withBorder
-                  radius="md"
-                  p={4}
-                  style={{
-                    backgroundColor: isDark ? 'var(--mantine-color-dark-8)' : 'var(--mantine-color-gray-0)',
-                    borderColor: isDraggingOver ? 'var(--mantine-primary-color-filled)' : undefined,
-                    minHeight: 240,
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setIsDraggingOver(true);
-                  }}
-                  onDragLeave={() => setIsDraggingOver(false)}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setIsDraggingOver(false);
-                    if (e.dataTransfer.files) void processImageFiles(e.dataTransfer.files);
-                  }}
-                >
-                  <CodeMirror
-                    ref={editorRef}
-                    value={content}
-                    height="240px"
-                    theme={isDark ? oneDark : 'light'}
-                    extensions={extensions}
-                    onChange={(val) => setContent(val)}
-                    placeholder={t('tasks.contentPlaceholder')}
-                  />
-                </Paper>
-              </Stack>
-            </Tabs.Panel>
-
-            <Tabs.Panel value="preview">
-              <Paper withBorder p="md" radius="md" style={{ minHeight: 240, maxHeight: 360, overflowY: 'auto' }}>
-                <MarkdownViewer content={content || `*${t('editor.emptyNote')}*`} />
-              </Paper>
-            </Tabs.Panel>
-          </Tabs>
-
-          <Divider my="xs" />
-
-          {/* Footer actions */}
-          <Group justify="space-between" align="center">
-            <Group gap="xs">
-              {activeTask && (
-                <Button
-                  variant="subtle"
-                  color="red"
-                  size="xs"
-                  leftSection={<IconTrash size={14} />}
-                  onClick={() => setIsDeleteModalOpen(true)}
-                  loading={isSaving}
-                >
-                  {t('common.delete')}
-                </Button>
-              )}
+        <Group justify="space-between" align="center">
+          <Group gap="xs">
+            {activeTask && (
               <Button
                 variant="subtle"
-                color="blue"
+                color="red"
                 size="xs"
-                onClick={handleLogToDaily}
-                loading={isLogging}
-              >
-                {t('tasks.logToDailyNote')}
-              </Button>
-            </Group>
-
-            <Group gap="xs">
-              <Button variant="default" onClick={closeTaskModal} radius="md">
-                {t('common.cancel')}
-              </Button>
-              <Button
-                color="primary"
-                onClick={handleSave}
+                leftSection={<IconTrash size={14} />}
+                onClick={() => setIsDeleteModalOpen(true)}
                 loading={isSaving}
-                disabled={!title.trim()}
-                leftSection={<IconDeviceFloppy size={16} />}
-                radius="md"
               >
-                {t('common.save')}
+                {t('common.delete')}
               </Button>
-            </Group>
+            )}
+            <Button
+              variant="subtle"
+              color="gray"
+              size="xs"
+              onClick={handleLogToDaily}
+              loading={isLogging}
+            >
+              {t('tasks.logToDaily', 'Log to Daily Note')}
+            </Button>
           </Group>
-        </Stack>
+
+          <Group gap="xs">
+            <Button variant="default" size="xs" onClick={closeTaskModal}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="filled"
+              color="primary"
+              size="xs"
+              leftSection={<IconDeviceFloppy size={14} />}
+              onClick={handleSave}
+              loading={isSaving}
+            >
+              {t('common.save')}
+            </Button>
+          </Group>
+        </Group>
       </Modal>
 
       <TaskDeleteModal
         opened={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        onDelete={handleDelete}
+        taskTitle={activeTask?.title || ''}
         isSaving={isSaving}
-        taskTitle={title || activeTask?.title || ''}
-        filename={activeTask?.filename}
+        onDelete={handleDelete}
       />
     </>
   );
