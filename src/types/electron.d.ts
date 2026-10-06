@@ -49,6 +49,8 @@ export interface ElectronAPI {
   getNotesRange: (startDate: string, endDate: string) => Promise<PeriodSummary>;
   listTasks: () => Promise<TaskMeta[]>;
   searchTaskContents: (query: string) => Promise<string[]>;
+  searchNoteContents: (query: string) => Promise<string[]>;
+  searchVault: (query: string) => Promise<import('./index').VaultSearchResult[]>;
   readTask: (filename: string) => Promise<TaskItem | null>;
   writeTask: (task: {
     id?: string;

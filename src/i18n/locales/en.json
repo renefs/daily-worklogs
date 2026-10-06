@@ -700,5 +700,11 @@
     "notes": "Notes",
     "loading": "Loading...",
     "error": "Error"
+  },
+  "spotlight": {
+    "searchPlaceholder": "Type a command, date, or search vault...",
+    "quickActions": "Quick Actions",
+    "nothingFound": "No notes or tasks matching \"{{query}}\"",
+    "searchVault": "Search vault"
   }
 }

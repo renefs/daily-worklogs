@@ -53,6 +53,7 @@ import { registerOrganizationHandlers } from './ipc/organizationHandlers';
 import { registerReportHandlers } from './ipc/reportHandlers';
 import { registerSettingsHandlers } from './ipc/settingsHandlers';
 import { registerSystemHandlers } from './ipc/systemHandlers';
+import { registerSearchHandlers } from './ipc/searchHandlers';
 
 // Register custom protocol scheme before app ready
 protocol.registerSchemesAsPrivileged([
@@ -424,6 +425,10 @@ app.whenReady().then(() => {
   registerReportHandlers({
     getSettings,
     fileReadConcurrency: FILE_READ_CONCURRENCY,
+  });
+
+  registerSearchHandlers({
+    getVaultPath: () => getSettings().vaultPath,
   });
 
   registerTaskHandlers({

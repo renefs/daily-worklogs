@@ -262,3 +262,14 @@ export interface PeriodSummary {
   serviceBreakdown?: Record<string, ServiceBreakdownItem>;
   projectBreakdown?: Record<string, ServiceProjectMetric & { service: string; project: string }>;
 }
+
+export interface VaultSearchResult {
+  type: 'note' | 'task';
+  id: string; // date 'YYYY-MM-DD' or task filename
+  title: string;
+  snippet: string;
+  line?: number;
+  tags?: string[];
+  status?: string;
+  taskId?: number;
+}

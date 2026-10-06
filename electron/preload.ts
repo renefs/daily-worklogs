@@ -38,6 +38,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getNotesRange: (startDate: string, endDate: string) => ipcRenderer.invoke('get-notes-range', startDate, endDate),
   listTasks: () => ipcRenderer.invoke('list-tasks'),
   searchTaskContents: (query: string) => ipcRenderer.invoke('search-task-contents', query),
+  searchNoteContents: (query: string) => ipcRenderer.invoke('search-note-contents', query),
+  searchVault: (query: string) => ipcRenderer.invoke('search-vault', query),
   readTask: (filename: string) => ipcRenderer.invoke('read-task', filename),
   writeTask: (task: WriteTaskPayload) => ipcRenderer.invoke('write-task', task),
   updateTaskStatus: (filename: string, status: TaskStatus) => ipcRenderer.invoke('update-task-status', filename, status),
