@@ -24,57 +24,103 @@ export function requireTaskWriteInput(value: unknown): TaskWriteInput {
   }
 
   const data = value as Record<string, unknown>;
-  const optionalStringFields = [
-    'id',
-    'area',
-    'project',
-    'created',
-    'due',
-    'startedDate',
-    'completedDate',
-  ] as const;
   const priorityValues: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
 
   if (typeof data.title !== 'string' || !data.title.trim()) throw new Error('Invalid task title');
   if (typeof data.status !== 'string' || !data.status.trim()) throw new Error('Invalid task status');
   if (typeof data.content !== 'string') throw new Error('Invalid task content');
-  if (data.taskId !== undefined && (!Number.isSafeInteger(data.taskId) || Number(data.taskId) < 1)) {
-    throw new Error('Invalid task ID');
-  }
-  if (data.filename !== undefined) requireTaskFilename(data.filename);
-  if (data.priority !== undefined && !priorityValues.includes(data.priority as TaskPriority)) {
-    throw new Error('Invalid task priority');
-  }
+  const content = data.content;
   if (data.tags !== undefined && (!Array.isArray(data.tags) || !data.tags.every((tag) => typeof tag === 'string'))) {
     throw new Error('Invalid task tags');
   }
 
-  for (const field of optionalStringFields) {
-    if (data[field] !== undefined && typeof data[field] !== 'string') {
-      throw new Error(`Invalid task ${field}`);
+  let taskId: number | undefined;
+  if (data.taskId !== undefined && data.taskId !== null) {
+    const num = Number(data.taskId);
+    if (!Number.isSafeInteger(num) || num < 1) {
+      throw new Error('Invalid task ID');
+    }
+    taskId = num;
+  }
+
+  let filename: string | undefined;
+  if (data.filename !== undefined && data.filename !== null) {
+    if (typeof data.filename === 'string' && data.filename.trim()) {
+      filename = requireTaskFilename(data.filename.trim());
+    } else if (typeof data.filename !== 'string') {
+      throw new Error('Invalid task filename');
     }
   }
 
-  for (const field of ['created', 'due', 'startedDate', 'completedDate'] as const) {
-    const date = data[field];
-    if (typeof date === 'string' && date !== '') requireIsoDate(date, `task ${field}`);
+  let priority: TaskPriority | undefined;
+  if (data.priority !== undefined) {
+    if (typeof data.priority !== 'string' || !priorityValues.includes(data.priority as TaskPriority)) {
+      throw new Error('Invalid task priority');
+    }
+    priority = data.priority as TaskPriority;
+  }
+
+  const tags = Array.isArray(data.tags)
+    ? (data.tags as string[])
+    : [];
+
+  const parseIsoOrOmit = (val: unknown, fieldName: string): string | undefined => {
+    if (!val) return undefined;
+    if (typeof val === 'string') {
+      const trimmed = val.trim();
+      if (!trimmed) return undefined;
+      if (ISO_DATE_PATTERN.test(trimmed)) {
+        return requireIsoDate(trimmed, `task ${fieldName}`);
+      }
+      const parsed = dayjs(trimmed);
+      if (parsed.isValid()) {
+        const formatted = parsed.format('YYYY-MM-DD');
+        return requireIsoDate(formatted, `task ${fieldName}`);
+      }
+      throw new Error(`Invalid task ${fieldName}`);
+    }
+    if (val instanceof Date && !isNaN(val.getTime())) {
+      const formatted = dayjs(val).format('YYYY-MM-DD');
+      return requireIsoDate(formatted, `task ${fieldName}`);
+    }
+    return undefined;
+  };
+
+  const created = parseIsoOrOmit(data.created, 'created');
+  const due = parseIsoOrOmit(data.due, 'due');
+  const startedDate = parseIsoOrOmit(data.startedDate, 'startedDate');
+  const completedDate = parseIsoOrOmit(data.completedDate, 'completedDate');
+
+  let id: string | undefined;
+  if (data.id !== undefined && data.id !== null && String(data.id).trim()) {
+    id = String(data.id).trim();
+  }
+
+  let area: string | undefined;
+  if (typeof data.area === 'string' && data.area.trim()) {
+    area = data.area.trim();
+  }
+
+  let project: string | undefined;
+  if (typeof data.project === 'string' && data.project.trim()) {
+    project = data.project.trim();
   }
 
   return {
-    ...(typeof data.id === 'string' ? { id: data.id } : {}),
-    ...(typeof data.taskId === 'number' ? { taskId: data.taskId } : {}),
-    ...(typeof data.filename === 'string' ? { filename: data.filename } : {}),
-    title: data.title,
-    status: data.status,
-    ...(typeof data.priority === 'string' ? { priority: data.priority as TaskPriority } : {}),
-    ...(typeof data.area === 'string' ? { area: data.area } : {}),
-    ...(typeof data.project === 'string' ? { project: data.project } : {}),
-    ...(typeof data.created === 'string' ? { created: data.created } : {}),
-    ...(typeof data.due === 'string' ? { due: data.due } : {}),
-    ...(typeof data.startedDate === 'string' ? { startedDate: data.startedDate } : {}),
-    ...(typeof data.completedDate === 'string' ? { completedDate: data.completedDate } : {}),
-    ...(Array.isArray(data.tags) ? { tags: data.tags as string[] } : {}),
-    content: data.content,
+    ...(id ? { id } : {}),
+    ...(taskId ? { taskId } : {}),
+    ...(filename ? { filename } : {}),
+    title: data.title.trim(),
+    status: data.status.trim(),
+    ...(priority ? { priority } : {}),
+    ...(area ? { area } : {}),
+    ...(project ? { project } : {}),
+    ...(created ? { created } : {}),
+    ...(due ? { due } : {}),
+    ...(startedDate ? { startedDate } : {}),
+    ...(completedDate ? { completedDate } : {}),
+    tags,
+    content,
   };
 }
 

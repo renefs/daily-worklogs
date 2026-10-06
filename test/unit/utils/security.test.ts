@@ -49,6 +49,23 @@ describe('security utils', () => {
       expect(requireTaskWriteInput({ ...validTask, unknown: 'discarded' })).toEqual(validTask);
     });
 
+    it('normalizes numeric id, empty filename, and date formats', () => {
+      const input = {
+        title: 'Review performance metrics for API',
+        status: 'todo',
+        content: 'Check latency',
+        id: 42,
+        filename: '',
+        created: '2026-09-02T10:00:00.000Z',
+        due: new Date('2026-10-15T00:00:00.000Z'),
+      };
+      const result = requireTaskWriteInput(input);
+      expect(result.id).toBe('42');
+      expect(result.filename).toBeUndefined();
+      expect(result.created).toBe('2026-09-02');
+      expect(result.due).toBe('2026-10-15');
+    });
+
     it('rejects missing required fields and malformed optional values', () => {
       expect(() => requireTaskWriteInput(null)).toThrow(/Invalid task data/);
       expect(() => requireTaskWriteInput({ ...validTask, title: '  ' })).toThrow(/Invalid task title/);
