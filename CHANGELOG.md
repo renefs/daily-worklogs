@@ -8,6 +8,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Added
+- **Vault Full-Text Search & Spotlight Quick Switcher**: Added debounced full-text search across daily notes and tasks with snippet extraction, line numbers, result caching, and a keyboard-accessible Spotlight dialog (`Cmd+K` / `Ctrl+K`).
+- **Wikilinks & Backlink Navigation**: Added Obsidian-style `[[wikilink]]` support with live syntax styling, target autocompletion (`[[`), toolbar link insertion, and clickable preview navigation across daily notes and tasks.
+- **Checklist Task Conversion**: Added interactive "Convert to Task" action for Markdown checklist items (`- [ ]`) in both Live Preview and rendered Markdown viewer to convert list items directly into tracked tasks.
+
+### Changed
+- **Electron Main Process Decomposition**: Modularized the monolithic Electron main process by extracting settings management (`settingsService`), application menu configuration (`menuService`), and domain IPC handlers (`settingsHandlers`, `reportHandlers`, `systemHandlers`, `searchHandlers`).
+- **UI Component Decomposition**:
+  - Decomposed `AreasProjectsManager` into reusable `AreaCard` and `ProjectCard` subcomponents.
+  - Decomposed `TagsManager` into focused `TagRow` and `TagEditorModal` subcomponents.
+  - Decomposed `TaskModal` and `TaskView` into modular `TaskModalBody` and `TaskWorkspace` components sharing a consolidated `useTaskForm` state hook.
+  - Decomposed monthly and weekly dashboards into focused summary, activity panel, and task list components.
+- **Workspace Navigation & Sidebar Layout**: Refined navigation rail button styling and disabled states, kept note history sidebar exclusive to the Daily view, embedded an inline calendar card directly in the sidebar, and integrated full-text note search filtering.
+
+### Security
+- **Task Payload Normalization & Hardening**: Hardened `requireTaskWriteInput` to normalize numeric task IDs, empty filenames, and ISO date strings or Date objects, ensuring strict validation while tolerating safe input variants.
+
 ## [1.14.0] - 2026-10-01
 
 ### Fixed
@@ -320,8 +337,3 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Editor Tab Layout**: Redesigned editor tab bar with a compact layout preventing label wrapping on smaller screens.
 - **Date Localization**: Enhanced calendar and period view headers to format dates according to the active locale and user format.
 - **Build & Packaging**: Improved multi-platform build scripts, Electron preload bundling, and test verification suite.
-## [Unreleased]
-
-### Changed
-- Decomposed the monthly dashboard into focused summary, activity panel, and task list components.
-- Decomposed the weekly dashboard into a focused dashboard component with typed activity and project data.
