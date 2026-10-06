@@ -35,7 +35,6 @@ test.describe('Daily Note Editor & Persistence', () => {
     const savedContent = fs.readFileSync(expectedFilePath, 'utf-8');
     expect(savedContent).toContain('Automated E2E verification entry');
     expect(savedContent).toContain('Follow-up task');
-    await page.screenshot({ path: '/private/tmp/worklog-daily-light.png' });
   });
 });
 

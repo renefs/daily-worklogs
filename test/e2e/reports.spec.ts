@@ -16,7 +16,6 @@ test('drills down from annual activity to a daily note and supports narrow layou
   await expect(page.getByTestId('report-period-picker')).toHaveText('28 Sep – 4 Oct 2026');
   await expect(page.getByText('1 of 7', { exact: true })).toBeVisible();
   await expect(page.getByRole('tabpanel', { name: 'Overview' })).toBeVisible();
-  await page.screenshot({ path: '/private/tmp/worklog-reports-desktop.png' });
   await page.getByRole('button', { name: 'Open daily note for 2026-10-01' }).click();
   await expect(page.locator('.cm-content')).toContainText('Review release notes');
   await page.getByRole('button', { name: 'Reports', exact: true }).click();
@@ -38,7 +37,6 @@ test('drills down from annual activity to a daily note and supports narrow layou
     expect(layout.contentScrollWidth).toBeLessThanOrEqual(layout.contentWidth);
     expect(layout.navigationFits).toBe(true);
   }
-  await page.screenshot({ path: '/private/tmp/worklog-reports-mobile.png' });
   await page.getByTestId('report-period-picker').click();
   await page.getByRole('dialog').getByRole('button', { name: '1 October 2026', exact: true }).click();
   await expect(page.getByTestId('report-period-picker')).toHaveAttribute('aria-expanded', 'false');
@@ -69,5 +67,4 @@ test('respects Spanish labels, dark appearance, and Sunday-start reporting', asy
   await page.getByTestId('report-period-picker').click();
   await page.getByRole('dialog').getByRole('button', { name: '1 octubre 2026', exact: true }).click();
   await expect(page.locator('[data-tone]')).toHaveCount(3);
-  await page.screenshot({ path: '/private/tmp/worklog-reports-dark-spanish.png' });
 });

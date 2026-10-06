@@ -55,7 +55,22 @@ export const test = base.extend<ElectronAppFixture>({
 
     await use(app);
 
-    await app.close();
+    // Always terminate the app: on macOS closing windows does not quit the app,
+    // and the window close handler is intercepted to flush the editor first.
+    const child = app.process();
+    const exited = new Promise<void>((resolve) => {
+      if (child.exitCode !== null || child.signalCode !== null) resolve();
+      else child.once('exit', () => resolve());
+    });
+    await app.evaluate(({ app: electronApp }) => electronApp.exit(0)).catch(() => undefined);
+    const timedOut = await Promise.race([
+      exited.then(() => false),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(true), 5000)),
+    ]);
+    if (timedOut) {
+      child.kill('SIGKILL');
+      await exited;
+    }
   },
 
   page: async ({ electronApp }, use) => {
