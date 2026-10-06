@@ -20,6 +20,7 @@ import {
   IconTable,
   IconPhoto,
   IconTemplate,
+  IconListCheck,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 
@@ -30,6 +31,7 @@ export interface EditorToolbarProps {
   showTemplates?: boolean;
   templates?: { id: string; name: string }[];
   onInsertTemplate?: (templateId: string) => void;
+  onConvertToTask?: () => void;
 }
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
@@ -39,6 +41,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   showTemplates = true,
   templates = [],
   onInsertTemplate,
+  onConvertToTask,
 }) => {
   const { t } = useTranslation();
 
@@ -126,6 +129,19 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           <IconCheckbox size={15} />
         </ActionIcon>
       </Tooltip>
+      {onConvertToTask && (
+        <Tooltip label={t('tasks.convertToTask', 'Convert selection or line to task')} withArrow>
+          <Button
+            variant="light"
+            color="blue"
+            size="compact-xs"
+            leftSection={<IconListCheck size={14} />}
+            onClick={onConvertToTask}
+          >
+            {t('tasks.convertToTask', 'Convert to Task')}
+          </Button>
+        </Tooltip>
+      )}
       <Divider orientation="vertical" />
       <Tooltip label={t('editor.code')} withArrow>
         <ActionIcon

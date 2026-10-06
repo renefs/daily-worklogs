@@ -8,10 +8,10 @@ import { parseTagHierarchy } from '../../utils/tagUtils';
 /**
  * Creates a CodeMirror extension that autocompletes `#tags` with project/service info
  */
-export function createTagAutocompleteExtension(
+export function createTagCompletionSource(
   getTags: () => TagDefinition[] | string[]
-): Extension {
-  const tagCompletionSource = (context: CompletionContext): CompletionResult | null => {
+) {
+  return (context: CompletionContext): CompletionResult | null => {
     // Match # followed by word characters or / - _ :
     const word = context.matchBefore(/#[\p{L}\p{N}/_:-]*/u);
     if (!word) return null;
@@ -77,10 +77,15 @@ export function createTagAutocompleteExtension(
       validFor: /^#[\p{L}\p{N}/_:-]*$/u,
     };
   };
+}
 
+export function createTagAutocompleteExtension(
+  getTags: () => TagDefinition[] | string[]
+): Extension {
   return autocompletion({
-    override: [tagCompletionSource],
+    override: [createTagCompletionSource(getTags)],
     defaultKeymap: true,
     icons: true,
   });
 }
+

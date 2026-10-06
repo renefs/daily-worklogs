@@ -38,6 +38,7 @@
     "newTask": "Nueva Tarea",
     "createTask": "Crear Tarea",
     "editTask": "Editar Tarea",
+    "convertToTask": "Convertir en tarea",
     "deleteTask": "Eliminar Tarea",
     "deleteConfirm": "¿Estás seguro de que deseas eliminar la tarea \"{{title}}\"? Esto eliminará el archivo {{filename}} del disco.",
     "taskSaved": "¡Tarea guardada con éxito!",

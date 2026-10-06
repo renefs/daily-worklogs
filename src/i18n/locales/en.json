@@ -38,6 +38,7 @@
     "newTask": "New Task",
     "createTask": "Create Task",
     "editTask": "Edit Task",
+    "convertToTask": "Convert to Task",
     "deleteTask": "Delete Task",
     "deleteConfirm": "Are you sure you want to delete task \"{{title}}\"? This will remove the file {{filename}} from disk.",
     "taskSaved": "Task saved successfully!",

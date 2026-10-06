@@ -20,7 +20,8 @@ import { formatTemplateContent } from '../../utils/dateTemplate';
 import { EditorView, keymap } from '@codemirror/view';
 import { EditorSelection } from '@codemirror/state';
 import { liveMarkdownExtension } from './liveMarkdownExtension';
-import { createTagAutocompleteExtension } from './tagAutocompleteExtension';
+import { createEditorAutocompleteExtension } from './wikilinkAutocompleteExtension';
+import { parseWikilink } from '../../utils/wikilinkUtils';
 import { EditorToolbar } from './EditorToolbar';
 import { EditorHeaderActions } from './EditorHeaderActions';
 import classes from './MarkdownEditor.module.css';
@@ -89,6 +90,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const [isDraggingOver, setIsDraggingOver] = React.useState(false);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+
   const {
     activeNote,
     setNoteContent,
@@ -99,6 +102,11 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     settings,
     selectedDate,
     allTags,
+    notesList,
+    tasks,
+    setSelectedDate,
+    setCurrentView,
+    openTaskModal,
   } = useAppStoreSelector((state) => ({
     activeNote: state.activeNote,
     setNoteContent: state.setNoteContent,
@@ -109,6 +117,11 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     settings: state.settings,
     selectedDate: state.selectedDate,
     allTags: state.allTags,
+    notesList: state.notesList,
+    tasks: state.tasks,
+    setSelectedDate: state.setSelectedDate,
+    setCurrentView: state.setCurrentView,
+    openTaskModal: state.openTaskModal,
   }));
 
   const isControlled = content !== undefined;
@@ -135,6 +148,105 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   useEffect(() => {
     allTagsRef.current = allTags;
   }, [allTags]);
+
+  const notesListRef = useRef(notesList);
+  useEffect(() => {
+    notesListRef.current = notesList;
+  }, [notesList]);
+
+  const tasksRef = useRef(tasks);
+  useEffect(() => {
+    tasksRef.current = tasks;
+  }, [tasks]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+
+    const handleWikilinkNavigate = async (e: Event) => {
+      const customEvent = e as CustomEvent<{ target: string }>;
+      const rawTarget = customEvent.detail?.target;
+      if (!rawTarget) return;
+
+      const parsed = parseWikilink(rawTarget);
+      const targetStr = parsed?.target || rawTarget;
+
+      // 1. Date check
+      if (parsed?.isDate && parsed.date) {
+        await setSelectedDate(parsed.date);
+        await setCurrentView('daily');
+        return;
+      }
+
+      // 2. Numeric / task filename check
+      if (parsed?.isTask) {
+        if (parsed.taskId) {
+          const found = tasksRef.current.find((t) => t.taskId === parsed.taskId);
+          if (found) {
+            void openTaskModal(found);
+            return;
+          }
+        }
+        if (parsed.taskFilename) {
+          const found = tasksRef.current.find(
+            (t) => t.filename === parsed.taskFilename || t.filename.endsWith(parsed.taskFilename!)
+          );
+          if (found) {
+            void openTaskModal(found);
+            return;
+          }
+        }
+      }
+
+      // 3. Fallback: check if raw target matches note date directly
+      const foundNote = notesListRef.current.find((n) => n.date === targetStr);
+      if (foundNote) {
+        await setSelectedDate(foundNote.date);
+        await setCurrentView('daily');
+        return;
+      }
+
+      // 4. Fallback: check if raw target matches task title
+      const foundTask = tasksRef.current.find(
+        (t) => t.title.toLowerCase() === targetStr.toLowerCase()
+      );
+      if (foundTask) {
+        void openTaskModal(foundTask);
+        return;
+      }
+
+      // 5. Fallback: Search vault for note content or task
+      if (window.electronAPI?.searchVault) {
+        try {
+          const results = await window.electronAPI.searchVault(targetStr);
+          const firstNote = results.find((r) => r.type === 'note');
+          if (firstNote) {
+            await setSelectedDate(firstNote.id);
+            await setCurrentView('daily');
+            return;
+          }
+          const firstTaskResult = results.find((r) => r.type === 'task');
+          if (firstTaskResult) {
+            const taskObj = tasksRef.current.find((t) => t.filename === firstTaskResult.id);
+            if (taskObj) {
+              void openTaskModal(taskObj);
+            } else {
+              void openTaskModal({ filename: firstTaskResult.id, title: firstTaskResult.title, taskId: firstTaskResult.taskId } as any);
+            }
+            return;
+          }
+        } catch (err) {
+          console.error('Error finding wikilink target:', err);
+        }
+      }
+    };
+
+    if (el) el.addEventListener('wikilink-navigate', handleWikilinkNavigate);
+    window.addEventListener('wikilink-navigate', handleWikilinkNavigate);
+    return () => {
+      if (el) el.removeEventListener('wikilink-navigate', handleWikilinkNavigate);
+      window.removeEventListener('wikilink-navigate', handleWikilinkNavigate);
+    };
+  }, [setSelectedDate, setCurrentView, openTaskModal]);
 
   const isDark = computedColorScheme === 'dark';
 
@@ -330,7 +442,11 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     const list = [
       markdown({ extensions: GFM }),
       syntaxHighlighting(editorHighlightStyle, { fallback: true }),
-      createTagAutocompleteExtension(() => allTagsRef.current),
+      createEditorAutocompleteExtension({
+        getTags: () => allTagsRef.current,
+        getNotes: () => notesListRef.current,
+        getTasks: () => tasksRef.current,
+      }),
       keymap.of([
         {
           key: 'Mod-s',
@@ -349,11 +465,56 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           editTable: t('editor.editTable'),
           imageNotFound: t('editor.imageNotFound'),
           toggleTask: t('editor.toggleTask'),
+          convertToTask: t('tasks.convertToTask', 'Convert to Task'),
         })
       );
     }
     return list;
   }, [isLivePreview, t]);
+
+  useEffect(() => {
+    const handleConvertLineToTask = (e: Event) => {
+      const customEvent = e as CustomEvent<{ lineText: string; checked: boolean }>;
+      const { lineText, checked } = customEvent.detail || {};
+      if (!lineText) return;
+      openTaskModal({
+        title: lineText,
+        due: selectedDate,
+        status: checked ? 'done' : 'todo',
+      });
+    };
+
+    window.addEventListener('convert-line-to-task', handleConvertLineToTask);
+    return () => {
+      window.removeEventListener('convert-line-to-task', handleConvertLineToTask);
+    };
+  }, [openTaskModal, selectedDate]);
+
+  const handleConvertToTask = useCallback(() => {
+    const view = editorRef.current?.view;
+    let selectedText = '';
+    let isChecked = false;
+    if (view) {
+      const selection = view.state.selection.main;
+      if (selection.empty) {
+        const line = view.state.doc.lineAt(selection.from);
+        selectedText = line.text.trim();
+        isChecked = /^[ \t]*[-*+]\s*\[[xX]\]/.test(line.text);
+      } else {
+        selectedText = view.state.sliceDoc(selection.from, selection.to).trim();
+        isChecked = /^[ \t]*[-*+]\s*\[[xX]\]/.test(selectedText);
+      }
+    }
+    selectedText = selectedText
+      .replace(/^[ \t]*[-*+]\s*\[[ xX]\]\s*/, '')
+      .replace(/^[ \t]*[-*+]\s+/, '')
+      .trim();
+    openTaskModal({
+      title: selectedText,
+      due: selectedDate,
+      status: isChecked ? 'done' : 'todo',
+    });
+  }, [openTaskModal, selectedDate]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
@@ -371,6 +532,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             showTemplates={showTemplates}
             templates={settings?.templates}
             onInsertTemplate={insertTemplate}
+            onConvertToTask={handleConvertToTask}
           />
 
           {showStatusAndActions && (
@@ -393,6 +555,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
       {/* CodeMirror Editor Area */}
       <div
+        ref={containerRef}
         onDragOver={handleDragOver}
         onDragEnter={handleDragOver}
         onDragLeave={handleDragLeave}

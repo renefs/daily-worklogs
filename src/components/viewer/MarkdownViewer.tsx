@@ -18,10 +18,11 @@ import type { ElementContent, Root } from 'hast';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import { Paper, ScrollArea, Checkbox, CopyButton, ActionIcon, Tooltip } from '@mantine/core';
-import { IconCopy, IconCheck, IconCode } from '@tabler/icons-react';
+import { IconCopy, IconCheck, IconCode, IconArrowUpRight } from '@tabler/icons-react';
 import { useAppStoreSelector } from '../../store/useAppStore';
 import { useTranslation } from 'react-i18next';
 import { sanitizeLivePreviewUrl } from '../../utils/urlUtils';
+import { parseWikilink } from '../../utils/wikilinkUtils';
 
 const lowlight = createLowlight({ bash, css, javascript, json, markdown, python, sql, typescript, xml, yaml });
 lowlight.registerAlias({ bash: ['sh'], javascript: ['js'], markdown: ['md'], python: ['py'], typescript: ['ts'], xml: ['html', 'svg'], yaml: ['yml'] });
@@ -65,11 +66,81 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   onToggleTask,
 }) => {
   const { t } = useTranslation();
-  const { activeNote, toggleTaskInNote } = useAppStoreSelector((state) => ({
+  const {
+    activeNote,
+    toggleTaskInNote,
+    notesList,
+    tasks,
+    setSelectedDate,
+    setCurrentView,
+    openTaskModal,
+  } = useAppStoreSelector((state) => ({
     activeNote: state.activeNote,
     toggleTaskInNote: state.toggleTaskInNote,
+    notesList: state.notesList,
+    tasks: state.tasks,
+    setSelectedDate: state.setSelectedDate,
+    setCurrentView: state.setCurrentView,
+    openTaskModal: state.openTaskModal,
   }));
-  const markdownText = content !== undefined ? content : activeNote?.content || '';
+
+  const rawText = content !== undefined ? content : activeNote?.content || '';
+
+  const processedText = React.useMemo(() => {
+    if (!rawText) return '';
+    return rawText.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_m, target, alias) => {
+      const cleanTarget = target.trim();
+      const label = alias?.trim() || cleanTarget;
+      return `[${label}](#wikilink:${encodeURIComponent(cleanTarget)})`;
+    });
+  }, [rawText]);
+
+  const handleWikilinkClick = React.useCallback(
+    (rawTarget: string) => {
+      const parsed = parseWikilink(rawTarget);
+      if (!parsed) return;
+
+      if (parsed.isDate && parsed.date) {
+        void setSelectedDate(parsed.date);
+        void setCurrentView('daily');
+        return;
+      }
+
+      if (parsed.isTask) {
+        if (parsed.taskId) {
+          const found = tasks.find((t) => t.taskId === parsed.taskId);
+          if (found) {
+            void openTaskModal(found);
+            return;
+          }
+        }
+        if (parsed.taskFilename) {
+          const found = tasks.find(
+            (t) => t.filename === parsed.taskFilename || t.filename.endsWith(parsed.taskFilename!)
+          );
+          if (found) {
+            void openTaskModal(found);
+            return;
+          }
+        }
+      }
+
+      const foundTask = tasks.find(
+        (t) => t.title.toLowerCase() === rawTarget.toLowerCase()
+      );
+      if (foundTask) {
+        void openTaskModal(foundTask);
+        return;
+      }
+
+      const foundNote = notesList.find((n) => n.date === rawTarget);
+      if (foundNote) {
+        void setSelectedDate(foundNote.date);
+        void setCurrentView('daily');
+      }
+    },
+    [tasks, notesList, setSelectedDate, setCurrentView, openTaskModal]
+  );
 
   return (
     <Paper
@@ -127,7 +198,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
 
                 if (isTask) {
                   const inputElement = children[0] as React.ReactElement;
-                  const isChecked = inputElement.props.checked;
+                  const isChecked = Boolean(inputElement.props.checked);
                   
                   // Extract remaining text after input
                   const textParts = children.slice(1);
@@ -136,8 +207,14 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                     .join('')
                     .trim();
 
+                  const isAlreadyLinked = textContent.includes('[[#') || textContent.includes('[[tasks/');
+
                   return (
-                    <li className="task-list-item" style={{ listStyle: 'none' }} {...rest}>
+                    <li
+                      className="task-list-item"
+                      style={{ listStyle: 'none', display: 'flex', alignItems: 'center', gap: 6 }}
+                      {...rest}
+                    >
                       <Checkbox
                         size="xs"
                         checked={isChecked}
@@ -151,9 +228,29 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                             }
                           }
                         }}
-                        style={{ marginTop: 3 }}
+                        style={{ marginTop: 1 }}
                       />
-                      <span>{textParts}</span>
+                      <span style={{ flex: 1 }}>{textParts}</span>
+                      {!isAlreadyLinked && textContent && (
+                        <Tooltip label={t('tasks.convertToTask', 'Convert to Task')} withArrow position="left">
+                          <ActionIcon
+                            size="xs"
+                            variant="subtle"
+                            color="blue"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void openTaskModal({
+                                title: textContent,
+                                due: activeNote?.date,
+                                status: isChecked ? 'done' : 'todo',
+                              });
+                            }}
+                            aria-label={t('tasks.convertToTask', 'Convert to Task')}
+                          >
+                            <IconArrowUpRight size={13} />
+                          </ActionIcon>
+                        </Tooltip>
+                      )}
                     </li>
                   );
                 }
@@ -228,6 +325,43 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                 );
               },
 
+              a({ href, children, ...props }) {
+                const { node, ...rest } = props as any;
+                if (href?.startsWith('#wikilink:')) {
+                  const target = decodeURIComponent(href.slice('#wikilink:'.length));
+                  return (
+                    <span
+                      className="cm-live-wikilink-badge"
+                      title={`Jump to ${target}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleWikilinkClick(target);
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {children}
+                    </span>
+                  );
+                }
+                const isExternal = href && /^https?:\/\//i.test(href);
+                return (
+                  <a
+                    href={href}
+                    onClick={(e) => {
+                      if (isExternal && window.electronAPI?.openExternalUrl) {
+                        e.preventDefault();
+                        void window.electronAPI.openExternalUrl(href);
+                      }
+                    }}
+                    target={isExternal ? '_blank' : undefined}
+                    rel={isExternal ? 'noopener noreferrer' : undefined}
+                    {...rest}
+                  >
+                    {children}
+                  </a>
+                );
+              },
+
               // Custom image renderer with local vault support
               img({ src, alt, ...props }) {
                 const { node, ...rest } = props as any;
@@ -279,7 +413,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
               },
             }}
           >
-            {markdownText || '_No content_'}
+            {processedText || '_No content_'}
           </ReactMarkdown>
         </div>
       </ScrollArea>

@@ -14,22 +14,28 @@ export interface LiveMarkdownLabels {
   editTable: string;
   imageNotFound: string;
   toggleTask: string;
+  convertToTask?: string;
 }
 
 /**
  * Checkbox widget that renders an interactive Mantine-styled checkbox.
  * Clicking toggles the [ ] <-> [x] in the underlying markdown document.
+ * Also provides a one-click Convert to Task button.
  */
 class CheckboxWidget extends WidgetType {
   constructor(
     readonly checked: boolean,
     readonly pos: number,
-    readonly label: string
+    readonly label: string,
+    readonly convertLabel: string = 'Convert to Task'
   ) {
     super();
   }
 
   toDOM(view: EditorView): HTMLElement {
+    const container = document.createElement('span');
+    container.className = 'cm-live-checkbox-container';
+
     const wrap = document.createElement('span');
     wrap.className = `cm-live-checkbox-widget ${this.checked ? 'checked' : ''}`;
     wrap.setAttribute('role', 'checkbox');
@@ -68,11 +74,41 @@ class CheckboxWidget extends WidgetType {
       toggle();
     });
 
-    return wrap;
+    container.appendChild(wrap);
+
+    const convertBtn = document.createElement('button');
+    convertBtn.type = 'button';
+    convertBtn.className = 'cm-live-task-convert-btn';
+    convertBtn.title = this.convertLabel;
+    convertBtn.setAttribute('aria-label', this.convertLabel);
+    convertBtn.innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17l9.2-9.2M17 17V7H7"/></svg>`;
+
+    const handleConvert = (e: MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const line = view.state.doc.lineAt(this.pos);
+      const rawText = line.text.replace(/^[ \t]*[-*+]\s*\[[ xX]\]\s*/, '').trim();
+      window.dispatchEvent(
+        new CustomEvent('convert-line-to-task', {
+          detail: {
+            lineText: rawText,
+            pos: this.pos,
+            checked: this.checked,
+          },
+        })
+      );
+    };
+
+    convertBtn.addEventListener('mousedown', handleConvert);
+    convertBtn.addEventListener('click', handleConvert);
+
+    container.appendChild(convertBtn);
+
+    return container;
   }
 
   eq(other: CheckboxWidget): boolean {
-    return this.checked === other.checked && this.pos === other.pos && this.label === other.label;
+    return this.checked === other.checked && this.pos === other.pos && this.label === other.label && this.convertLabel === other.convertLabel;
   }
 
   ignoreEvent(): boolean {
@@ -263,6 +299,54 @@ class LinkWidget extends WidgetType {
 
   ignoreEvent(): boolean {
     return false;
+  }
+}
+
+/**
+ * Clickable wikilink widget shown when cursor is outside the [[...]] token.
+ */
+class WikiLinkWidget extends WidgetType {
+  constructor(
+    readonly raw: string,
+    readonly target: string,
+    readonly alias?: string
+  ) {
+    super();
+  }
+
+  toDOM(): HTMLElement {
+    const badge = document.createElement('span');
+    badge.className = 'cm-live-wikilink-badge';
+    badge.textContent = this.alias || this.target;
+    badge.title = `Jump to ${this.target}`;
+
+    const trigger = (event: MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      badge.dispatchEvent(
+        new CustomEvent('wikilink-navigate', {
+          bubbles: true,
+          detail: { target: this.target },
+        })
+      );
+      window.dispatchEvent(
+        new CustomEvent('wikilink-navigate', {
+          detail: { target: this.target },
+        })
+      );
+    };
+
+    badge.addEventListener('mousedown', trigger);
+    badge.addEventListener('click', trigger);
+    return badge;
+  }
+
+  eq(other: WikiLinkWidget): boolean {
+    return this.raw === other.raw && this.target === other.target && this.alias === other.alias;
+  }
+
+  ignoreEvent(): boolean {
+    return true;
   }
 }
 
@@ -984,7 +1068,7 @@ export function buildLiveDecorations(
           from: replaceFrom,
           to: replaceTo,
           deco: Decoration.replace({
-            widget: new CheckboxWidget(isChecked, boxFrom, labels.toggleTask),
+            widget: new CheckboxWidget(isChecked, boxFrom, labels.toggleTask, labels.convertToTask || 'Convert to Task'),
           }),
         });
         occupiedRanges.push({ from: replaceFrom, to: replaceTo });
@@ -1240,6 +1324,33 @@ export function buildLiveDecorations(
             to: mTo,
             deco: Decoration.replace({
               widget: new LinkWidget(rawUrl, safeUrl),
+            }),
+          });
+        }
+      }
+    }
+
+    // B3. Wikilinks: [[target]] or [[target|alias]]
+    const wikilinkRegex = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+    while ((match = wikilinkRegex.exec(text)) !== null) {
+      const mFrom = line.from + match.index;
+      const mTo = mFrom + match[0].length;
+      if (!isOccupied(mFrom, mTo)) {
+        occupiedRanges.push({ from: mFrom, to: mTo });
+        const target = match[1].trim();
+        const alias = match[2]?.trim();
+        if (isCursorTouching(mFrom, mTo, 1)) {
+          queued.push({
+            from: mFrom,
+            to: mTo,
+            deco: Decoration.mark({ class: 'cm-live-link' }),
+          });
+        } else {
+          queued.push({
+            from: mFrom,
+            to: mTo,
+            deco: Decoration.replace({
+              widget: new WikiLinkWidget(match[0], target, alias),
             }),
           });
         }
