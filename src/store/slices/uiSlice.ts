@@ -30,7 +30,6 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
           settings,
           areas: settings.areas || DEFAULT_AREAS,
           projects: settings.projects || [],
-          isLoading: false,
           isOnboardingOpen: shouldShowOnboarding,
         });
         await Promise.all([
@@ -40,6 +39,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
           get().loadRoutineCompletions(get().selectedDate),
           get().loadNoteForDate(get().selectedDate),
         ]);
+        set({ isLoading: false });
       } else {
         // Fallback for browser testing if opened outside electron
         set({

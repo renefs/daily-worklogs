@@ -2,8 +2,53 @@
   width: rem(56px);
   flex: 0 0 rem(56px);
   height: 100%;
-  padding: rem(12px) rem(7px);
+  padding: rem(10px) rem(7px);
   align-items: center;
   background: var(--app-header-bg);
   border-right: 1px solid var(--app-sidebar-border);
+}
+
+.railButton {
+  width: 100%;
+  height: rem(38px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: rem(10px);
+  color: var(--app-sidebar-text-dimmed);
+  transition: background 150ms ease, color 150ms ease;
+  cursor: pointer;
+}
+
+.railButton:hover {
+  background: var(--app-sidebar-hover);
+  color: var(--app-sidebar-text);
+}
+
+.railButton:disabled,
+.railButton[data-disabled] {
+  opacity: 0.35;
+  cursor: not-allowed;
+  background: transparent !important;
+  color: var(--app-sidebar-text-dimmed) !important;
+}
+
+.railButton:disabled:hover,
+.railButton[data-disabled]:hover {
+  background: transparent !important;
+  color: var(--app-sidebar-text-dimmed) !important;
+}
+
+.railButton:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 2px;
+}
+
+.divider {
+  width: rem(24px);
+  height: 1px;
+  background: var(--app-sidebar-border);
+  align-self: center;
+  flex-shrink: 0;
+  margin-inline: auto;
 }

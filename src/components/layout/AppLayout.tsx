@@ -33,6 +33,7 @@ const ManageRoutinesModal = React.lazy(() =>
 const OnboardingWizardModal = React.lazy(() =>
   import('../modals/OnboardingWizardModal').then((module) => ({ default: module.OnboardingWizardModal }))
 );
+import { AppSpotlight } from '../spotlight/AppSpotlight';
 
 export const AppLayout: React.FC = () => {
   const { t } = useTranslation();
@@ -145,7 +146,8 @@ export const AppLayout: React.FC = () => {
     );
   }
 
-  const sidebarWidth = isSidebarCollapsed ? 56 : 316;
+  const isNotesSidebarVisible = currentView === 'daily' && !isSidebarCollapsed;
+  const sidebarWidth = isNotesSidebarVisible ? 316 : 56;
 
   return (
     <AppShell
@@ -161,7 +163,7 @@ export const AppLayout: React.FC = () => {
       <AppShell.Navbar className={clsx(classes.sidebarNavbar, 'app-sidebar-navbar')}>
         <div className={classes.sidebarLayout}>
           <NavigationRail />
-          {!isSidebarCollapsed && <AppSidebar />}
+          {isNotesSidebarVisible && <AppSidebar />}
         </div>
       </AppShell.Navbar>
 
@@ -180,6 +182,7 @@ export const AppLayout: React.FC = () => {
         {isManageRoutinesModalOpen && <ManageRoutinesModal />}
         {isOnboardingOpen && <OnboardingWizardModal />}
       </React.Suspense>
+      <AppSpotlight />
     </AppShell>
   );
 };

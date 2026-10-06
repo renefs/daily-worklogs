@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Stack,
   Button,
@@ -37,6 +37,7 @@ import { SidebarCalendar } from './SidebarCalendar';
 export const AppSidebar: React.FC = () => {
   const { t, i18n } = useTranslation();
   const [search, setSearch] = useState('');
+  const [matchingDates, setMatchingDates] = useState<Set<string> | null>(null);
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -45,6 +46,38 @@ export const AppSidebar: React.FC = () => {
   } | null>(null);
   const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
   const [visibleMonthsCount, setVisibleMonthsCount] = useState(3);
+
+  const cleanSearch = useMemo(() => {
+    return search
+      .replace(/^\[\[/, '')
+      .replace(/\]\]$/, '')
+      .replace(/^\[/, '')
+      .replace(/\]$/, '')
+      .trim();
+  }, [search]);
+
+  useEffect(() => {
+    if (!cleanSearch) {
+      setMatchingDates(null);
+      return;
+    }
+    let active = true;
+    const timeout = setTimeout(async () => {
+      if (window.electronAPI?.searchNoteContents) {
+        try {
+          const dates = await window.electronAPI.searchNoteContents(cleanSearch);
+          if (active) setMatchingDates(new Set(dates));
+        } catch {
+          if (active) setMatchingDates(null);
+        }
+      }
+    }, 200);
+
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+    };
+  }, [cleanSearch]);
 
   const {
     currentView,
@@ -70,12 +103,18 @@ export const AppSidebar: React.FC = () => {
     return new Set((notesList || []).filter((n) => n && n.date).map((n) => n.date));
   }, [notesList]);
 
-  // Filtered notes list
+  // Filtered notes list (matches date or content)
   const filteredNotes = useMemo(() => {
     const list = notesList || [];
-    if (!search.trim()) return list;
-    return list.filter((n) => n && n.date && n.date.includes(search.trim()));
-  }, [notesList, search]);
+    if (!cleanSearch) return list;
+    const lower = cleanSearch.toLowerCase();
+    return list.filter((n) => {
+      if (!n || !n.date) return false;
+      if (n.date.toLowerCase().includes(lower)) return true;
+      if (matchingDates && matchingDates.has(n.date)) return true;
+      return false;
+    });
+  }, [notesList, cleanSearch, matchingDates]);
 
   // Group notes by month (YYYY-MM)
   const groupedNotes = useMemo(() => {
@@ -135,30 +174,33 @@ export const AppSidebar: React.FC = () => {
     <div className={classes.historySidebar}>
       <Group justify="space-between" px={6} py={4}>
         <Text fw={600} size="md">{t('nav.notes')}</Text>
-        {currentView === 'daily' && <SidebarCalendar selectedDate={selectedDate} notesDateSet={notesDateSet}
-          locale={i18n.language === 'es' ? 'es' : 'en'} weekStartDay={settings?.weekStartDay ?? 1}
-          onSelectDate={(date) => { void handleSelectDate(date); }} />}
       </Group>
       {/* Open today's note */}
-      <Group justify="space-between" gap="xs" wrap="nowrap">
-        <Button
-          fullWidth
-          size="xs"
-          variant="subtle"
-          color="gray"
-          leftSection={<IconPlus size={15} />}
-          onClick={handleOpenToday}
-          radius="md"
-          style={{
-            fontWeight: 600,
-            justifyContent: 'flex-start',
+      <Button
+        fullWidth
+        size="sm"
+        variant="filled"
+        color="primary"
+        leftSection={<IconPlus size={16} />}
+        onClick={handleOpenToday}
+        radius="md"
+        className={classes.todayButton}
+      >
+        {t('nav.newToday')}
+      </Button>
+
+      {/* Inline Calendar */}
+      {currentView === 'daily' && (
+        <SidebarCalendar
+          selectedDate={selectedDate}
+          notesDateSet={notesDateSet}
+          locale={i18n.language === 'es' ? 'es' : 'en'}
+          weekStartDay={settings?.weekStartDay ?? 1}
+          onSelectDate={(date) => {
+            void handleSelectDate(date);
           }}
-        >
-          {t('nav.newToday')}
-        </Button>
-
-
-      </Group>
+        />
+      )}
 
       {/* Search Filter */}
       <TextInput

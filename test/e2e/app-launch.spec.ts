@@ -8,9 +8,7 @@ test.describe('Application Launch & View Navigation', () => {
   });
 
   test('navigates between Daily, Reports, and Tasks with a shared report period', async ({ page }) => {
-    await page.getByRole('button', { name: 'Choose note date', exact: true }).click();
     await expect(page.getByTestId('daily-calendar')).toBeVisible();
-    await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'Reports', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Reports', exact: true })).toBeVisible();
     await expect(page.getByTestId('daily-calendar')).toHaveCount(0);
@@ -26,19 +24,22 @@ test.describe('Application Launch & View Navigation', () => {
     await expect(page.getByTestId('report-period-picker')).toHaveText(previousMonth!);
     await expect(page.getByRole('tab', { name: 'Entries' })).toHaveAttribute('aria-selected', 'true');
     await page.getByRole('button', { name: 'Daily', exact: true }).click();
-    await page.getByRole('button', { name: 'Choose note date', exact: true }).click();
     await expect(page.getByTestId('daily-calendar')).toBeVisible();
-    await page.keyboard.press('Escape');
   });
 
-  test('keeps history available across views and restores it after collapsing the sidebar', async ({ page }) => {
+  test('hides notes sidebar on reports and tasks views and supports collapsing in daily view', async ({ page }) => {
     await expect(page.getByText('Notes', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Reports', exact: true }).click();
+    await expect(page.getByText('Notes', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Expand sidebar', exact: true })).toBeDisabled();
+    await page.getByRole('button', { name: 'Tasks', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Tasks', exact: true })).toHaveAttribute('aria-current', 'page');
+    await expect(page.getByText('Notes', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Expand sidebar', exact: true })).toBeDisabled();
+    await page.getByRole('button', { name: 'Daily', exact: true }).click();
     await expect(page.getByText('Notes', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Collapse sidebar', exact: true }).click();
     await expect(page.getByText('Notes', { exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Tasks', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Tasks', exact: true })).toHaveAttribute('aria-current', 'page');
     await page.getByRole('button', { name: 'Expand sidebar', exact: true }).click();
     await expect(page.getByText('Notes', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Open settings', exact: true }).click();
