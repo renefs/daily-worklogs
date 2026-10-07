@@ -180,8 +180,6 @@ export interface ProjectDefinition {
 export interface TagDefinition {
   name: string; // e.g. "auth/oauth", "billing/stripe", "infra"
   color?: string; // Mantine color string, e.g. 'teal', 'blue', 'indigo', 'violet', 'orange', 'cyan', 'grape', 'red', 'pink' or hex
-  service?: string; // Service/Area name (e.g. "Webcast", "Auth", "Billing")
-  project?: string; // Project name (e.g. "Migración Wowza", "Stripe Checkout")
   description?: string;
 }
 

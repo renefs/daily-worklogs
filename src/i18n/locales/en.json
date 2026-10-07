@@ -30,7 +30,8 @@
     "brand": "Worklog",
     "openSettings": "Open settings",
     "notes": "Notes",
-    "chooseNoteDate": "Choose note date"
+    "chooseNoteDate": "Choose note date",
+    "openToday": "Open Today's Note"
   },
   "tasks": {
     "title": "Task Board",
@@ -137,7 +138,9 @@
     "sectionOverview": "Overview",
     "sectionSchedule": "Dates & Planning",
     "sectionOutline": "Document Outline",
-    "sectionActions": "Actions & Storage"
+    "sectionActions": "Actions & Storage",
+    "hideProperties": "Hide properties",
+    "showProperties": "Show properties"
   },
   "editor": {
     "editing": "Editing",
@@ -181,7 +184,8 @@
     "tasksCompleted": "tasks done",
     "deleteNote": "Delete Note",
     "deleteConfirm": "Are you sure you want to delete the note for {{date}}? This cannot be undone.",
-    "exportNote": "Export Note"
+    "exportNote": "Export Note",
+    "emptyNote": "Empty note"
   },
   "weekly": {
     "title": "Weekly Worklog Report",
@@ -340,7 +344,8 @@
     "loggedDays_other": "{{count}} days logged",
     "monthActivity": "Days logged in {{month}}",
     "clearSearch": "Clear search",
-    "copySuccessMessage": "Report markdown copied to clipboard."
+    "copySuccessMessage": "Report markdown copied to clipboard.",
+    "noNotesFound": "No notes found"
   },
   "dashboard": {
     "summary": "Overview",
@@ -519,7 +524,9 @@
     "sourceCode": "GitHub Repository",
     "license": "License: MIT",
     "save": "Save Changes",
-    "savedSuccess": "Settings saved successfully!"
+    "savedSuccess": "Settings saved successfully!",
+    "systemInfo": "System Information",
+    "visibleColumnsNotice": "At least one Kanban column must remain visible."
   },
   "onboarding": {
     "title": "Setup Wizard",
@@ -576,7 +583,12 @@
     "exploreSettings": "Explore All Settings",
     "back": "Previous",
     "next": "Next",
-    "skip": "Skip to App"
+    "skip": "Skip to App",
+    "openSettings": "Open Settings",
+    "finish": "Finish",
+    "weekStartMonday": "ISO standard",
+    "weekStartSunday": "US standard",
+    "weekStartOther": "Middle East"
   },
   "routines": {
     "title": "Daily Routines",
@@ -622,30 +634,40 @@
     }
   },
   "tags": {
-    "title": "Tags, Projects & Services",
-    "managerTitle": "Tags, Projects & Services",
-    "managerSubtitle": "Organize tags into Services and Projects, assign colors, and manage tags across your vault.",
+    "managerTitle": "Tags",
+    "managerSubtitle": "Create tags, assign colors and descriptions, and manage them across your vault. Organize work with Areas and Projects instead.",
     "addTag": "New Tag",
     "createTagTitle": "Create New Tag",
     "editTagTitle": "Edit Tag",
     "deleteTagTitle": "Delete Tag",
     "tagName": "Tag Name",
-    "tagNameHelp": "Can use service/project syntax (e.g. backend/api or billing/stripe)",
-    "service": "Service / Area",
-    "project": "Project / Feature",
+    "tagNameHelp": "A short label to use as #tag in notes and tasks",
     "tagColor": "Tag Color",
     "description": "Description (optional)",
-    "searchTags": "Search tags, services, projects...",
+    "searchTags": "Search tags...",
     "noTagsFound": "No tags found",
     "createFirstTag": "Create First Tag",
     "tagCreated": "Tag Created",
     "tagRenamed": "Tag Renamed",
-    "tagDeleted": "Tag Deleted"
+    "tagDeleted": "Tag Deleted",
+    "tagNamePlaceholder": "e.g. urgent, meeting, devops",
+    "descriptionPlaceholder": "What this tag represents...",
+    "registeredTags": "Tags",
+    "refreshTags": "Scan Vault",
+    "scanTooltip": "Scan notes & tasks for newly used tags",
+    "newTag": "New Tag",
+    "tagUpdated": "Tag Updated",
+    "deleteTagConfirm": "Are you sure you want to delete this tag?",
+    "removeFromTasksCheck": "Remove this tag from all tasks currently using it",
+    "deleteFailed": "Failed to delete tag",
+    "emptyHint": "Create your first tag or add #tags to your tasks.",
+    "usageCount_one": "{{count}} task",
+    "usageCount_other": "{{count}} tasks"
   },
   "areas": {
     "title": "Areas & Projects",
     "conceptTitle": "Things 3 & OmniFocus Organizational Model",
-    "areaLabel": "Area (Service)",
+    "areaLabel": "Area",
     "projectLabel": "Project",
     "inheritanceLabel": "Automatic Inheritance",
     "areaExplanation": "Permanent domain of ongoing responsibility without end date or progress bar (e.g. Webcast, VC, ASR).",
@@ -664,7 +686,7 @@
     "areaColor": "Area Color",
     "projectName": "Project Name",
     "parentArea": "Parent Area",
-    "parentAreaHelp": "The continuous service / area this project belongs to",
+    "parentAreaHelp": "The Area this project belongs to",
     "projectColor": "Project Color",
     "status": "Project Status",
     "statusActive": "Active",
@@ -700,7 +722,9 @@
     "deleteAreaConfirm": "Are you sure you want to delete the Area \"{{name}}\"? Projects and tasks will remain in the vault.",
     "deleteProjectConfirm": "Are you sure you want to delete the Project \"{{name}}\"? Associated tasks will remain in the vault.",
     "unassignedProjects": "Other Projects / Unassigned",
-    "unassignedProjectsDesc": "Projects whose parent area was changed or removed. You can edit them to assign an active Area."
+    "unassignedProjectsDesc": "Projects whose parent area was changed or removed. You can edit them to assign an active Area.",
+    "subtitle": "Organize tasks into permanent domains of responsibility (Areas) and focused deliverables (Projects).",
+    "searchPlaceholder": "Search areas, projects, or tags..."
   },
   "common": {
     "cancel": "Cancel",
@@ -718,7 +742,10 @@
     "tasks": "Tasks",
     "notes": "Notes",
     "loading": "Loading...",
-    "error": "Error"
+    "error": "Error",
+    "saved": "Saved",
+    "today": "Today",
+    "confirmDelete": "Confirm Deletion"
   },
   "spotlight": {
     "searchPlaceholder": "Type a command, date, or search vault...",

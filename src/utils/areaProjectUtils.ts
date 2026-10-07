@@ -1,5 +1,5 @@
 import { AreaDefinition, ProjectDefinition, TagDefinition, TaskMeta } from '../types';
-import { parseTagHierarchy, getTagColor } from './tagUtils';
+import { getTagColor } from './tagUtils';
 
 export const DEFAULT_AREAS: AreaDefinition[] = [
   {
@@ -139,26 +139,11 @@ export function resolveTaskContext(
   task: Partial<TaskMeta>,
   areas: AreaDefinition[] = [],
   projects: ProjectDefinition[] = [],
-  tagDefinitions: TagDefinition[] = []
+  _tagDefinitions: TagDefinition[] = []
 ): ResolvedTaskContext {
   let area = (task.area || '').trim();
-  let project = (task.project || '').trim() || undefined;
-  let isInheritedFromTag = false;
-
-  // Fallback to legacy tag hierarchy if area / project not explicitly set
-  if (!area && task.tags && task.tags.length > 0) {
-    for (const tag of task.tags) {
-      const parsed = parseTagHierarchy(tag, tagDefinitions);
-      if (parsed.isHierarchical || parsed.service !== 'General') {
-        area = parsed.service;
-        if (!project && parsed.project && parsed.project !== 'General' && parsed.project !== parsed.service) {
-          project = parsed.project;
-        }
-        isInheritedFromTag = true;
-        break;
-      }
-    }
-  }
+  const project = (task.project || '').trim() || undefined;
+  const isInheritedFromTag = false;
 
   if (!area) {
     area = 'General';

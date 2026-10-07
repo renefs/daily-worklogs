@@ -5,7 +5,6 @@ import {
   Text,
   Button,
   TextInput,
-  Select,
   Badge,
   Paper,
   Modal,
@@ -17,7 +16,6 @@ import {
   IconTag,
   IconPlus,
   IconSearch,
-  IconFolders,
   IconAlertTriangle,
   IconCheck,
   IconRefresh,
@@ -26,7 +24,6 @@ import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
 import { useAppStoreSelector } from '../../store/useAppStore';
 import { TagDefinition } from '../../types';
-import { parseTagHierarchy } from '../../utils/tagUtils';
 import { TagRow } from './tags/TagRow';
 import { TagEditorModal } from './tags/TagEditorModal';
 
@@ -50,7 +47,6 @@ export const TagsManager: React.FC = () => {
   }));
 
   const [search, setSearch] = useState('');
-  const [serviceFilter, setServiceFilter] = useState('all');
 
   // Modal states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -78,33 +74,16 @@ export const TagsManager: React.FC = () => {
     return map;
   }, [tasks]);
 
-  // Extract unique services
-  const existingServices = useMemo(() => {
-    const sSet = new Set<string>();
-    for (const tg of allTags) {
-      const { service } = parseTagHierarchy(tg.name, allTags);
-      if (service) sSet.add(service);
-    }
-    return Array.from(sSet).sort();
-  }, [allTags]);
-
   // Filtered tags list
   const filteredTags = useMemo(() => {
     const q = search.toLowerCase().trim();
-    return allTags.filter((tg) => {
-      const { service, project } = parseTagHierarchy(tg.name, allTags);
-      if (serviceFilter !== 'all' && service.toLowerCase() !== serviceFilter.toLowerCase()) {
-        return false;
-      }
-      if (!q) return true;
-      return (
+    if (!q) return allTags;
+    return allTags.filter(
+      (tg) =>
         tg.name.toLowerCase().includes(q) ||
-        service.toLowerCase().includes(q) ||
-        project.toLowerCase().includes(q) ||
         (tg.description && tg.description.toLowerCase().includes(q))
-      );
-    });
-  }, [allTags, search, serviceFilter]);
+    );
+  }, [allTags, search]);
 
   const handleOpenAdd = () => {
     setIsNewTag(true);
@@ -162,7 +141,7 @@ export const TagsManager: React.FC = () => {
     } catch {
       notifications.show({
         title: t('common.error') || 'Error',
-        message: 'Failed to delete tag',
+        message: t('tags.deleteFailed'),
         color: 'red',
       });
     } finally {
@@ -177,20 +156,19 @@ export const TagsManager: React.FC = () => {
         <div>
           <Group gap="xs" align="center">
             <Text fw={700} size="lg">
-              {t('tags.title') || 'Tags & Taxonomy'}
+              {t('tags.managerTitle')}
             </Text>
             <Badge size="sm" variant="light" color="teal">
-              {allTags.length} {t('tags.registeredTags') || 'Tags'}
+              {allTags.length} {t('tags.registeredTags')}
             </Badge>
           </Group>
           <Text size="xs" c="dimmed">
-            {t('tags.subtitle') ||
-              'Organize your notes and tasks with hierarchical tags (#service/project). Tags inherit color and structure.'}
+            {t('tags.managerSubtitle')}
           </Text>
         </div>
 
         <Group gap="xs">
-          <Tooltip label="Scan notes & tasks for newly used tags" withArrow>
+          <Tooltip label={t('tags.scanTooltip')} withArrow>
             <Button
               variant="default"
               size="sm"
@@ -215,29 +193,13 @@ export const TagsManager: React.FC = () => {
 
       {/* Filter and Search Bar */}
       <Paper withBorder radius="md" p="xs">
-        <Group justify="space-between" align="center" wrap="wrap" gap="sm">
-          <TextInput
-            placeholder={t('tags.searchTags') || 'Search tags, services, projects...'}
-            leftSection={<IconSearch size={15} />}
-            value={search}
-            onChange={(e) => setSearch(e.currentTarget.value)}
-            size="sm"
-            style={{ flex: 1, minWidth: 200 }}
-          />
-
-          <Select
-            data={[
-              { value: 'all', label: t('tags.allServices') || 'All Services / Areas' },
-              ...existingServices.map((s) => ({ value: s, label: s })),
-            ]}
-            value={serviceFilter}
-            onChange={(val) => setServiceFilter(val || 'all')}
-            size="sm"
-            style={{ width: 200 }}
-            leftSection={<IconFolders size={15} />}
-            allowDeselect={false}
-          />
-        </Group>
+        <TextInput
+          placeholder={t('tags.searchTags')}
+          leftSection={<IconSearch size={15} />}
+          value={search}
+          onChange={(e) => setSearch(e.currentTarget.value)}
+          size="sm"
+        />
       </Paper>
 
       {/* Tags Rows List */}
@@ -250,7 +212,7 @@ export const TagsManager: React.FC = () => {
             {t('tags.noTagsFound') || 'No tags found'}
           </Text>
           <Text size="xs" c="dimmed" mt={4}>
-            Create your first tag or tag tasks with #service/project in your notes.
+            {t('tags.emptyHint')}
           </Text>
           <Button
             size="xs"

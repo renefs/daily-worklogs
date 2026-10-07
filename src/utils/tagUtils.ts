@@ -41,64 +41,6 @@ export function getTagColor(tagName: string, tagDefinitions: TagDefinition[] = [
   return getHashColor(clean);
 }
 
-export interface ParsedTagHierarchy {
-  service: string;
-  project: string;
-  isHierarchical: boolean;
-}
-
-/**
- * Resolves the service and project for a given tag
- */
-export function parseTagHierarchy(
-  tagName: string,
-  tagDefinitions: TagDefinition[] = []
-): ParsedTagHierarchy {
-  if (!tagName) return { service: 'General', project: 'General', isHierarchical: false };
-  const trimmed = tagName.trim();
-  const lower = trimmed.toLowerCase();
-
-  // Check explicit definition first
-  const match = tagDefinitions.find((t) => t.name.toLowerCase() === lower);
-  if (match && (match.service || match.project)) {
-    return {
-      service: match.service || 'General',
-      project: match.project || match.name,
-      isHierarchical: Boolean(match.service && match.project),
-    };
-  }
-
-  // Check '/' hierarchy
-  if (trimmed.includes('/')) {
-    const parts = trimmed.split('/');
-    const s = parts[0].trim();
-    const p = parts.slice(1).join('/').trim();
-    return {
-      service: s ? s.charAt(0).toUpperCase() + s.slice(1) : 'General',
-      project: p || trimmed,
-      isHierarchical: true,
-    };
-  }
-
-  // Check ':' hierarchy
-  if (trimmed.includes(':')) {
-    const parts = trimmed.split(':');
-    const s = parts[0].trim();
-    const p = parts.slice(1).join(':').trim();
-    return {
-      service: s ? s.charAt(0).toUpperCase() + s.slice(1) : 'General',
-      project: p || trimmed,
-      isHierarchical: true,
-    };
-  }
-
-  return {
-    service: 'General',
-    project: trimmed,
-    isHierarchical: false,
-  };
-}
-
 /**
  * Formats tag label nicely
  */

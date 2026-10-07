@@ -30,20 +30,7 @@ export function registerOrganizationHandlers(dependencies: OrganizationHandlerDe
           if (!trimmed) continue;
           const lower = trimmed.toLowerCase();
           if (tagMap.has(lower)) continue;
-          let service: string | undefined;
-          let project: string | undefined;
-          if (trimmed.includes('/')) {
-            const parts = trimmed.split('/');
-            service = parts[0].trim();
-            service = service ? service.charAt(0).toUpperCase() + service.slice(1) : undefined;
-            project = parts.slice(1).join('/').trim() || undefined;
-          } else if (trimmed.includes(':')) {
-            const parts = trimmed.split(':');
-            service = parts[0].trim();
-            service = service ? service.charAt(0).toUpperCase() + service.slice(1) : undefined;
-            project = parts.slice(1).join(':').trim() || undefined;
-          }
-          tagMap.set(lower, { name: trimmed, service, project });
+          tagMap.set(lower, { name: trimmed });
         }
       }
     } catch (error) {

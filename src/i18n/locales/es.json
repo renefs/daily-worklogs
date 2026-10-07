@@ -30,7 +30,8 @@
     "brand": "Worklog",
     "openSettings": "Abrir configuración",
     "notes": "Notas",
-    "chooseNoteDate": "Elegir fecha de la nota"
+    "chooseNoteDate": "Elegir fecha de la nota",
+    "openToday": "Abrir la nota de hoy"
   },
   "tasks": {
     "title": "Tablero de Tareas",
@@ -137,7 +138,9 @@
     "sectionOverview": "Resumen",
     "sectionSchedule": "Planificación y Fechas",
     "sectionOutline": "Estructura del Documento",
-    "sectionActions": "Acciones y Archivo"
+    "sectionActions": "Acciones y Archivo",
+    "hideProperties": "Ocultar propiedades",
+    "showProperties": "Mostrar propiedades"
   },
   "editor": {
     "editing": "Editando",
@@ -181,7 +184,8 @@
     "tasksCompleted": "tareas listas",
     "deleteNote": "Eliminar Nota",
     "deleteConfirm": "¿Estás seguro de eliminar la nota del {{date}}? Esta acción no se puede deshacer.",
-    "exportNote": "Exportar Nota"
+    "exportNote": "Exportar Nota",
+    "emptyNote": "Nota vacía"
   },
   "weekly": {
     "title": "Informe Semanal de Trabajo",
@@ -340,7 +344,8 @@
     "loggedDays_other": "{{count}} días con notas",
     "monthActivity": "Días con notas en {{month}}",
     "clearSearch": "Borrar búsqueda",
-    "copySuccessMessage": "Informe Markdown copiado al portapapeles."
+    "copySuccessMessage": "Informe Markdown copiado al portapapeles.",
+    "noNotesFound": "No se encontraron notas"
   },
   "dashboard": {
     "summary": "Resumen",
@@ -519,7 +524,9 @@
     "sourceCode": "Repositorio en GitHub",
     "license": "Licencia: MIT",
     "save": "Guardar Cambios",
-    "savedSuccess": "¡Configuración guardada exitosamente!"
+    "savedSuccess": "¡Configuración guardada exitosamente!",
+    "systemInfo": "Información del sistema",
+    "visibleColumnsNotice": "Al menos una columna del Kanban debe permanecer visible."
   },
   "onboarding": {
     "title": "Asistente de Configuración",
@@ -576,7 +583,12 @@
     "exploreSettings": "Explorar Toda la Configuración",
     "back": "Anterior",
     "next": "Siguiente",
-    "skip": "Saltar al Inicio"
+    "skip": "Saltar al Inicio",
+    "openSettings": "Abrir Ajustes",
+    "finish": "Finalizar",
+    "weekStartMonday": "estándar ISO",
+    "weekStartSunday": "estándar EE. UU.",
+    "weekStartOther": "Oriente Medio"
   },
   "routines": {
     "title": "Rutinas Diarias",
@@ -622,30 +634,40 @@
     }
   },
   "tags": {
-    "title": "Etiquetas, Proyectos y Servicios",
-    "managerTitle": "Etiquetas, Proyectos y Servicios",
-    "managerSubtitle": "Organiza tus etiquetas en Servicios y Proyectos, asigna colores y gestiona etiquetas en todo tu espacio de notas.",
+    "managerTitle": "Etiquetas",
+    "managerSubtitle": "Crea etiquetas, asigna colores y descripciones, y gestiónalas en todo tu espacio. Organiza el trabajo con Áreas y Proyectos.",
     "addTag": "Nueva Etiqueta",
     "createTagTitle": "Crear Nueva Etiqueta",
     "editTagTitle": "Editar Etiqueta",
     "deleteTagTitle": "Eliminar Etiqueta",
     "tagName": "Nombre de Etiqueta",
-    "tagNameHelp": "Puedes usar la sintaxis servicio/proyecto (ej. backend/api o facturacion/stripe)",
-    "service": "Servicio / Área",
-    "project": "Proyecto / Módulo",
+    "tagNameHelp": "Una etiqueta corta para usar como #etiqueta en notas y tareas",
     "tagColor": "Color de Etiqueta",
     "description": "Descripción (opcional)",
-    "searchTags": "Buscar etiquetas, servicios, proyectos...",
+    "searchTags": "Buscar etiquetas...",
     "noTagsFound": "No se encontraron etiquetas",
     "createFirstTag": "Crear Primera Etiqueta",
     "tagCreated": "Etiqueta Creada",
     "tagRenamed": "Etiqueta Renombrada",
-    "tagDeleted": "Etiqueta Eliminada"
+    "tagDeleted": "Etiqueta Eliminada",
+    "tagNamePlaceholder": "ej. urgente, reunion, devops",
+    "descriptionPlaceholder": "Qué representa esta etiqueta...",
+    "registeredTags": "Etiquetas",
+    "refreshTags": "Escanear espacio",
+    "scanTooltip": "Buscar etiquetas nuevas en notas y tareas",
+    "newTag": "Nueva Etiqueta",
+    "tagUpdated": "Etiqueta Actualizada",
+    "deleteTagConfirm": "¿Seguro que quieres eliminar esta etiqueta?",
+    "removeFromTasksCheck": "Quitar esta etiqueta de todas las tareas que la usan",
+    "deleteFailed": "No se pudo eliminar la etiqueta",
+    "emptyHint": "Crea tu primera etiqueta o añade #etiquetas a tus tareas.",
+    "usageCount_one": "{{count}} tarea",
+    "usageCount_other": "{{count}} tareas"
   },
   "areas": {
     "title": "Áreas y Proyectos",
     "conceptTitle": "Modelo Organizacional Things 3 y OmniFocus",
-    "areaLabel": "Área (Servicio)",
+    "areaLabel": "Área",
     "projectLabel": "Proyecto",
     "inheritanceLabel": "Herencia Automática",
     "areaExplanation": "Contenedor permanente sin fecha de finalización ni barra de progreso (ej. Webcast, VC, ASR).",
@@ -664,7 +686,7 @@
     "areaColor": "Color del Área",
     "projectName": "Nombre del Proyecto",
     "parentArea": "Área Perteneciente",
-    "parentAreaHelp": "El servicio o área continuo al que pertenece este proyecto",
+    "parentAreaHelp": "El Área a la que pertenece este proyecto",
     "projectColor": "Color del Proyecto",
     "status": "Estado del Proyecto",
     "statusActive": "Activo",
@@ -700,7 +722,9 @@
     "deleteAreaConfirm": "¿Estás seguro de que deseas eliminar el Área \"{{name}}\"? Los proyectos y tareas permanecerán en el baúl.",
     "deleteProjectConfirm": "¿Estás seguro de que deseas eliminar el Proyecto \"{{name}}\"? Las tareas asociadas permanecerán en el baúl.",
     "unassignedProjects": "Otros Proyectos / Sin Asignar",
-    "unassignedProjectsDesc": "Proyectos cuya Área fue modificada o eliminada. Puedes editarlos para asignarlos a un Área activa."
+    "unassignedProjectsDesc": "Proyectos cuya Área fue modificada o eliminada. Puedes editarlos para asignarlos a un Área activa.",
+    "subtitle": "Organiza tus tareas en dominios permanentes de responsabilidad (Áreas) y entregables concretos (Proyectos).",
+    "searchPlaceholder": "Buscar áreas, proyectos o etiquetas..."
   },
   "common": {
     "cancel": "Cancelar",
@@ -718,7 +742,10 @@
     "tasks": "Tareas",
     "notes": "Notas",
     "loading": "Cargando...",
-    "error": "Error"
+    "error": "Error",
+    "saved": "Guardado",
+    "today": "Hoy",
+    "confirmDelete": "Confirmar eliminación"
   },
   "spotlight": {
     "searchPlaceholder": "Escribe un comando, fecha o busca en las notas...",

@@ -12,7 +12,7 @@ import {
 import { IconTag } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { TagDefinition } from '../../../types';
-import { getTagColor, parseTagHierarchy, TAG_COLOR_PALETTE } from '../../../utils/tagUtils';
+import { getTagColor, TAG_COLOR_PALETTE } from '../../../utils/tagUtils';
 
 interface TagEditorModalProps {
   opened: boolean;
@@ -34,40 +34,24 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
   const { t } = useTranslation();
 
   const [formTagName, setFormTagName] = useState('');
-  const [formService, setFormService] = useState('');
-  const [formProject, setFormProject] = useState('');
   const [formColor, setFormColor] = useState('teal');
   const [formDescription, setFormDescription] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     if (editingTag) {
-      const { service, project } = parseTagHierarchy(editingTag.name, allTags);
       setFormTagName(editingTag.name);
-      setFormService(editingTag.service || service || '');
-      setFormProject(editingTag.project || project || '');
       setFormColor(editingTag.color || getTagColor(editingTag.name, allTags));
       setFormDescription(editingTag.description || '');
     } else {
       setFormTagName('');
-      setFormService('');
-      setFormProject('');
       setFormColor('teal');
       setFormDescription('');
     }
   }, [editingTag, opened, allTags]);
 
   const handleTagNameChange = (val: string) => {
-    const clean = val.replace(/^[#\s]+/, '');
-    setFormTagName(clean);
-
-    if (isNewTag && clean.includes('/')) {
-      const parts = clean.split('/');
-      const s = parts[0].trim();
-      const p = parts.slice(1).join('/').trim();
-      if (s) setFormService(s.charAt(0).toUpperCase() + s.slice(1));
-      if (p) setFormProject(p);
-    }
+    setFormTagName(val.replace(/^[#\s]+/, ''));
   };
 
   const handleSave = async () => {
@@ -79,8 +63,6 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
       await onSave(
         {
           name: cleanName,
-          service: formService.trim() || undefined,
-          project: formProject.trim() || undefined,
           color: formColor,
           description: formDescription.trim() || undefined,
         },
@@ -112,32 +94,15 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
     >
       <Stack gap="sm">
         <TextInput
-          label={t('tags.tagName') || 'Tag Name'}
-          placeholder="e.g. billing/stripe, auth/login, devops"
+          label={t('tags.tagName')}
+          placeholder={t('tags.tagNamePlaceholder')}
           value={formTagName}
           onChange={(e) => handleTagNameChange(e.currentTarget.value)}
-          description={t('tags.tagNameHelp') || 'Can use service/project syntax (e.g. backend/api)'}
+          description={t('tags.tagNameHelp')}
           required
           autoFocus
           radius="md"
         />
-
-        <Group grow align="flex-start">
-          <TextInput
-            label={t('tags.service') || 'Service / Area'}
-            placeholder="e.g. Billing, Auth, Frontend"
-            value={formService}
-            onChange={(e) => setFormService(e.currentTarget.value)}
-            radius="md"
-          />
-          <TextInput
-            label={t('tags.project') || 'Project / Feature'}
-            placeholder="e.g. Stripe Checkout, OAuth"
-            value={formProject}
-            onChange={(e) => setFormProject(e.currentTarget.value)}
-            radius="md"
-          />
-        </Group>
 
         <div>
           <Text size="sm" fw={500} mb={6}>
@@ -159,8 +124,8 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
         </div>
 
         <TextInput
-          label={t('common.description') || 'Description'}
-          placeholder="What this tag represents or which team owns it..."
+          label={t('tags.description')}
+          placeholder={t('tags.descriptionPlaceholder')}
           value={formDescription}
           onChange={(e) => setFormDescription(e.currentTarget.value)}
           radius="md"

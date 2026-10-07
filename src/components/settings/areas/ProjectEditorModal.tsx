@@ -141,7 +141,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
           label={t('areas.parentArea', 'Parent Area')}
           description={t(
             'areas.parentAreaHelp',
-            'The continuous service / area this project belongs to'
+            'The Area this project belongs to'
           )}
           required
           value={projectAreaName}

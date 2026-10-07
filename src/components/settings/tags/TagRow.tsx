@@ -12,7 +12,7 @@ import {
 import { IconEdit, IconTrash } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { TagDefinition } from '../../../types';
-import { getTagColor, parseTagHierarchy } from '../../../utils/tagUtils';
+import { getTagColor } from '../../../utils/tagUtils';
 
 interface TagRowProps {
   tag: TagDefinition;
@@ -33,7 +33,6 @@ export const TagRow: React.FC<TagRowProps> = ({
   const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
   const isDark = computedColorScheme === 'dark';
 
-  const { service, project } = parseTagHierarchy(tag.name, allTags);
   const tagColor = tag.color || getTagColor(tag.name, allTags);
 
   return (
@@ -73,31 +72,10 @@ export const TagRow: React.FC<TagRowProps> = ({
           </div>
         </Group>
 
-        {/* Middle: Service & Project */}
-        <Group gap="md" style={{ flex: '1 1 260px' }}>
-          <Group gap={6}>
-            <Text size="xs" c="dimmed" fw={500}>
-              Service:
-            </Text>
-            <Badge size="xs" color="indigo" variant="outline">
-              {service || 'General'}
-            </Badge>
-          </Group>
-
-          <Group gap={6}>
-            <Text size="xs" c="dimmed" fw={500}>
-              Project:
-            </Text>
-            <Text size="xs" fw={600}>
-              {project || tag.name}
-            </Text>
-          </Group>
-        </Group>
-
         {/* Right: Usage count and Actions */}
         <Group gap="xs" justify="flex-end" style={{ flexShrink: 0 }}>
           <Badge size="xs" variant="light" color="gray">
-            {usageCount} {usageCount === 1 ? 'task' : 'tasks'}
+            {t('tags.usageCount', { count: usageCount })}
           </Badge>
 
           <Tooltip label={t('common.edit') || 'Edit Tag'} withArrow>

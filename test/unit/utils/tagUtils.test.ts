@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getTagColor, getHashColor, parseTagHierarchy, formatTagDisplay } from '../../../src/utils/tagUtils';
+import { getTagColor, getHashColor, formatTagDisplay } from '../../../src/utils/tagUtils';
 import type { TagDefinition } from '../../../src/types';
 
 describe('tagUtils', () => {
@@ -29,22 +29,6 @@ describe('tagUtils', () => {
 
     it('returns gray for empty or null tags', () => {
       expect(getTagColor('', definitions)).toBe('gray');
-    });
-  });
-
-  describe('parseTagHierarchy', () => {
-    it('parses slash-separated tags into service and project', () => {
-      const parsed = parseTagHierarchy('infra/kubernetes');
-      expect(parsed.isHierarchical).toBe(true);
-      expect(parsed.service).toBe('Infra');
-      expect(parsed.project).toBe('kubernetes');
-    });
-
-    it('handles non-hierarchical tags by defaulting service to General', () => {
-      const parsed = parseTagHierarchy('quickfix');
-      expect(parsed.isHierarchical).toBe(false);
-      expect(parsed.service).toBe('General');
-      expect(parsed.project).toBe('quickfix');
     });
   });
 

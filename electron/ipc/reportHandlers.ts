@@ -56,42 +56,6 @@ export function registerReportHandlers(dependencies: ReportHandlerDependencies):
       low: { total: 0, completed: 0 },
     };
 
-    const configuredTags: Array<{ name: string; service?: string; project?: string; color?: string }> =
-      settings.tags || [];
-
-    const resolveTagHierarchy = (rawTag: string) => {
-      const trimmed = rawTag.trim();
-      const match = configuredTags.find((t) => t.name.toLowerCase() === trimmed.toLowerCase());
-      if (match && (match.service || match.project)) {
-        return {
-          service: match.service || 'General',
-          project: match.project || match.name,
-        };
-      }
-      if (trimmed.includes('/')) {
-        const parts = trimmed.split('/');
-        const s = parts[0].trim();
-        const p = parts.slice(1).join('/').trim();
-        return {
-          service: s ? s.charAt(0).toUpperCase() + s.slice(1) : 'General',
-          project: p || trimmed,
-        };
-      }
-      if (trimmed.includes(':')) {
-        const parts = trimmed.split(':');
-        const s = parts[0].trim();
-        const p = parts.slice(1).join(':').trim();
-        return {
-          service: s ? s.charAt(0).toUpperCase() + s.slice(1) : 'General',
-          project: p || trimmed,
-        };
-      }
-      return {
-        service: 'General',
-        project: trimmed,
-      };
-    };
-
     try {
       const tasksDir = ensureTasksDir(vaultPath);
       if (fs.existsSync(tasksDir)) {
@@ -156,25 +120,8 @@ export function registerReportHandlers(dependencies: ReportHandlerDependencies):
               }
             }
 
-            let taskArea = task.area ? String(task.area).trim() : '';
-            let taskProject = task.project ? String(task.project).trim() : '';
-
-            if (!taskArea && task.tags && task.tags.length > 0) {
-              for (const tag of task.tags) {
-                const { service, project } = resolveTagHierarchy(tag);
-                if (service && service !== 'General') {
-                  taskArea = service;
-                  if (!taskProject && project && project !== 'General' && project !== service) {
-                    taskProject = project;
-                  }
-                  break;
-                }
-              }
-            }
-
-            if (!taskArea) {
-              taskArea = 'General';
-            }
+            const taskProject = task.project ? String(task.project).trim() : '';
+            const taskArea = (task.area ? String(task.area).trim() : '') || 'General';
 
             if (!serviceBreakdown[taskArea]) {
               serviceBreakdown[taskArea] = {

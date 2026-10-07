@@ -3,10 +3,9 @@ import { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
 import { TagDefinition } from '../../types';
-import { parseTagHierarchy } from '../../utils/tagUtils';
 
 /**
- * Creates a CodeMirror extension that autocompletes `#tags` with project/service info
+ * Creates a CodeMirror extension that autocompletes `#tags`
  */
 export function createTagCompletionSource(
   getTags: () => TagDefinition[] | string[]
@@ -40,23 +39,13 @@ export function createTagCompletionSource(
         if (!normalizedName || seen.has(normalizedName)) return false;
         seen.add(normalizedName);
         if (!query) return true;
-        const nameMatch = t.name.toLowerCase().includes(query);
-        const serviceMatch = t.service?.toLowerCase().includes(query);
-        const projectMatch = t.project?.toLowerCase().includes(query);
-        return nameMatch || serviceMatch || projectMatch;
+        return t.name.toLowerCase().includes(query);
       })
       .map((t) => {
-        const { service, project, isHierarchical } = parseTagHierarchy(t.name, tagDefs);
-        const detailInfo = isHierarchical || (t.service && t.project)
-          ? `${service} • ${project}`
-          : t.service
-          ? t.service
-          : undefined;
-
         return {
           label: `#${t.name}`,
           displayLabel: `#${t.name}`,
-          detail: detailInfo,
+          detail: t.description,
           type: 'keyword',
           apply: (view: EditorView, completion: Completion, from: number, to: number) => {
             const insertText = `${completion.label} `;
