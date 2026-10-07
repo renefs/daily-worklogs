@@ -11,3 +11,16 @@
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
 }
 @media (max-width: 64em) { .panel { width: rem(250px); } }
+
+.panelDrawer {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--app-card-bg);
+  border: none;
+  border-radius: 0;
+  overflow: hidden;
+  box-shadow: none;
+}
+

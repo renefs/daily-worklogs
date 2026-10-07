@@ -195,6 +195,24 @@ export const GeneralSettingsTab: React.FC = () => {
         </Group>
       </Paper>
 
+      {/* Daily Routines Feature Toggle */}
+      <Paper withBorder p="md" radius="md">
+        <Group justify="space-between" align="center">
+          <div>
+            <Text fw={600} size="sm">
+              {t('settings.enableDailyRoutines')}
+            </Text>
+            <Text size="xs" c="dimmed">
+              {t('settings.enableDailyRoutinesDesc')}
+            </Text>
+          </div>
+          <Switch
+            checked={settings.enableDailyRoutines !== false}
+            onChange={(e) => updateSettings({ enableDailyRoutines: e.currentTarget.checked })}
+          />
+        </Group>
+      </Paper>
+
       {/* Re-run Setup Wizard */}
       <Paper withBorder p="md" radius="md">
         <Group justify="space-between" align="center">

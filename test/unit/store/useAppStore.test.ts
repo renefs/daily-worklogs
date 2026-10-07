@@ -229,4 +229,47 @@ describe('useAppStore', () => {
     expect(useAppStore.getState().externalNoteConflict?.content).toBe('Changed in another editor');
     expect(useAppStore.getState().activeNote?.content).toBe('New unsaved text');
   });
+
+  it('toggles routines drawer open and closed', () => {
+    expect(useAppStore.getState().isRoutinesDrawerOpen).toBe(false);
+
+    useAppStore.getState().toggleRoutinesDrawer();
+    expect(useAppStore.getState().isRoutinesDrawerOpen).toBe(true);
+
+    useAppStore.getState().toggleRoutinesDrawer();
+    expect(useAppStore.getState().isRoutinesDrawerOpen).toBe(false);
+
+    useAppStore.getState().toggleRoutinesDrawer(true);
+    expect(useAppStore.getState().isRoutinesDrawerOpen).toBe(true);
+
+    useAppStore.getState().toggleRoutinesDrawer(false);
+    expect(useAppStore.getState().isRoutinesDrawerOpen).toBe(false);
+  });
+
+  it('allows disabling and enabling daily routines via settings', async () => {
+    useAppStore.setState({
+      settings: {
+        vaultPath: '/mock/vault',
+        language: 'en',
+        themeColor: 'blue',
+        colorScheme: 'auto',
+        weekStartDay: 1,
+        defaultTemplateId: 'standard-worklog',
+        templates: [],
+        autoSave: true,
+        autoSaveDelay: 1000,
+        dateFormat: 'YYYY-MM-DD',
+        editorFontSize: 15,
+        enableDailyRoutines: true,
+      },
+    });
+
+    expect(useAppStore.getState().settings?.enableDailyRoutines).toBe(true);
+
+    await useAppStore.getState().updateSettings({ enableDailyRoutines: false });
+    expect(useAppStore.getState().settings?.enableDailyRoutines).toBe(false);
+
+    await useAppStore.getState().updateSettings({ enableDailyRoutines: true });
+    expect(useAppStore.getState().settings?.enableDailyRoutines).toBe(true);
+  });
 });

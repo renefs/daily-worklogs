@@ -129,6 +129,7 @@ export interface TagsSlice {
 
 export interface RoutinesSlice {
   isManageRoutinesModalOpen: boolean;
+  isRoutinesDrawerOpen: boolean;
   routineCompletionsByDate: Record<string, string[]>;
 
   toggleRoutineCompletion: (date: string, routineId: string) => Promise<void>;
@@ -137,6 +138,7 @@ export interface RoutinesSlice {
   resetDailyRoutines: (date: string) => Promise<void>;
   saveRoutinesList: (routines: DailyRoutine[]) => Promise<void>;
   toggleDailyRoutinesPanel: () => Promise<void>;
+  toggleRoutinesDrawer: (open?: boolean) => void;
   openManageRoutinesModal: () => void;
   closeManageRoutinesModal: () => void;
 }

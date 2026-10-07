@@ -7,3 +7,12 @@
 
 .mobileSettings { display: none; }
 @media (max-width: 48em) { .mobileSettings { display: flex; } }
+
+.routinesButtonLabel {
+  display: inline;
+}
+@media (max-width: 36em) {
+  .routinesButtonLabel {
+    display: none;
+  }
+}

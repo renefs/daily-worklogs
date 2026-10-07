@@ -54,10 +54,11 @@ const DEFAULT_FORM: RoutineFormData = {
 
 export const RoutinesManagerView: React.FC = () => {
   const { t } = useTranslation();
-  const { settings, saveRoutinesList, openExternalUrl } = useAppStoreSelector((state) => ({
+  const { settings, saveRoutinesList, openExternalUrl, updateSettings } = useAppStoreSelector((state) => ({
     settings: state.settings,
     saveRoutinesList: state.saveRoutinesList,
     openExternalUrl: state.openExternalUrl,
+    updateSettings: state.updateSettings,
   }));
 
   const routines: DailyRoutine[] = settings?.routines || [];
@@ -197,6 +198,24 @@ export const RoutinesManagerView: React.FC = () => {
 
   return (
     <Stack gap="md">
+      {/* Enable / Disable Feature Toggle */}
+      <Paper withBorder p="sm" radius="md">
+        <Group justify="space-between" align="center">
+          <div>
+            <Text fw={600} size="sm">
+              {t('settings.enableDailyRoutines')}
+            </Text>
+            <Text size="xs" c="dimmed">
+              {t('settings.enableDailyRoutinesDesc')}
+            </Text>
+          </div>
+          <Switch
+            checked={settings?.enableDailyRoutines !== false}
+            onChange={(e) => updateSettings({ enableDailyRoutines: e.currentTarget.checked })}
+          />
+        </Group>
+      </Paper>
+
       {/* Header & Add Button */}
       <Group justify="space-between" align="center">
         <div>
@@ -207,7 +226,7 @@ export const RoutinesManagerView: React.FC = () => {
             {t('routines.subtitle')}
           </Text>
         </div>
-        {!isCreating && !editingId && (
+        {!isCreating && !editingId && settings?.enableDailyRoutines !== false && (
           <Button
             leftSection={<IconPlus size={16} />}
             size="xs"

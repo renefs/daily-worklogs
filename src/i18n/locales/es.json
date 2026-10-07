@@ -468,6 +468,8 @@
     "fontSize": "Tamaño de Fuente del Editor",
     "autoSave": "Guardado Automático",
     "autoSaveDescription": "Guardar notas automáticamente mientras escribes.",
+    "enableDailyRoutines": "Habilitar rutinas diarias",
+    "enableDailyRoutinesDesc": "Seguimiento de tareas diarias recurrentes, hábitos y enlaces rápidos.",
     "hideCompletedOlderThan30Days": "Ocultar tareas cerradas/completadas hace más de 30 días",
     "hideCompletedOlderThan30DaysDescription": "Oculta automáticamente del tablero Kanban las tareas completadas o canceladas que tengan más de 30 días.",
     "kanbanColumnsDescription": "Configura, reordena, muestra/oculta columnas o agrega nuevas con comportamientos personalizados.",

@@ -468,6 +468,8 @@
     "fontSize": "Editor Font Size",
     "autoSave": "Auto Save",
     "autoSaveDescription": "Automatically save notes while typing.",
+    "enableDailyRoutines": "Enable Daily Routines",
+    "enableDailyRoutinesDesc": "Track recurring daily checklist items, habits, and quick links.",
     "hideCompletedOlderThan30Days": "Hide Closed/Completed Tasks Older than 30 Days",
     "hideCompletedOlderThan30DaysDescription": "Automatically hide completed or cancelled tasks older than 30 days from the main task board.",
     "kanbanColumnsDescription": "Configure, reorder, show/hide columns, or add new columns with custom lifecycle behaviors.",

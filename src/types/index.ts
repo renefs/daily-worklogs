@@ -199,6 +199,7 @@ export interface AppSettings {
   dateFormat: string;
   editorFontSize: number;
   hideCompletedOlderThan30Days?: boolean;
+  enableDailyRoutines?: boolean;
   routines?: DailyRoutine[];
   showDailyRoutinesPanel?: boolean;
   hasCompletedOnboarding?: boolean;

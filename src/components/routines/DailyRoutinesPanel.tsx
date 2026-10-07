@@ -32,7 +32,15 @@ import { useTranslation } from 'react-i18next';
 import { useAppStoreSelector } from '../../store/useAppStore';
 import { DailyRoutine } from '../../types';
 
-export const DailyRoutinesPanel: React.FC = () => {
+interface DailyRoutinesPanelProps {
+  isDrawer?: boolean;
+  onClose?: () => void;
+}
+
+export const DailyRoutinesPanel: React.FC<DailyRoutinesPanelProps> = ({
+  isDrawer = false,
+  onClose,
+}) => {
   const { t } = useTranslation();
   const {
     settings,
@@ -43,6 +51,7 @@ export const DailyRoutinesPanel: React.FC = () => {
     resetDailyRoutines,
     saveRoutinesList,
     toggleDailyRoutinesPanel,
+    toggleRoutinesDrawer,
     openExternalUrl,
     openManageRoutinesModal,
   } = useAppStoreSelector((state) => ({
@@ -54,6 +63,7 @@ export const DailyRoutinesPanel: React.FC = () => {
     resetDailyRoutines: state.resetDailyRoutines,
     saveRoutinesList: state.saveRoutinesList,
     toggleDailyRoutinesPanel: state.toggleDailyRoutinesPanel,
+    toggleRoutinesDrawer: state.toggleRoutinesDrawer,
     openExternalUrl: state.openExternalUrl,
     openManageRoutinesModal: state.openManageRoutinesModal,
   }));
@@ -110,11 +120,23 @@ export const DailyRoutinesPanel: React.FC = () => {
     setQuickTitle('');
   };
 
+  const isToday = selectedDate === dayjs().format('YYYY-MM-DD');
+
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
+    } else if (isDrawer) {
+      toggleRoutinesDrawer(false);
+    } else {
+      void toggleDailyRoutinesPanel();
+    }
+  };
+
   return (
     <Paper
-      withBorder
-      radius="md"
-      className={classes.panel}
+      withBorder={!isDrawer}
+      radius={isDrawer ? 0 : 'md'}
+      className={isDrawer ? classes.panelDrawer : classes.panel}
     >
       {/* Header */}
       <Box
@@ -132,6 +154,11 @@ export const DailyRoutinesPanel: React.FC = () => {
             <Text fw={600} size="sm" truncate>
               {t('routines.panelTitle')}
             </Text>
+            {!isToday && (
+              <Badge size="xs" variant="outline" color="gray">
+                {dayjs(selectedDate).format('MMM D')}
+              </Badge>
+            )}
             {totalCount > 0 && (
               <Badge
                 size="xs"
@@ -184,7 +211,7 @@ export const DailyRoutinesPanel: React.FC = () => {
                 variant="subtle"
                 size="sm"
                 color="gray"
-                onClick={toggleDailyRoutinesPanel}
+                onClick={handleClose}
               >
                 <IconX size={15} />
               </ActionIcon>

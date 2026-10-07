@@ -53,7 +53,12 @@ if (typeof window !== 'undefined') {
       tags: [],
       dailyRoutines: [],
     }),
-    saveSettings: vi.fn().mockResolvedValue({}),
+    saveSettings: vi.fn().mockImplementation(async (partial) => ({
+      vaultPath: '/mock/vault',
+      language: 'en',
+      themeColor: 'indigo',
+      ...partial,
+    })),
     getRoutineCompletions: vi.fn().mockResolvedValue([]),
     updateRoutineCompletions: vi.fn().mockResolvedValue([]),
     selectVaultDirectory: vi.fn().mockResolvedValue('/mock/vault'),

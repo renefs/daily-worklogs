@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import {
   AppShell,
   Center,
+  Drawer,
   Loader,
   Stack,
   Text,
@@ -13,6 +14,7 @@ import { AppSidebar } from './AppSidebar';
 import { NavigationRail } from './NavigationRail';
 import { isReportView } from '../../utils/reportPeriod';
 import { flushTaskEditor } from '../../services/editorSession';
+import { DailyRoutinesPanel } from '../routines/DailyRoutinesPanel';
 import classes from './AppLayout.module.css';
 import clsx from 'clsx';
 
@@ -46,6 +48,8 @@ export const AppLayout: React.FC = () => {
     isTaskModalOpen,
     isManageRoutinesModalOpen,
     isOnboardingOpen,
+    isRoutinesDrawerOpen,
+    toggleRoutinesDrawer,
     activeNote,
     isDirty,
     settings,
@@ -59,6 +63,8 @@ export const AppLayout: React.FC = () => {
     isTaskModalOpen: state.isTaskModalOpen,
     isManageRoutinesModalOpen: state.isManageRoutinesModalOpen,
     isOnboardingOpen: state.isOnboardingOpen,
+    isRoutinesDrawerOpen: state.isRoutinesDrawerOpen,
+    toggleRoutinesDrawer: state.toggleRoutinesDrawer,
     activeNote: state.activeNote,
     isDirty: state.isDirty,
     settings: state.settings,
@@ -122,6 +128,11 @@ export const AppLayout: React.FC = () => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
         window.dispatchEvent(new CustomEvent('app:save'));
+      } else if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'r') {
+        if (useAppStore.getState().settings?.enableDailyRoutines !== false) {
+          e.preventDefault();
+          useAppStore.getState().toggleRoutinesDrawer();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -182,6 +193,29 @@ export const AppLayout: React.FC = () => {
         {isManageRoutinesModalOpen && <ManageRoutinesModal />}
         {isOnboardingOpen && <OnboardingWizardModal />}
       </React.Suspense>
+      {settings?.enableDailyRoutines !== false && (
+        <Drawer
+          opened={isRoutinesDrawerOpen}
+          onClose={() => toggleRoutinesDrawer(false)}
+          position="right"
+          size={340}
+          withCloseButton={false}
+          padding={0}
+          styles={{
+            body: {
+              height: '100%',
+              padding: 0,
+              overflow: 'hidden',
+            },
+            content: {
+              overflow: 'hidden',
+            },
+          }}
+          overlayProps={{ backgroundOpacity: 0.25, blur: 2 }}
+        >
+          <DailyRoutinesPanel isDrawer onClose={() => toggleRoutinesDrawer(false)} />
+        </Drawer>
+      )}
       <AppSpotlight />
     </AppShell>
   );
