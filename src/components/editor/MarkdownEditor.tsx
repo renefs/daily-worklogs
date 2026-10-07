@@ -21,6 +21,7 @@ import { EditorView, keymap } from '@codemirror/view';
 import { EditorSelection } from '@codemirror/state';
 import { liveMarkdownExtension } from './liveMarkdownExtension';
 import { createEditorAutocompleteExtension } from './wikilinkAutocompleteExtension';
+import { createMarkdownListExtension } from './markdownListContinuation';
 import { parseWikilink } from '../../utils/wikilinkUtils';
 import { EditorToolbar } from './EditorToolbar';
 import { EditorHeaderActions } from './EditorHeaderActions';
@@ -440,7 +441,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
   const extensions = useMemo(() => {
     const list = [
-      markdown({ extensions: GFM }),
+      markdown({ extensions: GFM, addKeymap: false }),
+      createMarkdownListExtension(),
       syntaxHighlighting(editorHighlightStyle, { fallback: true }),
       createEditorAutocompleteExtension({
         getTags: () => allTagsRef.current,

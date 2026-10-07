@@ -31,6 +31,7 @@ import { TaskChecklistProgress } from '../../tasks/TaskChecklistProgress';
 import { TaskPropertiesForm } from '../../tasks/TaskPropertiesForm';
 import { MarkdownViewer } from '../../viewer/MarkdownViewer';
 import { createTagAutocompleteExtension } from '../../editor/tagAutocompleteExtension';
+import { createMarkdownListExtension } from '../../editor/markdownListContinuation';
 import { liveMarkdownExtension } from '../../editor/liveMarkdownExtension';
 
 export interface TaskModalBodyProps {
@@ -103,7 +104,8 @@ export const TaskModalBody: React.FC<TaskModalBodyProps> = ({
 
   const extensions = useMemo(() => {
     return [
-      markdown({ extensions: GFM }),
+      markdown({ extensions: GFM, addKeymap: false }),
+      createMarkdownListExtension(),
       createTagAutocompleteExtension(() => allTagsRef.current),
       liveMarkdownExtension({
         copyCode: t('editor.copyCode'),
