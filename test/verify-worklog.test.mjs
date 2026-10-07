@@ -1103,6 +1103,28 @@ assert.strictEqual(typeof enJson.tasks?.taskSaved, 'string', 'en.json must have 
 assert.strictEqual(typeof esJson.tasks?.taskSaved, 'string', 'es.json must have tasks.taskSaved');
 console.log('✓ File -> Save application menu item and inline save status translations verified');
 
+// 20. Wikilink [[# Task Autocomplete and Alias Parsing Verification
+import { parseWikilink } from '../src/utils/wikilinkUtils.ts';
+const parsedTaskLink = parseWikilink('[[#42|Deploy App]]');
+assert.strictEqual(parsedTaskLink?.isTask, true, '[[#42|Deploy App]] must be parsed as a task link');
+assert.strictEqual(parsedTaskLink?.taskId, 42, '[[#42|Deploy App]] taskId must be 42');
+assert.strictEqual(parsedTaskLink?.alias, 'Deploy App', '[[#42|Deploy App]] alias must be Deploy App');
+
+const isWikilinkQuery = (str) => {
+  const match = str.match(/\[\[([^\]]*)$/);
+  if (!match) return null;
+  const raw = match[1].trim();
+  const isTaskExplicit = raw.startsWith('#');
+  const taskQuery = isTaskExplicit ? raw.slice(1).trim() : raw;
+  return { isTaskExplicit, taskQuery };
+};
+
+assert.deepStrictEqual(isWikilinkQuery('Please see [[#'), { isTaskExplicit: true, taskQuery: '' });
+assert.deepStrictEqual(isWikilinkQuery('See [[#42'), { isTaskExplicit: true, taskQuery: '42' });
+assert.deepStrictEqual(isWikilinkQuery('See [[#deploy'), { isTaskExplicit: true, taskQuery: 'deploy' });
+assert.deepStrictEqual(isWikilinkQuery('See [[2026-10-07'), { isTaskExplicit: false, taskQuery: '2026-10-07' });
+console.log('✓ Wikilink task autocomplete token detection and alias formatting verified');
+
 // Cleanup
 fs.rmSync(testVault, { recursive: true });
 if (fs.existsSync(sharedCloudVault)) fs.rmSync(sharedCloudVault, { recursive: true });

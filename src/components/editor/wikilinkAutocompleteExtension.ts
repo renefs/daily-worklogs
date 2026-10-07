@@ -13,7 +13,9 @@ export interface WikilinkDataSource {
 
 export function createWikilinkInputHandler(): Extension {
   return EditorView.inputHandler.of((view, from, _to, text) => {
-    if (text === '[' && from > 0 && view.state.sliceDoc(from - 1, from) === '[') {
+    const isDoubleBracket = text === '[' && from > 0 && view.state.sliceDoc(from - 1, from) === '[';
+    const isHashAfterWikilink = text === '#' && from >= 2 && view.state.sliceDoc(from - 2, from) === '[[';
+    if (isDoubleBracket || isHashAfterWikilink) {
       setTimeout(() => {
         startCompletion(view);
       }, 10);
@@ -47,7 +49,10 @@ export function createWikilinkCompletionSource(dataSource: WikilinkDataSource) {
       syntaxNode = parent;
     }
 
-    const query = word.text.slice(2).replace(/\]\]$/, '').trim().toLowerCase();
+    const rawQuery = word.text.slice(2).replace(/\]\]$/, '').trim().toLowerCase();
+    const isTaskExplicit = rawQuery.startsWith('#');
+    const taskQuery = isTaskExplicit ? rawQuery.slice(1).trim() : rawQuery;
+
     const sourceNotes = dataSource.getNotes();
     const notes = (sourceNotes && sourceNotes.length > 0) ? sourceNotes : (useAppStore.getState().notesList || []);
     const sourceTasks = dataSource.getTasks();
@@ -55,43 +60,101 @@ export function createWikilinkCompletionSource(dataSource: WikilinkDataSource) {
 
     const options: Completion[] = [];
 
-    // 1. Daily notes matching
-    for (const note of notes) {
-      if (!note || !note.date) continue;
-      const dateStr = note.date;
-      if (!query || dateStr.toLowerCase().includes(query)) {
-        options.push({
-          label: dateStr,
-          displayLabel: `📅 ${dateStr}`,
-          detail: 'Daily note',
-          type: 'text',
-          boost: dateStr.startsWith(query) ? 3 : 1,
-          apply: (view: EditorView, completion: Completion, from: number, to: number) => {
-            const insertText = `[[${completion.label}]]`;
-            view.dispatch({
-              changes: { from, to, insert: insertText },
-              selection: { anchor: from + insertText.length },
-            });
-          },
-        });
+    // 1. Daily notes matching (only if not explicitly looking for task via #)
+    if (!isTaskExplicit) {
+      for (const note of notes) {
+        if (!note || !note.date) continue;
+        const dateStr = note.date;
+        if (!rawQuery || dateStr.toLowerCase().includes(rawQuery)) {
+          options.push({
+            label: dateStr,
+            displayLabel: `📅 ${dateStr}`,
+            detail: 'Daily note',
+            type: 'text',
+            boost: dateStr.startsWith(rawQuery) ? 3 : 1,
+            apply: (view: EditorView, completion: Completion, from: number, to: number) => {
+              const insertText = `[[${completion.label}]]`;
+              view.dispatch({
+                changes: { from, to, insert: insertText },
+                selection: { anchor: from + insertText.length },
+              });
+            },
+          });
+        }
       }
     }
 
     // 2. Tasks matching
     for (const task of tasks) {
       if (!task || !task.title) continue;
-      const idPrefix = task.taskId ? `#${task.taskId}` : '';
+      const taskIdStr = task.taskId !== undefined ? String(task.taskId) : '';
+      const idPrefix = taskIdStr ? `#${taskIdStr}` : '';
       const taskDisplay = idPrefix ? `${idPrefix} - ${task.title}` : task.title;
-      const taskSearchable = `${idPrefix} ${task.title} ${task.filename || ''}`.toLowerCase();
+      const cleanTitle = task.title.replace(/[[\]|]/g, '').trim();
+      const insertTarget = idPrefix
+        ? (cleanTitle ? `${idPrefix}|${cleanTitle}` : idPrefix)
+        : (task.filename || cleanTitle);
 
-      if (!query || taskSearchable.includes(query)) {
-        const insertTarget = idPrefix || task.filename || task.title;
+      let matches = false;
+      let boost = 2;
+
+      if (isTaskExplicit) {
+        // User typed [[# or [[#someQuery
+        if (!taskQuery) {
+          // Just [[# - match all tasks!
+          matches = true;
+          boost = taskIdStr ? 3 : 2;
+        } else {
+          const titleLower = task.title.toLowerCase();
+          const filenameLower = (task.filename || '').toLowerCase();
+          const tagsLower = (task.tags || []).map((t) => t.toLowerCase());
+
+          if (taskIdStr === taskQuery) {
+            matches = true;
+            boost = 10;
+          } else if (taskIdStr.startsWith(taskQuery)) {
+            matches = true;
+            boost = 6;
+          } else if (titleLower.includes(taskQuery)) {
+            matches = true;
+            boost = titleLower.startsWith(taskQuery) ? 5 : 4;
+          } else if (filenameLower.includes(taskQuery)) {
+            matches = true;
+            boost = 3;
+          } else if (tagsLower.some((t) => t.includes(taskQuery))) {
+            matches = true;
+            boost = 3;
+          }
+        }
+      } else {
+        // User typed [[ without leading #
+        if (!rawQuery) {
+          matches = true;
+          boost = 2;
+        } else {
+          const titleLower = task.title.toLowerCase();
+          const taskSearchable = `${idPrefix} ${task.title} ${task.filename || ''}`.toLowerCase();
+
+          if (taskIdStr === rawQuery || idPrefix === rawQuery) {
+            matches = true;
+            boost = 8;
+          } else if (taskIdStr.startsWith(rawQuery)) {
+            matches = true;
+            boost = 5;
+          } else if (taskSearchable.includes(rawQuery)) {
+            matches = true;
+            boost = titleLower.startsWith(rawQuery) ? 4 : 2;
+          }
+        }
+      }
+
+      if (matches) {
         options.push({
           label: insertTarget,
           displayLabel: `✓ ${taskDisplay}`,
           detail: `Task (${task.status || 'todo'})`,
           type: 'keyword',
-          boost: taskSearchable.startsWith(query) ? 3 : 2,
+          boost,
           apply: (view: EditorView, completion: Completion, from: number, to: number) => {
             const insertText = `[[${completion.label}]]`;
             view.dispatch({
@@ -111,6 +174,7 @@ export function createWikilinkCompletionSource(dataSource: WikilinkDataSource) {
       from: word.from,
       options: options.slice(0, 50),
       validFor: /^\[\[[^\]]*$/,
+      filter: false,
     };
   };
 }

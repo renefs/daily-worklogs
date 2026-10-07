@@ -11,6 +11,9 @@ export function createTagCompletionSource(
   getTags: () => TagDefinition[] | string[]
 ) {
   return (context: CompletionContext): CompletionResult | null => {
+    // Do not trigger tag completion inside a wikilink [[...
+    if (context.matchBefore(/\[\[[^\]]*/)) return null;
+
     // Match # followed by word characters or / - _ :
     const word = context.matchBefore(/#[\p{L}\p{N}/_:-]*/u);
     if (!word) return null;
@@ -59,6 +62,8 @@ export function createTagCompletionSource(
       })
       .sort((a, b) => b.boost - a.boost || a.label.localeCompare(b.label))
       .slice(0, 100);
+
+    if (options.length === 0) return null;
 
     return {
       from: word.from,
