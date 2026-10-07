@@ -211,6 +211,7 @@ export function useTaskForm({
         startedDate: targetStarted,
         completedDate: targetCompleted,
         tags: Array.isArray(tags) ? tags : [],
+        parent: typeof target?.parent === 'number' ? target.parent : undefined,
         content: content || '',
       };
     },

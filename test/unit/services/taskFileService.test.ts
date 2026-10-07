@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { parseNumericTaskId, parseTaskCounts } from '../../../electron/services/taskFileService';
+import { parseNumericTaskId, parseParentTaskId, parseTaskCounts } from '../../../electron/services/taskFileService';
 
 describe('task file service helpers', () => {
   describe('parseNumericTaskId', () => {
@@ -15,6 +15,19 @@ describe('task file service helpers', () => {
       expect(parseNumericTaskId({ id: '04' })).toBeUndefined();
       expect(parseNumericTaskId({ id: 0 })).toBeUndefined();
       expect(parseNumericTaskId(null)).toBeUndefined();
+    });
+  });
+
+  describe('parseParentTaskId', () => {
+    it('reads numeric and #-prefixed parent references', () => {
+      expect(parseParentTaskId(3)).toBe(3);
+      expect(parseParentTaskId('#12')).toBe(12);
+    });
+
+    it('rejects invalid parent references', () => {
+      expect(parseParentTaskId(0)).toBeUndefined();
+      expect(parseParentTaskId('abc')).toBeUndefined();
+      expect(parseParentTaskId(undefined)).toBeUndefined();
     });
   });
 

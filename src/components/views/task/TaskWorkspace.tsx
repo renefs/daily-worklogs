@@ -12,6 +12,8 @@ import {
   TaskPriority,
   TaskStatus,
 } from '../../../types';
+import { notifications } from '@mantine/notifications';
+import { useAppStoreSelector } from '../../../store/useAppStore';
 import classes from '../TaskView.module.css';
 
 export interface TaskWorkspaceProps {
@@ -50,6 +52,8 @@ export interface TaskWorkspaceProps {
   onOpenFileManager?: () => void;
   onDeleteClick: () => void;
   onScrollToHeading: (headingText: string) => void;
+  /** Numeric ID of the task being edited; undefined while the task is still unsaved. */
+  taskId?: number;
 }
 
 export const TaskWorkspace: React.FC<TaskWorkspaceProps> = ({
@@ -88,8 +92,36 @@ export const TaskWorkspace: React.FC<TaskWorkspaceProps> = ({
   onOpenFileManager,
   onDeleteClick,
   onScrollToHeading,
+  taskId,
 }) => {
   const { t } = useTranslation();
+  const createOrUpdateTask = useAppStoreSelector((state) => state.createOrUpdateTask);
+  const parentTask = taskId !== undefined ? { taskId, area, project: project || undefined, tags } : undefined;
+
+  const handleConvertToSubtask = async (taskText: string, checked: boolean) => {
+    if (taskId === undefined) return;
+    const created = await createOrUpdateTask({
+      title: taskText,
+      status: checked ? 'done' : 'todo',
+      area,
+      project: project || undefined,
+      tags: tags || [],
+      parent: taskId,
+      content: '',
+    });
+    if (created && created.taskId !== undefined) {
+      const linkLabel = created.title.replace(/[[\]|]/g, '').trim();
+      const cleanTaskText = taskText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').trim();
+      const pattern = new RegExp(`(-\\s*\\[[ xX]\\]\\s*)${cleanTaskText}`, 'i');
+      const updated = content.replace(pattern, `$1[[#${created.taskId}|${linkLabel}]]`);
+      onContentChange(updated);
+      notifications.show({
+        title: t('tasks.subtaskCreated', 'Subtask created'),
+        message: `#${created.taskId} ${created.title}`,
+        color: 'teal',
+      });
+    }
+  };
 
   return (
     <div className={clsx(classes.workspace, 'task-workspace')}>
@@ -109,6 +141,8 @@ export const TaskWorkspace: React.FC<TaskWorkspaceProps> = ({
                 showExport={false}
                 placeholder={t('tasks.contentPlaceholder', 'Add descriptions, checklists, technical specs, and acceptance criteria...')}
                 tasksStats={taskStats}
+                allowConvertToTask={taskId !== undefined}
+                parentTask={parentTask}
               />
             </div>
             <div className={clsx(classes.splitPane, 'task-split-pane', classes.previewPane, 'task-preview-pane')}>
@@ -116,7 +150,9 @@ export const TaskWorkspace: React.FC<TaskWorkspaceProps> = ({
                 <MarkdownViewer
                   content={content || `_${t('tasks.noDescriptionProvided', 'No description provided')}_`}
                   allowToggleTasks={true}
+                  allowConvertToTask={taskId !== undefined}
                   onToggleTask={onToggleTaskInContent}
+                  onConvertToSubtask={handleConvertToSubtask}
                 />
               </div>
             </div>
@@ -138,6 +174,8 @@ export const TaskWorkspace: React.FC<TaskWorkspaceProps> = ({
               showExport={false}
               placeholder={t('tasks.contentPlaceholder', 'Add descriptions, checklists, technical specs, and acceptance criteria...')}
               tasksStats={taskStats}
+              allowConvertToTask={taskId !== undefined}
+              parentTask={parentTask}
             />
           </div>
         )}
@@ -148,7 +186,9 @@ export const TaskWorkspace: React.FC<TaskWorkspaceProps> = ({
               <MarkdownViewer
                 content={content || `_${t('tasks.noDescriptionProvided', 'No description provided')}_`}
                 allowToggleTasks={true}
+                allowConvertToTask={taskId !== undefined}
                 onToggleTask={onToggleTaskInContent}
+                onConvertToSubtask={handleConvertToSubtask}
               />
             </div>
           </div>
@@ -169,6 +209,8 @@ export const TaskWorkspace: React.FC<TaskWorkspaceProps> = ({
               showExport={false}
               placeholder={t('tasks.contentPlaceholder', 'Add descriptions, checklists, technical specs, and acceptance criteria...')}
               tasksStats={taskStats}
+              allowConvertToTask={taskId !== undefined}
+              parentTask={parentTask}
             />
           </div>
         )}
@@ -204,6 +246,7 @@ export const TaskWorkspace: React.FC<TaskWorkspaceProps> = ({
           onOpenFileManager={onOpenFileManager}
           onDeleteClick={onDeleteClick}
           onScrollToHeading={onScrollToHeading}
+          taskId={taskId}
         />
       )}
     </div>

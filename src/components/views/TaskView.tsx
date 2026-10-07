@@ -278,6 +278,7 @@ export const TaskView: React.FC = () => {
       />
 
       <TaskWorkspace
+        taskId={activeTask?.taskId}
         layoutMode={taskEditorLayoutMode}
         content={form.content}
         onContentChange={(val) => {

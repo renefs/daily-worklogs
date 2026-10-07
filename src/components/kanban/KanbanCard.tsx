@@ -244,6 +244,18 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
                 #{task.taskId ?? task.id}
               </Text>
             )}
+            {task.parent !== undefined && (
+              <Badge
+                size="xs"
+                variant="light"
+                color="gray"
+                radius="sm"
+                title={t('tasks.subtaskOf', { parent: `#${task.parent}` })}
+                style={{ fontSize: 10, padding: '0 4px', cursor: 'default' }}
+              >
+                ↳ #{task.parent}
+              </Badge>
+            )}
             <Text size="xs" c="dimmed" style={{ fontSize: 11 }}>
               ·{' '}
               {task.due

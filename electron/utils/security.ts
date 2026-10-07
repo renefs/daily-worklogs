@@ -106,6 +106,11 @@ export function requireTaskWriteInput(value: unknown): TaskWriteInput {
     project = data.project.trim();
   }
 
+  let parent: number | undefined;
+  if (typeof data.parent === 'number' && Number.isSafeInteger(data.parent) && data.parent > 0) {
+    parent = data.parent;
+  }
+
   return {
     ...(id ? { id } : {}),
     ...(taskId ? { taskId } : {}),
@@ -115,6 +120,7 @@ export function requireTaskWriteInput(value: unknown): TaskWriteInput {
     ...(priority ? { priority } : {}),
     ...(area ? { area } : {}),
     ...(project ? { project } : {}),
+    ...(parent ? { parent } : {}),
     ...(created ? { created } : {}),
     ...(due ? { due } : {}),
     ...(startedDate ? { startedDate } : {}),

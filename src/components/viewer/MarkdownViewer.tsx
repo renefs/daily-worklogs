@@ -43,7 +43,10 @@ const highlightSupportedCode = () => (tree: Root) => {
 export interface MarkdownViewerProps {
   content?: string;
   allowToggleTasks?: boolean;
+  /** Show the per-checkbox "Convert to Task" button (daily notes only). Defaults to true. */
+  allowConvertToTask?: boolean;
   onToggleTask?: (taskText: string, checked: boolean) => void;
+  onConvertToSubtask?: (taskText: string, checked: boolean) => void;
 }
 
 function extractRawText(node: React.ReactNode): string {
@@ -63,7 +66,9 @@ function slugify(text: string): string {
 export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   content,
   allowToggleTasks = true,
+  allowConvertToTask = true,
   onToggleTask,
+  onConvertToSubtask,
 }) => {
   const { t } = useTranslation();
   const {
@@ -231,7 +236,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                         style={{ marginTop: 1 }}
                       />
                       <span style={{ flex: 1 }}>{textParts}</span>
-                      {!isAlreadyLinked && textContent && (
+                      {allowConvertToTask && !isAlreadyLinked && textContent && (
                         <Tooltip label={t('tasks.convertToTask', 'Convert to Task')} withArrow position="left">
                           <ActionIcon
                             size="xs"
@@ -239,11 +244,15 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                             color="blue"
                             onClick={(e) => {
                               e.stopPropagation();
-                              void openTaskModal({
-                                title: textContent,
-                                due: activeNote?.date,
-                                status: isChecked ? 'done' : 'todo',
-                              });
+                              if (onConvertToSubtask) {
+                                onConvertToSubtask(textContent, isChecked);
+                              } else {
+                                void openTaskModal({
+                                  title: textContent,
+                                  due: activeNote?.date,
+                                  status: isChecked ? 'done' : 'todo',
+                                });
+                              }
                             }}
                             aria-label={t('tasks.convertToTask', 'Convert to Task')}
                           >

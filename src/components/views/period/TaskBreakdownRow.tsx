@@ -1,5 +1,5 @@
 import React from 'react';
-import { Group, Text, Progress, Tooltip, ActionIcon } from '@mantine/core';
+import { Group, Text, Progress, Tooltip, ActionIcon, Badge } from '@mantine/core';
 import { IconEdit } from '@tabler/icons-react';
 import clsx from 'clsx';
 import { TaskMeta, TaskPriority } from '../../../types';
@@ -56,6 +56,17 @@ export const TaskBreakdownRow: React.FC<TaskBreakdownRowProps> = ({
       <Text size="xs" c="dimmed" ff="var(--font-mono)">
         #{task.taskId ?? task.id}
       </Text>
+      {task.parent !== undefined && (
+        <Badge
+          size="xs"
+          variant="light"
+          color="gray"
+          radius="sm"
+          style={{ fontSize: 10, padding: '0 4px', textDecoration: 'none' }}
+        >
+          ↳ #{task.parent}
+        </Badge>
+      )}
 
       <Text
         size="sm"

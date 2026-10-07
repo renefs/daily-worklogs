@@ -1,0 +1,14 @@
+.relations {
+  padding-bottom: var(--mantine-spacing-xs);
+}
+
+.item {
+  display: block;
+  width: 100%;
+  padding: rem(4px) rem(6px);
+  border-radius: var(--mantine-radius-sm);
+
+  @mixin hover {
+    background-color: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-6));
+  }
+}

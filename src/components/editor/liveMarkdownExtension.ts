@@ -27,7 +27,7 @@ class CheckboxWidget extends WidgetType {
     readonly checked: boolean,
     readonly pos: number,
     readonly label: string,
-    readonly convertLabel: string = 'Convert to Task'
+    readonly convertLabel?: string
   ) {
     super();
   }
@@ -76,33 +76,36 @@ class CheckboxWidget extends WidgetType {
 
     container.appendChild(wrap);
 
-    const convertBtn = document.createElement('button');
-    convertBtn.type = 'button';
-    convertBtn.className = 'cm-live-task-convert-btn';
-    convertBtn.title = this.convertLabel;
-    convertBtn.setAttribute('aria-label', this.convertLabel);
-    convertBtn.innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17l9.2-9.2M17 17V7H7"/></svg>`;
+    const convertLabel = this.convertLabel;
+    if (convertLabel) {
+      const convertBtn = document.createElement('button');
+      convertBtn.type = 'button';
+      convertBtn.className = 'cm-live-task-convert-btn';
+      convertBtn.title = convertLabel;
+      convertBtn.setAttribute('aria-label', convertLabel);
+      convertBtn.innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17l9.2-9.2M17 17V7H7"/></svg>`;
 
-    const handleConvert = (e: MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const line = view.state.doc.lineAt(this.pos);
-      const rawText = line.text.replace(/^[ \t]*[-*+]\s*\[[ xX]\]\s*/, '').trim();
-      window.dispatchEvent(
-        new CustomEvent('convert-line-to-task', {
-          detail: {
-            lineText: rawText,
-            pos: this.pos,
-            checked: this.checked,
-          },
-        })
-      );
-    };
+      const handleConvert = (e: MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const line = view.state.doc.lineAt(this.pos);
+        const rawText = line.text.replace(/^[ \t]*[-*+]\s*\[[ xX]\]\s*/, '').trim();
+        window.dispatchEvent(
+          new CustomEvent('convert-line-to-task', {
+            detail: {
+              lineText: rawText,
+              pos: this.pos,
+              checked: this.checked,
+            },
+          })
+        );
+      };
 
-    convertBtn.addEventListener('mousedown', handleConvert);
-    convertBtn.addEventListener('click', handleConvert);
+      convertBtn.addEventListener('mousedown', handleConvert);
+      convertBtn.addEventListener('click', handleConvert);
 
-    container.appendChild(convertBtn);
+      container.appendChild(convertBtn);
+    }
 
     return container;
   }
@@ -1068,7 +1071,12 @@ export function buildLiveDecorations(
           from: replaceFrom,
           to: replaceTo,
           deco: Decoration.replace({
-            widget: new CheckboxWidget(isChecked, boxFrom, labels.toggleTask, labels.convertToTask || 'Convert to Task'),
+            widget: new CheckboxWidget(
+              isChecked,
+              boxFrom,
+              labels.toggleTask,
+              /\[\[(#\d+|tasks\/)/.test(taskMatch[4]) ? undefined : labels.convertToTask
+            ),
           }),
         });
         occupiedRanges.push({ from: replaceFrom, to: replaceTo });

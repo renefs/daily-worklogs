@@ -253,6 +253,7 @@ export const TaskModal: React.FC = () => {
         radius="md"
       >
         <TaskModalBody
+          taskId={activeTask?.taskId}
           title={form.title}
           onTitleChange={(val) => {
             form.setTitle(val);

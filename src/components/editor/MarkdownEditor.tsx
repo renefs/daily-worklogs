@@ -66,6 +66,20 @@ export interface MarkdownEditorProps {
   placeholder?: string;
   tasksStats?: { total: number; completed: number };
   showStatusAndActions?: boolean;
+  /** Show the per-checkbox "Convert to Task" button (daily notes only). Defaults to true. */
+  allowConvertToTask?: boolean;
+  /**
+   * When set, the editor belongs to this (saved) task: converting a checklist item
+   * creates a subtask that inherits area, project and tags instead of opening the task modal.
+   */
+  parentTask?: ParentTaskContext;
+}
+
+export interface ParentTaskContext {
+  taskId: number;
+  area?: string;
+  project?: string;
+  tags?: string[];
 }
 
 export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
@@ -85,6 +99,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   showStatusAndActions = true,
   placeholder,
   tasksStats,
+  allowConvertToTask = true,
+  parentTask,
 }) => {
   const { t, i18n } = useTranslation();
   const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
@@ -108,6 +124,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     setSelectedDate,
     setCurrentView,
     openTaskModal,
+    createOrUpdateTask,
   } = useAppStoreSelector((state) => ({
     activeNote: state.activeNote,
     setNoteContent: state.setNoteContent,
@@ -123,6 +140,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     setSelectedDate: state.setSelectedDate,
     setCurrentView: state.setCurrentView,
     openTaskModal: state.openTaskModal,
+    createOrUpdateTask: state.createOrUpdateTask,
   }));
 
   const isControlled = content !== undefined;
@@ -467,18 +485,58 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           editTable: t('editor.editTable'),
           imageNotFound: t('editor.imageNotFound'),
           toggleTask: t('editor.toggleTask'),
-          convertToTask: t('tasks.convertToTask', 'Convert to Task'),
+          convertToTask: allowConvertToTask ? t('tasks.convertToTask', 'Convert to Task') : undefined,
         })
       );
     }
     return list;
-  }, [isLivePreview, t]);
+  }, [isLivePreview, allowConvertToTask, t]);
+
+  const convertChecklistItemToSubtask = async (lineText: string, checked: boolean, pos: number) => {
+    if (!parentTask) return;
+    const created = await createOrUpdateTask({
+      title: lineText,
+      status: checked ? 'done' : 'todo',
+      area: parentTask.area,
+      project: parentTask.project,
+      tags: parentTask.tags || [],
+      parent: parentTask.taskId,
+      content: '',
+    });
+    if (!created) {
+      notifications.show({
+        title: t('common.error', 'Error'),
+        message: t('tasks.saveError', 'Failed to save task'),
+        color: 'red',
+      });
+      return;
+    }
+    // Replace the checklist item text with a link to the new subtask
+    const view = editorRef.current?.view;
+    if (view && created.taskId !== undefined && /^\[[ xX]\]$/.test(view.state.sliceDoc(pos, pos + 3))) {
+      const line = view.state.doc.lineAt(pos);
+      const linkLabel = created.title.replace(/[[\]|]/g, '').trim();
+      view.dispatch({
+        changes: { from: pos + 3, to: line.to, insert: ` [[#${created.taskId}|${linkLabel}]]` },
+      });
+    }
+    notifications.show({
+      title: t('tasks.subtaskCreated', 'Subtask created'),
+      message: `#${created.taskId} ${created.title}`,
+      color: 'teal',
+    });
+  };
 
   useEffect(() => {
+    if (!allowConvertToTask) return;
     const handleConvertLineToTask = (e: Event) => {
-      const customEvent = e as CustomEvent<{ lineText: string; checked: boolean }>;
-      const { lineText, checked } = customEvent.detail || {};
+      const customEvent = e as CustomEvent<{ lineText: string; checked: boolean; pos: number }>;
+      const { lineText, checked, pos } = customEvent.detail || {};
       if (!lineText) return;
+      if (parentTask) {
+        void convertChecklistItemToSubtask(lineText, checked, pos);
+        return;
+      }
       openTaskModal({
         title: lineText,
         due: selectedDate,
@@ -490,33 +548,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     return () => {
       window.removeEventListener('convert-line-to-task', handleConvertLineToTask);
     };
-  }, [openTaskModal, selectedDate]);
-
-  const handleConvertToTask = useCallback(() => {
-    const view = editorRef.current?.view;
-    let selectedText = '';
-    let isChecked = false;
-    if (view) {
-      const selection = view.state.selection.main;
-      if (selection.empty) {
-        const line = view.state.doc.lineAt(selection.from);
-        selectedText = line.text.trim();
-        isChecked = /^[ \t]*[-*+]\s*\[[xX]\]/.test(line.text);
-      } else {
-        selectedText = view.state.sliceDoc(selection.from, selection.to).trim();
-        isChecked = /^[ \t]*[-*+]\s*\[[xX]\]/.test(selectedText);
-      }
-    }
-    selectedText = selectedText
-      .replace(/^[ \t]*[-*+]\s*\[[ xX]\]\s*/, '')
-      .replace(/^[ \t]*[-*+]\s+/, '')
-      .trim();
-    openTaskModal({
-      title: selectedText,
-      due: selectedDate,
-      status: isChecked ? 'done' : 'todo',
-    });
-  }, [openTaskModal, selectedDate]);
+  }, [allowConvertToTask, openTaskModal, selectedDate, parentTask, createOrUpdateTask]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
@@ -534,7 +566,6 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             showTemplates={showTemplates}
             templates={settings?.templates}
             onInsertTemplate={insertTemplate}
-            onConvertToTask={handleConvertToTask}
           />
 
           {showStatusAndActions && (

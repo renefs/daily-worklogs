@@ -66,6 +66,7 @@ export interface ElectronAPI {
     startedDate?: string;
     completedDate?: string;
     tags?: string[];
+    parent?: number;
     content: string;
   }) => Promise<{ success: boolean; task: TaskItem }>;
   updateTaskStatus: (filename: string, status: TaskStatus) => Promise<{ success: boolean; task: TaskItem }>;

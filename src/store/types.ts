@@ -93,6 +93,7 @@ export interface TasksSlice {
     startedDate?: string;
     completedDate?: string;
     tags?: string[];
+    parent?: number;
     content: string;
   }) => Promise<TaskItem | null>;
   updateTaskStatus: (filename: string, status: TaskStatus) => Promise<void>;

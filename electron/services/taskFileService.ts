@@ -29,6 +29,16 @@ export function parseNumericTaskId(value: unknown): number | undefined {
   return undefined;
 }
 
+export function parseParentTaskId(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isSafeInteger(value) && value > 0) return value;
+  if (typeof value === 'string') {
+    const clean = value.replace(/^#/, '').trim();
+    const parsed = Number.parseInt(clean, 10);
+    if (Number.isSafeInteger(parsed) && parsed > 0 && String(parsed) === clean) return parsed;
+  }
+  return undefined;
+}
+
 export function parseTaskCounts(content: string): { tasksCompleted: number; tasksTotal: number } {
   const checked = (content.match(/^[\s]*[-*]\s*\[[xX]\]/gm) || []).length;
   const unchecked = (content.match(/^[\s]*[-*]\s*\[\s\]/gm) || []).length;
@@ -109,6 +119,7 @@ export function buildTaskFromFile(
     startedDate: data.startedDate || undefined,
     completedDate: data.completedDate || undefined,
     tags: Array.isArray(data.tags) ? data.tags : [],
+    parent: parseParentTaskId(data.parent),
     lastModified: stat.mtime.toISOString(),
     checklistTotal: tasksTotal,
     checklistCompleted: tasksCompleted,

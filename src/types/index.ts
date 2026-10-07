@@ -106,6 +106,7 @@ export interface TaskMeta {
   startedDate?: string; // YYYY-MM-DD
   completedDate?: string; // YYYY-MM-DD
   tags?: string[];
+  parent?: number; // taskId of the parent task (subtask relationship)
   lastModified?: string;
   checklistTotal?: number;
   checklistCompleted?: number;
@@ -132,6 +133,7 @@ export interface TaskWriteInput {
   startedDate?: string;
   completedDate?: string;
   tags?: string[];
+  parent?: number;
   content: string;
 }
 

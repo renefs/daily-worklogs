@@ -31,6 +31,7 @@ import {
 import { TaskChecklistProgress } from './TaskChecklistProgress';
 import { TaskPropertiesForm } from './TaskPropertiesForm';
 import { TaskOutline } from './TaskOutline';
+import { TaskRelations } from './TaskRelations';
 import classes from '../views/TaskView.module.css';
 
 export interface TaskInspectorProps {
@@ -61,6 +62,7 @@ export interface TaskInspectorProps {
   onOpenFileManager?: () => void;
   onDeleteClick: () => void;
   onScrollToHeading: (id: string) => void;
+  taskId?: number;
 }
 
 export const TaskInspector: React.FC<TaskInspectorProps> = ({
@@ -91,6 +93,7 @@ export const TaskInspector: React.FC<TaskInspectorProps> = ({
   onOpenFileManager,
   onDeleteClick,
   onScrollToHeading,
+  taskId,
 }) => {
   const { t } = useTranslation();
 
@@ -119,6 +122,9 @@ export const TaskInspector: React.FC<TaskInspectorProps> = ({
         <div className={clsx(classes.inspectorSection, 'task-inspector-section')}>
           <TaskChecklistProgress content={content} />
         </div>
+
+        {/* Parent task & subtasks */}
+        <TaskRelations taskId={taskId} />
 
         {/* Task Properties & Metadata */}
         <div className={clsx(classes.inspectorSection, 'task-inspector-section')}>

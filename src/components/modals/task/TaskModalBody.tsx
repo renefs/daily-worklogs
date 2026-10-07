@@ -28,6 +28,7 @@ import {
   TaskStatus,
 } from '../../../types';
 import { TaskChecklistProgress } from '../../tasks/TaskChecklistProgress';
+import { TaskRelations } from '../../tasks/TaskRelations';
 import { TaskPropertiesForm } from '../../tasks/TaskPropertiesForm';
 import { MarkdownViewer } from '../../viewer/MarkdownViewer';
 import { createTagAutocompleteExtension } from '../../editor/tagAutocompleteExtension';
@@ -35,6 +36,7 @@ import { createMarkdownListExtension } from '../../editor/markdownListContinuati
 import { liveMarkdownExtension } from '../../editor/liveMarkdownExtension';
 
 export interface TaskModalBodyProps {
+  taskId?: number;
   title: string;
   onTitleChange: (val: string) => void;
   activeTab: 'details' | 'description' | 'preview';
@@ -66,6 +68,7 @@ export interface TaskModalBodyProps {
 }
 
 export const TaskModalBody: React.FC<TaskModalBodyProps> = ({
+  taskId,
   title,
   onTitleChange,
   activeTab,
@@ -147,6 +150,7 @@ export const TaskModalBody: React.FC<TaskModalBodyProps> = ({
 
         <Tabs.Panel value="details">
           <Stack gap="md">
+            <TaskRelations taskId={taskId} />
             <TaskChecklistProgress content={content} />
             <TaskPropertiesForm
               area={area}

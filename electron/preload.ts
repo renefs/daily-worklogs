@@ -16,6 +16,7 @@ interface WriteTaskPayload {
   startedDate?: string;
   completedDate?: string;
   tags?: string[];
+  parent?: number;
   content: string;
 }
 

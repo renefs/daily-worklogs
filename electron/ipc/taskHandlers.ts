@@ -124,6 +124,7 @@ export function registerTaskHandlers(dependencies: TaskHandlerDependencies): voi
         if (taskData.project.trim()) frontmatterData.project = taskData.project.trim();
         else delete frontmatterData.project;
       }
+      if (taskData.parent !== undefined && taskData.parent !== taskId) frontmatterData.parent = taskData.parent;
       if (startedDate) frontmatterData.startedDate = startedDate;
       else delete frontmatterData.startedDate;
       if (completedDate) frontmatterData.completedDate = completedDate;
