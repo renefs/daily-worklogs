@@ -4,7 +4,7 @@ A modern, fast, cross-platform desktop application (Windows, macOS, Linux) to st
 
 Built with **React**, **TypeScript**, **Mantine UI v7**, **CodeMirror 6**, and **Electron**.
 
-Current version: **1.14.0** — see the [changelog](CHANGELOG.md) for release details.
+Current version: **1.15.0** — see the [changelog](CHANGELOG.md) for release details.
 
 ---
 

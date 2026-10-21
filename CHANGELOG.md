@@ -8,10 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.15.0] - 2026-10-21
+
 ### Added
 - **Vault Full-Text Search & Spotlight Quick Switcher**: Added debounced full-text search across daily notes and tasks with snippet extraction, line numbers, result caching, and a keyboard-accessible Spotlight dialog (`Cmd+K` / `Ctrl+K`).
-- **Wikilinks & Backlink Navigation**: Added Obsidian-style `[[wikilink]]` support with live syntax styling, target autocompletion (`[[`), toolbar link insertion, and clickable preview navigation across daily notes and tasks.
+- **Wikilinks & Backlink Navigation**: Added Obsidian-style `[[wikilink]]` support with live syntax styling, target and task autocompletion (`[[` and `[[#` with `[[#taskId|Title]]` alias support), toolbar link insertion, and clickable preview navigation across daily notes and tasks.
+- **Parent Task Relations & Subtask Hierarchy**: Added parent task references in YAML frontmatter, a `TaskRelations` inspector panel showing parent and subtask hierarchy, parent badges on Kanban cards and period breakdown rows, and checklist-to-subtask conversion inheriting Area, Project, and tags.
 - **Checklist Task Conversion**: Added interactive "Convert to Task" action for Markdown checklist items (`- [ ]`) in both Live Preview and rendered Markdown viewer to convert list items directly into tracked tasks.
+- **Smart Markdown List Keymaps**: Added smart list continuation and indentation keybindings (`Enter`, `Tab`, `Shift+Tab`, `Backspace`) for unordered, ordered, and checklist items in CodeMirror.
+- **Global Daily Routines Slide-Over Drawer**: Relocated Daily Routines to a global slide-over drawer accessible from the app header (`Mod+Shift+R`) across all views, with a setting to disable routines when unused.
 
 ### Changed
 - **Electron Main Process Decomposition**: Modularized the monolithic Electron main process by extracting settings management (`settingsService`), application menu configuration (`menuService`), and domain IPC handlers (`settingsHandlers`, `reportHandlers`, `systemHandlers`, `searchHandlers`).
@@ -21,6 +26,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Decomposed `TaskModal` and `TaskView` into modular `TaskModalBody` and `TaskWorkspace` components sharing a consolidated `useTaskForm` state hook.
   - Decomposed monthly and weekly dashboards into focused summary, activity panel, and task list components.
 - **Workspace Navigation & Sidebar Layout**: Refined navigation rail button styling and disabled states, kept note history sidebar exclusive to the Daily view, embedded an inline calendar card directly in the sidebar, and integrated full-text note search filtering.
+- **Flat Tag Taxonomy & Localization**: Simplified tags to flat labels (`name`, `color`, `description`) with Area and Project resolved strictly from task fields, and localized remaining hardcoded strings in English and Spanish.
+
+### Fixed
+- **Task Header Layout & Inline Save Status**: Stacked the task title on its own full-width row to prevent truncation, added `Live` mode to the task editor mode switcher, and replaced task save toast notifications with inline unsaved/saving/saved status indicators.
+- **Subtask Wikilink Navigation**: Routed task wikilink clicks directly to the full task editor while flushing pending task edits before switching tasks.
+- **Live Editor Code Block Spacing**: Added vertical margins around and between fenced code blocks in Live Preview mode.
 
 ### Security
 - **Task Payload Normalization & Hardening**: Hardened `requireTaskWriteInput` to normalize numeric task IDs, empty filenames, and ISO date strings or Date objects, ensuring strict validation while tolerating safe input variants.

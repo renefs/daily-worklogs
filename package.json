@@ -1,6 +1,6 @@
 {
   "name": "daily-worklog",
-  "version": "1.14.0",
+  "version": "1.15.0",
   "description": "Cross-platform Daily Worklog Desktop Application",
   "main": "dist-electron/main.js",
   "type": "module",

@@ -64,7 +64,7 @@ export const AboutSettingsTab: React.FC = () => {
               Daily Worklog
             </Text>
             <Badge size="lg" variant="gradient" gradient={{ from: 'primary', to: 'indigo', deg: 45 }}>
-              v{appInfo?.version || '1.14.0'}
+              v{appInfo?.version || '1.15.0'}
             </Badge>
           </Group>
           <Text size="sm" c="dimmed" style={{ maxWidth: 460 }}>
@@ -91,7 +91,7 @@ export const AboutSettingsTab: React.FC = () => {
                   {t('settings.appVersion')}:
                 </Text>
                 <Badge size="sm" variant="filled" color="primary">
-                  {appInfo?.version || '1.14.0'}
+                  {appInfo?.version || '1.15.0'}
                 </Badge>
               </Group>
               <Divider />
