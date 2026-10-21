@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.15.1] - 2026-10-21
+
+### Changed
+- **Persistent Report Entry Expansion**: Preserved the "Expand All" state on the Reports entries tab when navigating across dates in Weekly and Monthly views, while resetting to collapsed when switching period types or viewing Yearly reports to prevent rendering lag.
+
 ## [1.15.0] - 2026-10-21
 
 ### Added

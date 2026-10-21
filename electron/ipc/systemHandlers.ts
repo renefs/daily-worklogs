@@ -15,13 +15,13 @@ export function registerSystemHandlers(dependencies: SystemHandlerDependencies):
   const { getMainWindow, getSettings, showAbout } = dependencies;
 
   ipcMain.handle('get-app-version', () => {
-    return app.getVersion() || '1.15.0';
+    return app.getVersion() || '1.15.1';
   });
 
   ipcMain.handle('get-app-info', () => {
     return {
       name: 'Daily Worklog',
-      version: app.getVersion() || '1.15.0',
+      version: app.getVersion() || '1.15.1',
       electron: process.versions.electron,
       chrome: process.versions.chrome,
       node: process.versions.node,
