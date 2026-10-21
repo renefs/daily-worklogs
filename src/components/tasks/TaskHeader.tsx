@@ -9,6 +9,7 @@ import {
   Button,
   SegmentedControl,
   Menu,
+  Loader,
 } from '@mantine/core';
 import {
   IconArrowLeft,
@@ -54,6 +55,7 @@ export interface TaskHeaderProps {
   isDirty: boolean;
   isSaving: boolean;
   taskSaveError: string | null;
+  showSavedConfirmation?: boolean;
   onSave: () => Promise<unknown> | unknown;
   onBack: () => void;
   onLogToDaily: () => void;
@@ -81,6 +83,7 @@ export const TaskHeader: React.FC<TaskHeaderProps> = ({
   isDirty,
   isSaving,
   taskSaveError,
+  showSavedConfirmation = false,
   onSave,
   onBack,
   onLogToDaily,
@@ -294,37 +297,69 @@ export const TaskHeader: React.FC<TaskHeaderProps> = ({
               </ActionIcon>
             </Tooltip>
 
-            {/* Save Status & Button */}
-            {taskSaveError ? (
-              <Button
-                variant="subtle"
-                color="red"
-                size="xs"
-                leftSection={<IconAlertCircle size={14} />}
-                onClick={() => void onSave()}
-              >
-                {t('editor.retrySave')}
-              </Button>
-            ) : isDirty ? (
-              <Button
-                variant="filled"
-                color="primary"
-                size="xs"
-                radius="md"
-                leftSection={<IconDeviceFloppy size={14} />}
-                loading={isSaving}
-                onClick={() => void onSave()}
-              >
-                {t('common.save')}
-              </Button>
-            ) : (
-              <Badge variant="subtle" color="gray" size="sm">
-                <Group gap={4}>
-                  <IconCircleFilled size={6} color="var(--mantine-color-teal-6)" />
-                  <span>{t('editor.saved', 'Saved')}</span>
-                </Group>
-              </Badge>
-            )}
+            {/* Save Status */}
+            <Group
+              gap={5}
+              wrap="nowrap"
+              role="status"
+              aria-live="polite"
+              className={clsx(classes.noteSaveStatus, 'note-save-status')}
+            >
+              {taskSaveError ? (
+                <Button
+                  variant="subtle"
+                  color="red"
+                  size="compact-xs"
+                  leftSection={<IconAlertCircle size={14} />}
+                  onClick={() => void onSave()}
+                >
+                  {t('editor.retrySave')}
+                </Button>
+              ) : isSaving ? (
+                <>
+                  <Loader size={13} color="gray" />
+                  <Text
+                    size="xs"
+                    c="dimmed"
+                    className={clsx(classes.noteSaveStatusLabel, 'note-save-status-label')}
+                  >
+                    {t('editor.saving')}
+                  </Text>
+                </>
+              ) : isDirty ? (
+                <>
+                  <IconCircleFilled
+                    size={8}
+                    className={clsx(classes.noteSaveStatusUnsaved, 'note-save-status-unsaved')}
+                  />
+                  <Text
+                    size="xs"
+                    c="dimmed"
+                    className={clsx(classes.noteSaveStatusLabel, 'note-save-status-label')}
+                  >
+                    {t('editor.unsaved')}
+                  </Text>
+                </>
+              ) : (
+                <Tooltip label={t('editor.saved')} withArrow>
+                  <Group gap={5} wrap="nowrap">
+                    <IconCheck
+                      size={16}
+                      className={clsx(classes.noteSaveStatusSaved, 'note-save-status-saved')}
+                    />
+                    {showSavedConfirmation && (
+                      <Text
+                        size="xs"
+                        c="dimmed"
+                        className={clsx(classes.noteSaveStatusLabel, 'note-save-status-label')}
+                      >
+                        {t('editor.saved')}
+                      </Text>
+                    )}
+                  </Group>
+                </Tooltip>
+              )}
+            </Group>
 
             {/* Menu */}
             <Menu position="bottom-end" shadow="md" width={200}>
@@ -334,6 +369,13 @@ export const TaskHeader: React.FC<TaskHeaderProps> = ({
                 </ActionIcon>
               </Menu.Target>
               <Menu.Dropdown>
+                <Menu.Item
+                  leftSection={<IconDeviceFloppy size={14} />}
+                  onClick={() => void onSave()}
+                  disabled={!isDirty}
+                >
+                  {t('common.save')}
+                </Menu.Item>
                 <Menu.Item
                   leftSection={<IconCalendarPlus size={14} />}
                   onClick={onLogToDaily}

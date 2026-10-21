@@ -73,9 +73,19 @@ export const TaskView: React.FC = () => {
   }
   const failedDraftSignatureRef = useRef<string | null>(null);
   const taskSaveInFlightRef = useRef<Promise<TaskItem | null> | null>(null);
-  const handleSaveRef = useRef<(options?: { showNotification?: boolean }) => Promise<TaskItem | null>>(
-    async () => null
-  );
+  const handleSaveRef = useRef<() => Promise<TaskItem | null>>(async () => null);
+  const [showSavedConfirmation, setShowSavedConfirmation] = useState(false);
+  const wasSavingRef = useRef(false);
+
+  useEffect(() => {
+    const saveJustFinished = wasSavingRef.current && !isSaving;
+    wasSavingRef.current = isSaving;
+    if (!saveJustFinished || form.isDirty || taskSaveError) return;
+
+    setShowSavedConfirmation(true);
+    const timer = window.setTimeout(() => setShowSavedConfirmation(false), 2000);
+    return () => window.clearTimeout(timer);
+  }, [form.isDirty, isSaving, taskSaveError]);
 
   useEffect(() => {
     if (taskSaveError && failedDraftSignatureRef.current !== form.draftSignature) {
@@ -84,9 +94,7 @@ export const TaskView: React.FC = () => {
   }, [form.draftSignature, taskSaveError]);
 
   const handleSave = useCallback(
-    async (options?: { showNotification?: boolean }): Promise<TaskItem | null> => {
-      const showNotification = options?.showNotification ?? false;
-
+    async (): Promise<TaskItem | null> => {
       if (!form.title.trim()) {
         const errorMsg = t('tasks.titleRequired', 'Title is required to save');
         setTaskSaveError(errorMsg);
@@ -114,16 +122,6 @@ export const TaskView: React.FC = () => {
             persistedTaskRef.current = result;
             failedDraftSignatureRef.current = null;
             form.setIsDirty(false);
-
-            if (showNotification) {
-              notifications.show({
-                title: t('tasks.taskSaved'),
-                message: result.title,
-                color: 'teal',
-                icon: <IconCheck size={16} />,
-                autoClose: 2000,
-              });
-            }
             return result;
           }
           throw new Error(t('tasks.saveFailedMessage', 'Could not write task markdown file to disk.'));
@@ -168,7 +166,7 @@ export const TaskView: React.FC = () => {
   // Global app save listener (Cmd+S)
   useEffect(() => {
     const handleAppSave = () => {
-      void handleSave({ showNotification: true });
+      void handleSave();
     };
     window.addEventListener('app:save', handleAppSave);
     return () => {
@@ -180,7 +178,7 @@ export const TaskView: React.FC = () => {
   useEffect(() => {
     return registerTaskEditorFlush(async () => {
       if (!form.isDirty) return true;
-      const saved = await handleSaveRef.current({ showNotification: false });
+      const saved = await handleSaveRef.current();
       return Boolean(saved);
     });
   }, [form.isDirty]);
@@ -265,10 +263,11 @@ export const TaskView: React.FC = () => {
         isDirty={form.isDirty}
         isSaving={isSaving}
         taskSaveError={taskSaveError}
-        onSave={() => handleSave({ showNotification: true })}
+        showSavedConfirmation={showSavedConfirmation}
+        onSave={() => handleSave()}
         onBack={() => {
           void (async () => {
-            if (form.isDirty && !(await handleSave({ showNotification: true }))) return;
+            if (form.isDirty && !(await handleSave())) return;
             closeTaskEditor();
           })();
         }}
@@ -286,7 +285,7 @@ export const TaskView: React.FC = () => {
           form.setContent(val);
           form.setIsDirty(true);
         }}
-        onSave={() => handleSave({ showNotification: true })}
+        onSave={() => handleSave()}
         isSaving={isSaving}
         isDirty={form.isDirty}
         taskStats={form.taskStatsForEditor}

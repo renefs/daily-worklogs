@@ -86,12 +86,6 @@ export const TaskModal: React.FC = () => {
       const payload = form.buildTaskPayload(activeTask);
       const savedTask = await createOrUpdateTask(payload);
       if (savedTask) {
-        notifications.show({
-          title: t('common.saved', 'Saved'),
-          message: savedTask.title,
-          color: 'teal',
-          icon: <IconCheck size={16} />,
-        });
         closeTaskModal();
       } else {
         notifications.show({

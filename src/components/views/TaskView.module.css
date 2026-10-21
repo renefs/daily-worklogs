@@ -61,6 +61,24 @@
   margin-left: auto;
 }
 
+.noteSaveStatus {
+  min-width: 22px;
+  min-height: 26px;
+  color: var(--app-text-secondary);
+}
+
+.noteSaveStatusLabel {
+  white-space: nowrap;
+}
+
+.noteSaveStatusUnsaved {
+  color: var(--mantine-color-yellow-6);
+}
+
+.noteSaveStatusSaved {
+  color: var(--mantine-color-teal-filled);
+}
+
 .navSegmentedControl {
   background-color: var(--app-subtle-bg) !important;
   border: 1px solid var(--app-header-border) !important;

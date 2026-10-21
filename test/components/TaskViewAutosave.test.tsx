@@ -1,5 +1,6 @@
 import React from 'react';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { notifications } from '@mantine/notifications';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TaskView } from '../../src/components/views/TaskView';
 import { useAppStore } from '../../src/store/useAppStore';
@@ -80,5 +81,43 @@ describe('TaskView autosave', () => {
 
     fireEvent.click(screen.getByRole('radio', { name: /Live/i }));
     expect(useAppStore.getState().taskEditorLayoutMode).toBe('live');
+  });
+
+  it('displays unsaved changes text like daily notes and does not show a toast when saved', async () => {
+    const showNotificationSpy = vi.spyOn(notifications, 'show');
+    useAppStore.setState({
+      settings: {
+        ...useAppStore.getState().settings!,
+        autoSave: false,
+      },
+    });
+    vi.mocked(window.electronAPI.writeTask).mockResolvedValue({
+      success: true,
+      task: {
+        id: '1',
+        taskId: 1,
+        filename: '2026-09-08-new-task.md',
+        filepath: '/mock/vault/tasks/2026-09-08-new-task.md',
+        title: 'Task without toast',
+        status: 'todo',
+        content: '',
+      },
+    });
+
+    renderWithMantine(<TaskView />);
+    const title = screen.getByPlaceholderText('What needs to be done?');
+    fireEvent.change(title, { target: { value: 'Task without toast' } });
+
+    expect(screen.getByRole('status')).toHaveTextContent('Unsaved changes');
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent('app:save'));
+    });
+
+    await waitFor(() => expect(window.electronAPI.writeTask).toHaveBeenCalledTimes(1));
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent('All changes saved');
+    });
+    expect(showNotificationSpy).not.toHaveBeenCalled();
   });
 });

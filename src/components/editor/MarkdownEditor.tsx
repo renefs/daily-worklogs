@@ -438,14 +438,6 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const handleManualSave = async () => {
     if (isControlled) {
       await effectiveOnSave();
-      notifications.show({
-        id: 'manual-save',
-        title: t('editor.saved') || 'All changes saved',
-        message: t('editor.fileSaved') || 'File saved successfully',
-        color: 'teal',
-        icon: <IconCheck size={16} />,
-        autoClose: 2000,
-      });
     } else {
       window.dispatchEvent(new CustomEvent('app:save'));
     }
