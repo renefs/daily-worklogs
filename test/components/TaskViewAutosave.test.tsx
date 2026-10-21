@@ -66,4 +66,19 @@ describe('TaskView autosave', () => {
       taskId: 1,
     });
   });
+
+  it('renders the Live view mode option alongside Split, Code, and Preview in TaskHeader', () => {
+    renderWithMantine(<TaskView />);
+
+    expect(screen.getByRole('radio', { name: /Live/i })).toBeChecked();
+    expect(screen.getByRole('radio', { name: /Split/i })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /Code/i })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /Preview/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('radio', { name: /Split/i }));
+    expect(useAppStore.getState().taskEditorLayoutMode).toBe('split');
+
+    fireEvent.click(screen.getByRole('radio', { name: /Live/i }));
+    expect(useAppStore.getState().taskEditorLayoutMode).toBe('live');
+  });
 });

@@ -17,6 +17,7 @@ import {
   IconDotsVertical,
   IconLayoutSidebarRight,
   IconLayoutSidebarRightCollapse,
+  IconSparkles,
   IconColumns,
   IconWriting,
   IconEye,
@@ -153,7 +154,10 @@ export const TaskHeader: React.FC<TaskHeaderProps> = ({
             variant="unstyled"
             className={clsx(classes.titleInput, 'task-title-input')}
             styles={{
+              root: { flex: 1, minWidth: 0 },
+              wrapper: { width: '100%' },
               input: {
+                width: '100%',
                 fontSize: 20,
                 fontWeight: 750,
                 letterSpacing: '-0.02em',
@@ -221,12 +225,21 @@ export const TaskHeader: React.FC<TaskHeaderProps> = ({
             {/* View Mode Switcher */}
             <SegmentedControl
               value={layoutMode}
-              onChange={(val) => onLayoutModeChange(val as 'split' | 'edit' | 'preview')}
+              onChange={(val) => onLayoutModeChange(val as 'live' | 'split' | 'edit' | 'preview')}
               size="xs"
               radius="md"
               className={clsx(classes.navSegmentedControl, 'nav-segmented-control')}
               transitionDuration={180}
               data={[
+                {
+                  value: 'live',
+                  label: (
+                    <Group gap={4} wrap="nowrap">
+                      <IconSparkles size={13} />
+                      <span>{t('editor.live', 'Live')}</span>
+                    </Group>
+                  ),
+                },
                 {
                   value: 'split',
                   label: (
