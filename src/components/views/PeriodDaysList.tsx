@@ -43,9 +43,12 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
   const { t, i18n } = useTranslation();
   const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
   const isDark = computedColorScheme === 'dark';
-  const { openReportDay, readReportDay } = useAppStoreSelector((state) => ({
+  const { openReportDay, readReportDay, reportPeriod, reportDaysExpanded, setReportDaysExpanded } = useAppStoreSelector((state) => ({
     openReportDay: state.openReportDay,
     readReportDay: state.readReportDay,
+    reportPeriod: state.reportPeriod,
+    reportDaysExpanded: state.reportDaysExpanded,
+    setReportDaysExpanded: state.setReportDaysExpanded,
   }));
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -60,18 +63,26 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
     }));
   }, [periodSummary, loadedContent]);
 
-  // Track collapsed state per date (default expanded for days with notes)
+  // Track collapsed state per date (default expanded when reportDaysExpanded is active on week/month)
+  const defaultExpanded = reportDaysExpanded && reportPeriod !== 'year';
   const [collapsedMap, setCollapsedMap] = useState<Record<string, boolean>>({});
+
+  const isDayCollapsed = (date: string): boolean => {
+    if (date in collapsedMap) return collapsedMap[date];
+    return !defaultExpanded;
+  };
 
   const loadDayContent = async (date: string): Promise<string> => {
     if (loadedContent[date] !== undefined) return loadedContent[date];
+    const existing = periodSummary?.days.find((d) => d.date === date)?.content;
+    if (existing !== undefined) return existing;
     const content = await readReportDay(date);
     setLoadedContent((current) => ({ ...current, [date]: content }));
     return content;
   };
 
   const toggleDayCollapse = async (date: string) => {
-    const isCurrentlyCollapsed = collapsedMap[date] !== false;
+    const isCurrentlyCollapsed = isDayCollapsed(date);
     if (isCurrentlyCollapsed) await loadDayContent(date);
     setCollapsedMap((prev) => ({
       ...prev,
@@ -80,6 +91,9 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
   };
 
   const handleExpandAll = async () => {
+    if (reportPeriod !== 'year') {
+      setReportDaysExpanded(true);
+    }
     await Promise.all(daysList.filter((day) => day.exists).map((day) => loadDayContent(day.date)));
     const newMap: Record<string, boolean> = {};
     daysList.forEach((d) => {
@@ -89,6 +103,7 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
   };
 
   const handleCollapseAll = () => {
+    setReportDaysExpanded(false);
     const newMap: Record<string, boolean> = {};
     daysList.forEach((d) => {
       newMap[d.date] = true;
@@ -233,7 +248,7 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
             filteredDays.map((day) => {
               const isToday = day.date === todayStr;
               const hasContent = day.exists && (day.content || '').trim().length > 0;
-              const isCollapsed = collapsedMap[day.date] !== false;
+              const isCollapsed = isDayCollapsed(day.date);
               const isCopied = copiedDate === day.date;
 
               const dayName = formatLocalizedDateTitle(day.date, i18n.language);

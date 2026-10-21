@@ -1,11 +1,19 @@
 import React from 'react';
-import { describe, it, expect } from 'vitest';
-import { screen } from '@testing-library/react';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithMantine } from '../utils/test-utils';
 import { PeriodDaysList } from '../../src/components/views/PeriodDaysList';
+import { useAppStore } from '../../src/store/useAppStore';
 import type { PeriodSummary } from '../../src/types';
 
 describe('PeriodDaysList Component', () => {
+  beforeEach(() => {
+    useAppStore.setState({
+      reportPeriod: 'week',
+      reportDaysExpanded: false,
+    });
+  });
+
   const mockPeriodSummary: PeriodSummary = {
     period: 'week',
     startDate: '2026-08-17',
@@ -62,6 +70,36 @@ describe('PeriodDaysList Component', () => {
 
     renderWithMantine(<PeriodDaysList periodSummary={emptySummary} />);
     expect(screen.queryByText(/August 18/i)).not.toBeInTheDocument();
+  });
+
+  it('persists expand all preference in store for week/month and defaults to expanded when remounted', async () => {
+    const { unmount } = renderWithMantine(<PeriodDaysList periodSummary={mockPeriodSummary} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /expand all/i }));
+    await waitFor(() => expect(useAppStore.getState().reportDaysExpanded).toBe(true));
+
+    unmount();
+
+    const nextWeekSummary: PeriodSummary = {
+      ...mockPeriodSummary,
+      startDate: '2026-08-24',
+      endDate: '2026-08-30',
+      days: [
+        {
+          date: '2026-08-25',
+          exists: true,
+          tasksTotal: 1,
+          tasksCompleted: 1,
+          content: '# 2026-08-25\n- [x] Next week task',
+        },
+      ],
+    };
+
+    renderWithMantine(<PeriodDaysList periodSummary={nextWeekSummary} />);
+    expect(screen.getByText('Next week task')).toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: /collapse all/i }));
+    expect(useAppStore.getState().reportDaysExpanded).toBe(false);
   });
 });
 

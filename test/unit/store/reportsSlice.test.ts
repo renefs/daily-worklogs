@@ -10,9 +10,12 @@ function summary(startDate = '2026-09-28', endDate = '2026-10-04'): PeriodSummar
 describe('Reports store', () => {
   beforeEach(() => {
     useAppStore.setState({ currentView: 'daily', selectedDate: '2026-10-01', reportDate: '2026-10-01',
-      reportPeriod: 'week', reportTab: 'dashboard', hasOpenedReports: false, reportSummary: null,
+      reportPeriod: 'week', reportTab: 'dashboard', reportDaysExpanded: false, hasOpenedReports: false, reportSummary: null,
       isReportLoading: false, reportError: null, activeNote: null, isDirty: false, settings: null, notesList: [], tasks: [] });
     vi.mocked(window.electronAPI.getNotesRange).mockReset().mockResolvedValue(summary());
+    vi.mocked(window.electronAPI.readNote).mockReset().mockResolvedValue({
+      date: '2026-10-01', filename: '2026-10-01.md', filepath: '/mock/2026-10-01.md', content: '# Note content', exists: true,
+    });
   });
   it('keeps the shared date and selected tab across period changes and returning to Reports', async () => {
     await useAppStore.getState().openReports();
@@ -63,5 +66,28 @@ describe('Reports store', () => {
     expect(useAppStore.getState().currentView).toBe('yearly');
     expect(useAppStore.getState().reportDate).toBe('2024-02-29');
     expect(useAppStore.getState().reportTab).toBe('tasks');
+  });
+  it('preserves expanded days across week/month date changes and resets on period change or yearly view', async () => {
+    vi.mocked(window.electronAPI.getNotesRange).mockResolvedValue({
+      ...summary('2026-09-28', '2026-10-04'),
+      days: [{ date: '2026-10-01', exists: true, tasksTotal: 1, tasksCompleted: 1 }],
+    });
+    await useAppStore.getState().openReports('week');
+    useAppStore.getState().setReportDaysExpanded(true);
+    useAppStore.getState().setReportDate('2026-10-08');
+    expect(useAppStore.getState().reportDaysExpanded).toBe(true);
+    await waitFor(() => expect(useAppStore.getState().isReportLoading).toBe(false));
+    expect(window.electronAPI.readNote).toHaveBeenCalledWith('2026-10-01');
+    expect(useAppStore.getState().reportSummary?.days[0]?.content).toBe('# Note content');
+
+    await useAppStore.getState().openReports('month');
+    expect(useAppStore.getState().reportDaysExpanded).toBe(false);
+
+    useAppStore.getState().setReportDaysExpanded(true);
+    useAppStore.getState().setReportDate('2026-11-01');
+    expect(useAppStore.getState().reportDaysExpanded).toBe(true);
+
+    await useAppStore.getState().openReports('year');
+    expect(useAppStore.getState().reportDaysExpanded).toBe(false);
   });
 });

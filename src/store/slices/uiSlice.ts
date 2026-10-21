@@ -119,10 +119,12 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       if (!saved) return;
     }
 
+    const nextReportPeriod = isReportView(view) ? getReportPeriod(view) : null;
     set({
       currentView: view,
-      ...(isReportView(view) ? {
-        reportPeriod: getReportPeriod(view),
+      ...(nextReportPeriod ? {
+        reportPeriod: nextReportPeriod,
+        reportDaysExpanded: nextReportPeriod !== get().reportPeriod ? false : get().reportDaysExpanded,
         reportDate: get().hasOpenedReports ? get().reportDate : get().selectedDate,
         hasOpenedReports: true,
       } : {}),

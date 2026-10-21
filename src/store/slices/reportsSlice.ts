@@ -8,15 +8,22 @@ export const createReportsSlice: AppSlice<ReportsSlice> = (set, get) => {
     reportDate: dayjs().format('YYYY-MM-DD'),
     reportPeriod: 'week',
     reportTab: 'dashboard',
+    reportDaysExpanded: false,
     hasOpenedReports: false,
     reportSummary: null,
     isReportLoading: false,
     reportError: null,
 
     setReportDate: (date) => {
-      if (dayjs(date).isValid() && dayjs(date).format('YYYY-MM-DD') === date) set({ reportDate: date });
+      if (dayjs(date).isValid() && dayjs(date).format('YYYY-MM-DD') === date) {
+        set((state) => ({
+          reportDate: date,
+          reportDaysExpanded: state.reportPeriod === 'year' ? false : state.reportDaysExpanded,
+        }));
+      }
     },
     setReportTab: (reportTab) => set({ reportTab }),
+    setReportDaysExpanded: (reportDaysExpanded) => set({ reportDaysExpanded }),
     openReports: async (period = get().reportPeriod, date) => {
       const view = REPORT_VIEWS[period];
       await get().setCurrentView(view);
@@ -44,7 +51,21 @@ export const createReportsSlice: AppSlice<ReportsSlice> = (set, get) => {
       try {
         if (!window.electronAPI) throw new Error('Electron API is unavailable');
         const reportSummary = await window.electronAPI.getNotesRange(range.start, range.end);
-        if (id === requestId) set({ reportSummary, isReportLoading: false });
+        if (id !== requestId) return;
+        const shouldPreload = get().reportDaysExpanded && get().reportPeriod !== 'year';
+        if (shouldPreload && reportSummary.days?.length && window.electronAPI.readNote) {
+          const daysWithContent = await Promise.all(
+            reportSummary.days.map(async (day) => {
+              if (!day.exists || day.content !== undefined) return day;
+              const note = await window.electronAPI.readNote(day.date);
+              return { ...day, content: note?.content ?? '' };
+            })
+          );
+          if (id !== requestId) return;
+          set({ reportSummary: { ...reportSummary, days: daysWithContent }, isReportLoading: false });
+          return;
+        }
+        set({ reportSummary, isReportLoading: false });
       } catch (error) {
         if (id === requestId) set({ reportError: error instanceof Error ? error.message : 'Report loading failed', isReportLoading: false });
       }

@@ -148,12 +148,14 @@ export interface ReportsSlice {
   reportDate: string;
   reportPeriod: ReportPeriod;
   reportTab: ReportTab;
+  reportDaysExpanded: boolean;
   hasOpenedReports: boolean;
   reportSummary: PeriodSummary | null;
   isReportLoading: boolean;
   reportError: string | null;
   setReportDate: (date: string) => void;
   setReportTab: (tab: ReportTab) => void;
+  setReportDaysExpanded: (expanded: boolean) => void;
   openReports: (period?: ReportPeriod, date?: string) => Promise<void>;
   openReportDay: (date: string) => Promise<void>;
   readReportDay: (date: string) => Promise<string>;
