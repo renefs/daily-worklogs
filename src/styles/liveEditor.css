@@ -466,6 +466,7 @@ a.cm-live-link {
   border-top: 1px solid var(--codeblock-border, #d0d7de) !important;
   border-top-left-radius: 6px;
   border-top-right-radius: 6px;
+  margin-top: 8px !important;
 }
 
 .cm-live-codeblock-start:not(.cm-live-codeblock-active) {
@@ -544,6 +545,11 @@ a.cm-live-link {
   border-bottom-left-radius: 6px;
   border-bottom-right-radius: 6px;
   padding: 0 !important;
+  margin-bottom: 8px !important;
+}
+
+.cm-live-codeblock-end + .cm-live-codeblock-start {
+  margin-top: 10px !important;
 }
 
 .cm-live-codeblock-end:not(.cm-live-codeblock-active) {
