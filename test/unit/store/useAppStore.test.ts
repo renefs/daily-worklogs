@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useAppStore } from '../../../src/store/useAppStore';
+import { registerTaskEditorFlush } from '../../../src/services/editorSession';
 
 describe('useAppStore', () => {
   beforeEach(() => {
@@ -45,6 +46,44 @@ describe('useAppStore', () => {
     useAppStore.getState().closeTaskEditor();
     expect(useAppStore.getState().currentView).toBe('kanban');
     expect(useAppStore.getState().activeTask).toBeNull();
+  });
+
+  it('flushes active task editor and switches directly to subtask full view without modal', async () => {
+    const store = useAppStore.getState();
+    await store.setCurrentView('tasks');
+
+    await store.openTaskEditor({
+      id: 'task-1',
+      taskId: 1,
+      filename: 'task-1.md',
+      title: 'Parent Task',
+      status: 'todo',
+      content: '- [ ] [[#2|Subtask]]',
+    });
+
+    const flushSpy = vi.fn().mockResolvedValue(true);
+    const unregister = registerTaskEditorFlush(flushSpy);
+
+    try {
+      await useAppStore.getState().openTaskEditor({
+        id: 'task-2',
+        taskId: 2,
+        filename: 'task-2.md',
+        title: 'Subtask',
+        status: 'todo',
+        parent: 1,
+        content: 'Subtask details',
+      });
+
+      expect(flushSpy).toHaveBeenCalledTimes(1);
+      expect(useAppStore.getState().currentView).toBe('task');
+      expect(useAppStore.getState().isTaskModalOpen).toBe(false);
+      expect(useAppStore.getState().previousView).toBe('tasks');
+      expect(useAppStore.getState().activeTask?.taskId).toBe(2);
+      expect(useAppStore.getState().activeTask?.parent).toBe(1);
+    } finally {
+      unregister();
+    }
   });
 
   it('sets selected date', async () => {

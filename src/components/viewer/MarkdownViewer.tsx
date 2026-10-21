@@ -79,6 +79,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
     setSelectedDate,
     setCurrentView,
     openTaskModal,
+    openTaskEditor,
   } = useAppStoreSelector((state) => ({
     activeNote: state.activeNote,
     toggleTaskInNote: state.toggleTaskInNote,
@@ -87,6 +88,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
     setSelectedDate: state.setSelectedDate,
     setCurrentView: state.setCurrentView,
     openTaskModal: state.openTaskModal,
+    openTaskEditor: state.openTaskEditor,
   }));
 
   const rawText = content !== undefined ? content : activeNote?.content || '';
@@ -115,7 +117,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
         if (parsed.taskId) {
           const found = tasks.find((t) => t.taskId === parsed.taskId);
           if (found) {
-            void openTaskModal(found);
+            void openTaskEditor(found);
             return;
           }
         }
@@ -124,7 +126,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
             (t) => t.filename === parsed.taskFilename || t.filename.endsWith(parsed.taskFilename!)
           );
           if (found) {
-            void openTaskModal(found);
+            void openTaskEditor(found);
             return;
           }
         }
@@ -134,7 +136,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
         (t) => t.title.toLowerCase() === rawTarget.toLowerCase()
       );
       if (foundTask) {
-        void openTaskModal(foundTask);
+        void openTaskEditor(foundTask);
         return;
       }
 
@@ -144,7 +146,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
         void setCurrentView('daily');
       }
     },
-    [tasks, notesList, setSelectedDate, setCurrentView, openTaskModal]
+    [tasks, notesList, setSelectedDate, setCurrentView, openTaskEditor]
   );
 
   return (

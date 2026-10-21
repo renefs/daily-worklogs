@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import { flushTaskEditor } from '../../services/editorSession';
 import { TaskItem, TaskMeta, TaskPriority, TaskStatus } from '../../types';
 import { AppSlice, TasksSlice } from '../types';
 import { invalidateNotesRefresh } from './notesSlice';
@@ -150,6 +151,7 @@ export const createTasksSlice: AppSlice<TasksSlice> = (set, get) => ({
           startedDate: partial.startedDate,
           completedDate: partial.completedDate,
           tags: partial.tags || [],
+          parent: partial.parent,
           content: partial.content || '',
         };
       }
@@ -169,6 +171,10 @@ export const createTasksSlice: AppSlice<TasksSlice> = (set, get) => ({
   },
 
   openTaskEditor: async (task = null, defaultStatus = 'todo', returnView) => {
+    if (get().currentView === 'task') {
+      const saved = await flushTaskEditor();
+      if (!saved) return;
+    }
     if (get().isDirty && get().activeNote) {
       const saved = await get().saveActiveNote({ force: true });
       if (!saved) return;
@@ -198,6 +204,7 @@ export const createTasksSlice: AppSlice<TasksSlice> = (set, get) => ({
           startedDate: partial.startedDate,
           completedDate: partial.completedDate,
           tags: partial.tags || [],
+          parent: partial.parent,
           content: partial.content || '',
         };
       }

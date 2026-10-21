@@ -124,6 +124,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     setSelectedDate,
     setCurrentView,
     openTaskModal,
+    openTaskEditor,
     createOrUpdateTask,
   } = useAppStoreSelector((state) => ({
     activeNote: state.activeNote,
@@ -140,6 +141,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     setSelectedDate: state.setSelectedDate,
     setCurrentView: state.setCurrentView,
     openTaskModal: state.openTaskModal,
+    openTaskEditor: state.openTaskEditor,
     createOrUpdateTask: state.createOrUpdateTask,
   }));
 
@@ -182,6 +184,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     const el = containerRef.current;
 
     const handleWikilinkNavigate = async (e: Event) => {
+      e.stopPropagation();
       const customEvent = e as CustomEvent<{ target: string }>;
       const rawTarget = customEvent.detail?.target;
       if (!rawTarget) return;
@@ -201,7 +204,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         if (parsed.taskId) {
           const found = tasksRef.current.find((t) => t.taskId === parsed.taskId);
           if (found) {
-            void openTaskModal(found);
+            void openTaskEditor(found);
             return;
           }
         }
@@ -210,7 +213,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             (t) => t.filename === parsed.taskFilename || t.filename.endsWith(parsed.taskFilename!)
           );
           if (found) {
-            void openTaskModal(found);
+            void openTaskEditor(found);
             return;
           }
         }
@@ -229,7 +232,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         (t) => t.title.toLowerCase() === targetStr.toLowerCase()
       );
       if (foundTask) {
-        void openTaskModal(foundTask);
+        void openTaskEditor(foundTask);
         return;
       }
 
@@ -247,9 +250,9 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           if (firstTaskResult) {
             const taskObj = tasksRef.current.find((t) => t.filename === firstTaskResult.id);
             if (taskObj) {
-              void openTaskModal(taskObj);
+              void openTaskEditor(taskObj);
             } else {
-              void openTaskModal({ filename: firstTaskResult.id, title: firstTaskResult.title, taskId: firstTaskResult.taskId } as any);
+              void openTaskEditor({ filename: firstTaskResult.id, title: firstTaskResult.title, taskId: firstTaskResult.taskId } as any);
             }
             return;
           }
@@ -265,7 +268,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       if (el) el.removeEventListener('wikilink-navigate', handleWikilinkNavigate);
       window.removeEventListener('wikilink-navigate', handleWikilinkNavigate);
     };
-  }, [setSelectedDate, setCurrentView, openTaskModal]);
+  }, [setSelectedDate, setCurrentView, openTaskEditor]);
 
   const isDark = computedColorScheme === 'dark';
 

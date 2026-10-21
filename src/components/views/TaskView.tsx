@@ -65,16 +65,17 @@ export const TaskView: React.FC = () => {
   const [isLogging, setIsLogging] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const lastActiveTaskRef = useRef<TaskItem | null>(activeTask);
   const persistedTaskRef = useRef<TaskItem | null>(activeTask);
+  if (lastActiveTaskRef.current !== activeTask) {
+    lastActiveTaskRef.current = activeTask;
+    persistedTaskRef.current = activeTask;
+  }
   const failedDraftSignatureRef = useRef<string | null>(null);
   const taskSaveInFlightRef = useRef<Promise<TaskItem | null> | null>(null);
   const handleSaveRef = useRef<(options?: { showNotification?: boolean }) => Promise<TaskItem | null>>(
     async () => null
   );
-
-  useEffect(() => {
-    persistedTaskRef.current = activeTask;
-  }, [activeTask]);
 
   useEffect(() => {
     if (taskSaveError && failedDraftSignatureRef.current !== form.draftSignature) {
