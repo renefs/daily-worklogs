@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.15.2] - 2026-10-22
+
+### Fixed
+- **Live Markdown Table Rendering on Large Notes**: Moved block-level table widget decorations (`TableWidget`) from a CodeMirror `ViewPlugin` into a dedicated `StateField` so pasting or viewing notes containing tables followed by additional sections renders the entire document without throwing a plugin `RangeError`.
+
 ## [1.15.1] - 2026-10-21
 
 ### Changed
