@@ -58,4 +58,34 @@ describe('MarkdownEditor', () => {
     });
     expect(openTaskModalSpy).not.toHaveBeenCalled();
   });
+
+  it('renders a large Markdown note with tables and code blocks in live preview without crashing', () => {
+    const content = [
+      '# Hardening session notes (2026-10-22)',
+      '',
+      '## Decisions and why',
+      '',
+      '| Decision | Reason |',
+      '|---|---|',
+      '| `authlib<1.7` | 1.9 deprecates `authlib.jose` |',
+      '| Version stays 5.2.0 | Fits the `[unreleased]` section |',
+      '',
+      '## Useful commands',
+      '',
+      '```bash',
+      'uv run pre-commit run --all-files',
+      '```',
+    ].join('\n');
+
+    const { container } = renderWithMantine(
+      <div style={{ height: 600 }}>
+        <MarkdownEditor content={content} onChange={vi.fn()} showStatusAndActions={false} />
+      </div>
+    );
+
+    expect(container.querySelector('.cm-editor')).not.toBeNull();
+    expect(container.textContent).toContain('Hardening session notes (2026-10-22)');
+    expect(container.textContent).toContain('Useful commands');
+    expect(container.textContent).toContain('uv run pre-commit run --all-files');
+  });
 });

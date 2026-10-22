@@ -3,9 +3,10 @@ import {
   DecorationSet,
   EditorView,
   ViewPlugin,
+  ViewUpdate,
   WidgetType,
 } from '@codemirror/view';
-import { EditorState, RangeSetBuilder } from '@codemirror/state';
+import { EditorState, RangeSetBuilder, StateField } from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
 import { matchesMarkdownSyntaxNode, sanitizeLivePreviewUrl } from './liveMarkdownUtils';
 
@@ -630,6 +631,42 @@ function findTableStartingAt(doc: { lines: number; line: (n: number) => { text: 
 }
 
 /**
+ * Find the markdown table enclosing lineNum, even when lineNum is in the middle of the table.
+ */
+function findEnclosingTable(
+  doc: { lines: number; line: (n: number) => { text: string } },
+  lineNum: number
+): TableData | null {
+  if (lineNum < 1 || lineNum > doc.lines) return null;
+  const currentText = doc.line(lineNum).text;
+  if (!currentText.includes('|') || currentText.trim() === '') return null;
+
+  let startCandidate = lineNum;
+  while (startCandidate > 1) {
+    const prevText = doc.line(startCandidate - 1).text;
+    if (!prevText.includes('|') || prevText.trim() === '' || /^[ \t]*(?:```+|~~~+)/.test(prevText)) {
+      break;
+    }
+    startCandidate--;
+  }
+
+  let candidate = startCandidate;
+  while (candidate <= lineNum) {
+    const tableData = findTableStartingAt(doc, candidate);
+    if (tableData) {
+      if (tableData.endLine >= lineNum) {
+        return tableData;
+      }
+      candidate = tableData.endLine + 1;
+    } else {
+      candidate++;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Interactive Table Widget that renders formatted tables with Mantine design.
  * Clicking focuses the editor on the clicked row/table.
  */
@@ -756,13 +793,111 @@ interface QueuedDeco {
 }
 
 /**
+ * Build block-level table decorations across the document.
+ * CodeMirror 6 requires block decorations and decorations that replace line breaks
+ * to be provided via a StateField rather than a ViewPlugin.
+ */
+export function buildLiveTableDecorations(
+  state: EditorState,
+  labels: LiveMarkdownLabels
+): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>();
+  const { doc, selection } = state;
+  const tree = syntaxTree(state);
+  const cursorRanges = selection.ranges;
+
+  const isCursorTouching = (start: number, end: number, buffer = 1): boolean => {
+    return cursorRanges.some((r) => r.from <= end + buffer && r.to >= start - buffer);
+  };
+
+  let l = 1;
+  while (l <= doc.lines) {
+    const line = doc.line(l);
+    const text = line.text;
+
+    let syntaxNode = tree.resolveInner(Math.min(line.from + 1, line.to), 1);
+    let fencedRange: { from: number; to: number } | null = null;
+    while (syntaxNode) {
+      if (syntaxNode.name === 'FencedCode') {
+        fencedRange = { from: syntaxNode.from, to: syntaxNode.to };
+        break;
+      }
+      const parent = syntaxNode.parent;
+      if (!parent) break;
+      syntaxNode = parent;
+    }
+
+    if (fencedRange) {
+      const blockEndLine = doc.lineAt(Math.max(fencedRange.from, fencedRange.to - 1)).number;
+      l = Math.max(l + 1, blockEndLine + 1);
+      continue;
+    }
+
+    const fenceMatch = text.match(/^([ \t]*)(```+|~~~+)(.*)$/);
+    if (fenceMatch) {
+      const fenceChar = fenceMatch[2][0];
+      const fenceLen = fenceMatch[2].length;
+      const closePattern = new RegExp(`^[ \\t]*${fenceChar}{${fenceLen},}\\s*$`);
+      let closeLine = doc.lines;
+      for (let c = l + 1; c <= doc.lines; c++) {
+        if (closePattern.test(doc.line(c).text)) {
+          closeLine = c;
+          break;
+        }
+      }
+      l = closeLine + 1;
+      continue;
+    }
+
+    if (text.includes('|')) {
+      const tableData = findTableStartingAt(doc, l);
+      if (tableData) {
+        const tableFrom = doc.line(tableData.headerLine).from;
+        const tableTo = doc.line(tableData.endLine).to;
+        const cursorInTable = isCursorTouching(tableFrom, tableTo, 0);
+
+        if (!cursorInTable) {
+          const rawTableText = doc.sliceString(tableFrom, tableTo);
+          builder.add(
+            tableFrom,
+            tableTo,
+            Decoration.replace({
+              widget: new TableWidget(
+                tableData.headers,
+                tableData.rows,
+                tableData.alignments,
+                tableFrom,
+                tableTo,
+                rawTableText,
+                tableData.headerLine,
+                labels.editTable
+              ),
+              block: true,
+            })
+          );
+        }
+
+        l = tableData.endLine + 1;
+        continue;
+      }
+    }
+
+    l++;
+  }
+
+  return builder.finish();
+}
+
+/**
  * Build decorations across the document.
  */
 export function buildLiveDecorations(
   state: EditorState,
   visibleRanges: readonly { from: number; to: number }[] | undefined,
-  labels: LiveMarkdownLabels
+  labels: LiveMarkdownLabels,
+  options?: { includeBlockDecorations?: boolean }
 ): DecorationSet {
+  const includeBlockDecorations = options?.includeBlockDecorations ?? true;
   const queued: QueuedDeco[] = [];
   const { doc, selection } = state;
   const tree = syntaxTree(state);
@@ -893,32 +1028,35 @@ export function buildLiveDecorations(
       if (!parent) break;
       tableSyntaxNode = parent;
     }
-    const tableStartLine = tableRange ? doc.lineAt(tableRange.from).number : l;
-    const tableData = findTableStartingAt(doc, tableStartLine);
+    const tableData = tableRange
+      ? findTableStartingAt(doc, doc.lineAt(tableRange.from).number)
+      : findEnclosingTable(doc, l);
     if (tableData) {
       const tableFrom = doc.line(tableData.headerLine).from;
       const tableTo = doc.line(tableData.endLine).to;
       const cursorInTable = isCursorTouching(tableFrom, tableTo, 0);
 
       if (!cursorInTable) {
-        const rawTableText = doc.sliceString(tableFrom, tableTo);
-        queued.push({
-          from: tableFrom,
-          to: tableTo,
-          deco: Decoration.replace({
-            widget: new TableWidget(
-              tableData.headers,
-              tableData.rows,
-              tableData.alignments,
-              tableFrom,
-              tableTo,
-              rawTableText,
-              tableData.headerLine,
-              labels.editTable
-            ),
-            block: true,
-          }),
-        });
+        if (includeBlockDecorations) {
+          const rawTableText = doc.sliceString(tableFrom, tableTo);
+          queued.push({
+            from: tableFrom,
+            to: tableTo,
+            deco: Decoration.replace({
+              widget: new TableWidget(
+                tableData.headers,
+                tableData.rows,
+                tableData.alignments,
+                tableFrom,
+                tableTo,
+                rawTableText,
+                tableData.headerLine,
+                labels.editTable
+              ),
+              block: true,
+            }),
+          });
+        }
 
         l = tableData.endLine + 1;
         continue;
@@ -1566,12 +1704,13 @@ export function buildLiveDecorations(
 
   // Sort queued decorations in strictly valid CodeMirror order:
   // 1. Ascending by `from`
-  // 2. If same `from`: line decorations first (isLine === true)
+  // 2. If same `from`: line decorations first (isLine === true), then by `startSide`
   // 3. Ascending by `to`
   queued.sort((a, b) => {
     if (a.from !== b.from) return a.from - b.from;
     if (a.isLine && !b.isLine) return -1;
     if (!a.isLine && b.isLine) return 1;
+    if (a.deco.startSide !== b.deco.startSide) return a.deco.startSide - b.deco.startSide;
     return a.to - b.to;
   });
 
@@ -1586,26 +1725,55 @@ export function buildLiveDecorations(
 }
 
 /**
+ * CodeMirror 6 StateField for block-level table decorations.
+ * StateField is required by CodeMirror 6 to provide block widget decorations
+ * and decorations that replace line breaks.
+ */
+function createLiveTableField(labels: LiveMarkdownLabels) {
+  return StateField.define<DecorationSet>({
+    create(state: EditorState) {
+      return buildLiveTableDecorations(state, labels);
+    },
+    update(decorations: DecorationSet, tr) {
+      if (tr.docChanged || tr.selection || syntaxTree(tr.startState) !== syntaxTree(tr.state)) {
+        return buildLiveTableDecorations(tr.state, labels);
+      }
+      return decorations;
+    },
+    provide: (f) => EditorView.decorations.from(f),
+  });
+}
+
+/**
  * View-scoped decorations keep live preview work proportional to what the user
  * can see instead of rebuilding every decoration in a long document.
  */
 function createLiveMarkdownPlugin(labels: LiveMarkdownLabels) {
   return ViewPlugin.fromClass(
     class {
-    decorations: DecorationSet;
+      decorations: DecorationSet;
 
-    constructor(view: EditorView) {
-      this.decorations = buildLiveDecorations(view.state, view.visibleRanges, labels);
-    }
-
-    update(update: { docChanged: boolean; selectionSet: boolean; viewportChanged: boolean; view: EditorView }) {
-      if (update.docChanged || update.selectionSet || update.viewportChanged) {
-        this.decorations = buildLiveDecorations(update.view.state, update.view.visibleRanges, labels);
+      constructor(view: EditorView) {
+        this.decorations = buildLiveDecorations(view.state, view.visibleRanges, labels, {
+          includeBlockDecorations: false,
+        });
       }
-    }
-  },
-  {
-    decorations: (plugin) => plugin.decorations,
+
+      update(update: ViewUpdate) {
+        if (
+          update.docChanged ||
+          update.selectionSet ||
+          update.viewportChanged ||
+          syntaxTree(update.startState) !== syntaxTree(update.state)
+        ) {
+          this.decorations = buildLiveDecorations(update.view.state, update.view.visibleRanges, labels, {
+            includeBlockDecorations: false,
+          });
+        }
+      }
+    },
+    {
+      decorations: (plugin) => plugin.decorations,
     }
   );
 }
@@ -1615,6 +1783,7 @@ function createLiveMarkdownPlugin(labels: LiveMarkdownLabels) {
  */
 export function liveMarkdownExtension(labels: LiveMarkdownLabels) {
   return [
+    createLiveTableField(labels),
     createLiveMarkdownPlugin(labels),
     EditorView.editorAttributes.of({ class: 'cm-live-editor' }),
   ];

@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { EditorState } from '@codemirror/state';
+import { EditorView } from '@codemirror/view';
 import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
-import { buildLiveDecorations, LiveMarkdownLabels } from '../../../src/components/editor/liveMarkdownExtension';
+import {
+  buildLiveDecorations,
+  liveMarkdownExtension,
+  LiveMarkdownLabels,
+} from '../../../src/components/editor/liveMarkdownExtension';
 
 const labels: LiveMarkdownLabels = {
   copyCode: 'Copy code',
@@ -72,5 +77,60 @@ describe('live Markdown decorations', () => {
     });
 
     expect(replacements.some((range) => range.block && range.from < middleRow.from && range.to > middleRow.to)).toBe(true);
+  });
+
+  it('renders a large pasted Markdown document containing a table without throwing in EditorView', () => {
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+
+    const view = new EditorView({
+      state: EditorState.create({
+        doc: '',
+        extensions: [markdown({ extensions: GFM }), ...liveMarkdownExtension(labels)],
+      }),
+      parent,
+    });
+
+    const pastedMarkdown = [
+      '# Hardening session notes (2026-10-22)',
+      '',
+      'Notes to continue the work from home.',
+      '',
+      '## What changed',
+      '',
+      '- **Client IP** is now `request.remote_addr`, header was `<Wowza IP>, <router IP>`.',
+      '- **Replay detection**: `API_REPLAY_PROTECTION` = `off` | `log` (default) | `enforce`.',
+      '',
+      '## Decisions and why',
+      '',
+      '| Decision | Reason |',
+      '|---|---|',
+      '| `authlib<1.7` | 1.9 deprecates `authlib.jose` and raises `joserfc` exceptions. |',
+      '| Replay mode defaults to `log` | A client retrying an identical signed URL would be rejected. |',
+      '| Version stays 5.2.0 | Fits the `[unreleased]` section becoming 5.2.0. |',
+      '',
+      '## Useful commands',
+      '',
+      '```bash',
+      'uv run pre-commit run --all-files',
+      'uv run pytest --ignore=tests/e2e',
+      '```',
+    ].join('\n');
+
+    expect(() => {
+      view.dispatch({
+        changes: { from: 0, to: 0, insert: pastedMarkdown },
+        selection: { anchor: pastedMarkdown.length },
+      });
+    }).not.toThrow();
+
+    expect(parent.querySelector('.cm-live-table')).not.toBeNull();
+    expect(parent.textContent).toContain('Hardening session notes (2026-10-22)');
+    expect(parent.textContent).toContain('authlib<1.7');
+    expect(parent.textContent).toContain('Useful commands');
+    expect(parent.textContent).toContain('uv run pytest --ignore=tests/e2e');
+
+    view.destroy();
+    parent.remove();
   });
 });
