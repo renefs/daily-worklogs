@@ -166,7 +166,7 @@ function showAbout(): void {
       type: 'info',
       title: 'About Daily Worklog',
       message: 'Daily Worklog',
-      detail: `Version: ${app.getVersion() || '1.15.2'}\nElectron: ${process.versions.electron}\nChromium: ${process.versions.chrome}\nNode.js: ${process.versions.node}\nOS: ${process.platform} (${process.arch})\n\nCross-platform Daily Worklog Desktop Application`,
+      detail: `Version: ${app.getVersion() || '1.15.3'}\nElectron: ${process.versions.electron}\nChromium: ${process.versions.chrome}\nNode.js: ${process.versions.node}\nOS: ${process.platform} (${process.arch})\n\nCross-platform Daily Worklog Desktop Application`,
       buttons: ['OK'],
     });
   }
@@ -384,8 +384,8 @@ app.whenReady().then(() => {
 
   app.setAboutPanelOptions({
     applicationName: 'Daily Worklog',
-    applicationVersion: app.getVersion() || '1.15.2',
-    version: app.getVersion() || '1.15.2',
+    applicationVersion: app.getVersion() || '1.15.3',
+    version: app.getVersion() || '1.15.3',
     copyright: 'Copyright © 2026 Daily Worklog',
     authors: ['Daily Worklog Team'],
     website: 'https://github.com/renefs/daily-worklogs',

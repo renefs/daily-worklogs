@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.15.3] - 2026-10-30
+
+### Changed
+- **Weekly & Yearly Report Entries**: Removed the search bar from the weekly report entries view and removed the Entries tab from the yearly report view.
+
+### Fixed
+- **Report Entries Focus Blink**: Prevented the Reports view from flashing a loading state and unmounting the entries list when refocusing the application window.
+
 ## [1.15.2] - 2026-10-22
 
 ### Fixed
