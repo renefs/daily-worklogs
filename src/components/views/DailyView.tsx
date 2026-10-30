@@ -114,6 +114,7 @@ export const DailyView: React.FC = () => {
         >
           <MarkdownEditor
             isLivePreview={layoutMode === 'live'}
+            dailyNoteFeatures
             layoutMode={layoutMode}
             onLayoutModeChange={setLayoutMode}
             onExportClick={() => setIsExportModalOpen(true)}
@@ -163,7 +164,7 @@ export const DailyView: React.FC = () => {
                 overflow: 'auto',
               }}
             >
-              <MarkdownViewer allowToggleTasks={true} />
+              <MarkdownViewer allowToggleTasks={true} dailyNoteFeatures />
             </div>
           </div>
         )}

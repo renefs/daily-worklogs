@@ -150,6 +150,9 @@
     "showProperties": "Mostrar propiedades"
   },
   "editor": {
+    "notesBadge": "No incluido en informes",
+    "addNotesSection": "Añadir sección de notas",
+    "notesSectionExists": "Esta nota ya tiene una sección de notas",
     "editing": "Editando",
     "edit": "Editar",
     "preview": "Vista previa",
@@ -238,6 +241,7 @@
     "nextYear": "Año Siguiente"
   },
   "reports": {
+    "notesExcludedHint": "Las secciones bajo un encabezado Notes no se incluyen en los informes.",
     "summaryTab": "Resumen",
     "documentTab": "Documento Ejecutivo",
     "daysTab": "Notas diarias",

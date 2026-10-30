@@ -28,20 +28,20 @@ test.describe('Application Launch & View Navigation', () => {
   });
 
   test('hides notes sidebar on reports and tasks views and supports collapsing in daily view', async ({ page }) => {
-    await expect(page.getByText('Notes', { exact: true })).toBeVisible();
+    await expect(page.locator('p').filter({ hasText: /^Notes$/ })).toBeVisible();
     await page.getByRole('button', { name: 'Reports', exact: true }).click();
-    await expect(page.getByText('Notes', { exact: true })).toHaveCount(0);
+    await expect(page.locator('p').filter({ hasText: /^Notes$/ })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Expand sidebar', exact: true })).toBeDisabled();
     await page.getByRole('button', { name: 'Tasks', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Tasks', exact: true })).toHaveAttribute('aria-current', 'page');
-    await expect(page.getByText('Notes', { exact: true })).toHaveCount(0);
+    await expect(page.locator('p').filter({ hasText: /^Notes$/ })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Expand sidebar', exact: true })).toBeDisabled();
     await page.getByRole('button', { name: 'Daily', exact: true }).click();
-    await expect(page.getByText('Notes', { exact: true })).toBeVisible();
+    await expect(page.locator('p').filter({ hasText: /^Notes$/ })).toBeVisible();
     await page.getByRole('button', { name: 'Collapse sidebar', exact: true }).click();
-    await expect(page.getByText('Notes', { exact: true })).toHaveCount(0);
+    await expect(page.locator('p').filter({ hasText: /^Notes$/ })).toHaveCount(0);
     await page.getByRole('button', { name: 'Expand sidebar', exact: true }).click();
-    await expect(page.getByText('Notes', { exact: true })).toBeVisible();
+    await expect(page.locator('p').filter({ hasText: /^Notes$/ })).toBeVisible();
     await page.getByRole('button', { name: 'Open settings', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
   });

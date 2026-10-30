@@ -20,6 +20,7 @@ import {
   IconTable,
   IconPhoto,
   IconTemplate,
+  IconNotes,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 
@@ -30,6 +31,11 @@ export interface EditorToolbarProps {
   showTemplates?: boolean;
   templates?: { id: string; name: string }[];
   onInsertTemplate?: (templateId: string) => void;
+  /** Show the "Add notes section" button (daily note editor only). */
+  showNotesSection?: boolean;
+  /** True when the note already has a Notes section; the button is then inert. */
+  notesSectionExists?: boolean;
+  onAddNotesSection?: () => void;
 }
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
@@ -39,6 +45,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   showTemplates = true,
   templates = [],
   onInsertTemplate,
+  showNotesSection = false,
+  notesSectionExists = false,
+  onAddNotesSection,
 }) => {
   const { t } = useTranslation();
 
@@ -157,6 +166,25 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           <IconPhoto size={15} />
         </ActionIcon>
       </Tooltip>
+
+      {showNotesSection && onAddNotesSection && (
+        <Tooltip
+          label={notesSectionExists ? t('editor.notesSectionExists') : t('editor.addNotesSection')}
+          withArrow
+        >
+          {/* data-disabled instead of disabled keeps pointer events so the tooltip still shows */}
+          <ActionIcon
+            aria-label={t('editor.addNotesSection')}
+            aria-disabled={notesSectionExists}
+            data-disabled={notesSectionExists || undefined}
+            variant="subtle"
+            size="sm"
+            onClick={notesSectionExists ? undefined : onAddNotesSection}
+          >
+            <IconNotes size={15} />
+          </ActionIcon>
+        </Tooltip>
+      )}
 
       {/* Template Selector */}
       {showTemplates && templates.length > 0 && onInsertTemplate && (

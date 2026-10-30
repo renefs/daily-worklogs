@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Added
+- **Private `## Notes` Section in Daily Notes**: Content under a heading that is exactly `Notes` (any level, case-insensitive) is excluded from weekly, monthly and yearly reports, including KPIs, checklist items, the Daily Notes tab and Copy day. Days with only an untouched template or only Notes no longer count as logged. The Standard Worklog and Standup templates now end with a `## Notes` section (unmodified built-in templates are upgraded automatically), and the `### 📋 Task Log` fallback inserts task entries before Notes. Notes headings in daily notes show a muted "Not in reports" badge in every editor mode and in the rendered preview, and the Daily Notes tab explains that Notes sections are not included. A new "Add notes section" toolbar button in the daily note editor appends a `## Notes` heading at the end of the note (undoable, disabled when the note already has one).
+
 ### Changed
 - **Recent-First Done & Cancelled Columns**: Closed Kanban columns now sort newest first and show only tasks closed within a configurable window (7, 14, 30, 90 days, or All; default 30). Older tasks stay one click away via an inline "Show N older" toggle, and searching always reveals them. This replaces the "Hide closed tasks older than 30 days" switch; nothing changes on disk.
 

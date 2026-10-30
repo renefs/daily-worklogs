@@ -16,6 +16,7 @@ import matter from 'gray-matter';
 import 'dayjs/locale/es';
 import 'dayjs/locale/en';
 import { formatTemplateContent } from '../src/utils/dateTemplate';
+import { insertBeforeNotesSection, stripNotesSection } from '../src/utils/dailyNoteSections';
 import type { TaskItem } from '../src/types';
 import { mapWithConcurrency } from './utils/async';
 import { resolvePathInside } from './utils/security';
@@ -470,7 +471,7 @@ app.whenReady().then(() => {
     const idBadge = taskId ? ` (#${taskId})` : (filename ? ` (\`${filename}\`)` : '');
     const logLine = `${checkbox} Worked on **${taskTitle}**${idBadge}${statusBadge}${priorityStr}`;
 
-    if (!content.includes(taskTitle)) {
+    if (!stripNotesSection(content).includes(taskTitle)) {
       if (isDone && content.includes('## ✅ Accomplishments')) {
         content = content.replace(/(## ✅ Accomplishments[^\n]*\n)/, `$1${logLine}\n`);
       } else if (!isDone && content.includes('## ⏳ In Progress')) {
@@ -480,7 +481,7 @@ app.whenReady().then(() => {
       } else if (content.includes('## Tasks')) {
         content = content.replace(/(## Tasks[^\n]*\n)/, `$1${logLine}\n`);
       } else {
-        content = `${content.trim()}\n\n### 📋 Task Log\n${logLine}\n`;
+        content = insertBeforeNotesSection(content, `### 📋 Task Log\n${logLine}`);
       }
       fs.writeFileSync(filepath, content, 'utf-8');
     }

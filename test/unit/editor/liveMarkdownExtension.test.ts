@@ -7,6 +7,8 @@ import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
 import {
   buildLiveDecorations,
+  buildNotesBadgeDecorations,
+  notesBadgeExtension,
   liveMarkdownExtension,
   LiveMarkdownLabels,
 } from '../../../src/components/editor/liveMarkdownExtension';
@@ -160,5 +162,38 @@ describe('live Markdown decorations', () => {
     expect(hiddenMarkBody).toMatch(/width\s*:\s*0/);
     expect(hiddenMarkBody).not.toMatch(/height\s*:\s*0/);
     expect(hiddenMarkBody).not.toMatch(/font-size\s*:\s*0/);
+  });
+});
+
+describe('Notes heading badge', () => {
+  function badgePositions(doc: string): number[] {
+    const state = EditorState.create({ doc });
+    const positions: number[] = [];
+    buildNotesBadgeDecorations(state, 'Not in reports').between(0, doc.length, (from) => {
+      positions.push(from);
+    });
+    return positions;
+  }
+
+  it('adds a badge at the end of every Notes heading level', () => {
+    const doc = '# Notes\ntext\n### notes\nmore\n## Notes ##\n';
+    expect(badgePositions(doc)).toEqual([7, 22, 39]);
+  });
+
+  it('ignores other headings and fenced code blocks', () => {
+    expect(badgePositions('## Notes list\n## Work\n')).toEqual([]);
+    expect(badgePositions('```\n## Notes\n```\n')).toEqual([]);
+  });
+
+  it('does not modify the document text', () => {
+    const doc = '## Notes\nhello';
+    const view = new EditorView({
+      state: EditorState.create({
+        doc,
+        extensions: [markdown({ extensions: GFM }), notesBadgeExtension('Not in reports')],
+      }),
+    });
+    expect(view.state.doc.toString()).toBe(doc);
+    view.destroy();
   });
 });

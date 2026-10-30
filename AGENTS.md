@@ -135,6 +135,7 @@ When a user selects a vault folder, the application structures and persists file
 
 ### 5.1. Daily Worklogs
 - **One-Click Daily Note**: Instantly creates or opens today's note using configurable templates (Standard Worklog, Agile Standup, Simple Checklist, Blank, or custom user-defined templates).
+- **Private Notes Section**: A heading that is exactly `Notes` (any level, case-insensitive) marks personal content that is excluded from all reports (parser in `src/utils/dailyNoteSections.ts`). Days with only Notes or an untouched template do not count as logged.
 - **Template Variables**: Supports `{{date}}`, `{{time}}`, `{{year}}`, `{{month}}`, `{{day}}`, and custom formatting like `{{date:dddd, MMMM D, YYYY}}`.
 - **Editor Modes**: Live Preview (Obsidian-like), Split View, Code View (pure CodeMirror), and Rendered Preview.
 - **Interactive Checklists**: Checkbox toggles (`- [ ]` / `- [x]`) in the visualizer update the underlying file on disk in real time.

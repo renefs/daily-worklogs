@@ -54,6 +54,11 @@ describe('PeriodDaysList Component', () => {
     expect(screen.getByText(/August 19/i)).toBeInTheDocument();
   });
 
+  it('explains that Notes sections are excluded when days are listed', () => {
+    renderWithMantine(<PeriodDaysList periodSummary={mockPeriodSummary} />);
+    expect(screen.getByText(/under a Notes heading aren't included/i)).toBeInTheDocument();
+  });
+
   it('renders empty state when no days are present', () => {
     const emptySummary: PeriodSummary = {
       period: 'week',
@@ -70,6 +75,7 @@ describe('PeriodDaysList Component', () => {
 
     renderWithMantine(<PeriodDaysList periodSummary={emptySummary} />);
     expect(screen.queryByText(/August 18/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/under a Notes heading/i)).not.toBeInTheDocument();
   });
 
   it('persists expand all preference in store for week/month and defaults to expanded when remounted', async () => {

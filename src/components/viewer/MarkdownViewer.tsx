@@ -17,7 +17,8 @@ import { visit } from 'unist-util-visit';
 import type { ElementContent, Root } from 'hast';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
-import { Paper, ScrollArea, Checkbox, CopyButton, ActionIcon, Tooltip } from '@mantine/core';
+import { isNotesHeading } from '../../utils/dailyNoteSections';
+import { Paper, ScrollArea, Checkbox, CopyButton, ActionIcon, Tooltip, Badge } from '@mantine/core';
 import { IconCopy, IconCheck, IconCode, IconArrowUpRight } from '@tabler/icons-react';
 import { useAppStoreSelector } from '../../store/useAppStore';
 import { useTranslation } from 'react-i18next';
@@ -45,6 +46,8 @@ export interface MarkdownViewerProps {
   allowToggleTasks?: boolean;
   /** Show the per-checkbox "Convert to Task" button (daily notes only). Defaults to true. */
   allowConvertToTask?: boolean;
+  /** Show a "Not in reports" badge beside Notes headings (daily notes only). Defaults to false. */
+  dailyNoteFeatures?: boolean;
   onToggleTask?: (taskText: string, checked: boolean) => void;
   onConvertToSubtask?: (taskText: string, checked: boolean) => void;
 }
@@ -67,6 +70,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   content,
   allowToggleTasks = true,
   allowConvertToTask = true,
+  dailyNoteFeatures = false,
   onToggleTask,
   onConvertToSubtask,
 }) => {
@@ -149,6 +153,25 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
     [tasks, notesList, setSelectedDate, setCurrentView, openTaskEditor]
   );
 
+  type HeadingTag = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+  const renderHeading = (
+    tag: HeadingTag,
+    { children, node, ...rest }: React.ComponentPropsWithoutRef<'h1'> & {
+      node?: { position?: { start: { line: number } } };
+    }
+  ) => {
+    const title = extractRawText(children);
+    // Check the source line so the badge only appears on headings that reports actually exclude.
+    const sourceLine = node?.position ? processedText.split('\n')[node.position.start.line - 1] : undefined;
+    const badge =
+      dailyNoteFeatures && sourceLine !== undefined && isNotesHeading(sourceLine) ? (
+        <Badge component="span" variant="outline" color="gray" size="xs" ml="sm" tt="none" fw={500}>
+          {t('editor.notesBadge')}
+        </Badge>
+      ) : null;
+    return React.createElement(tag, { id: slugify(title), ...rest }, children, badge);
+  };
+
   return (
     <Paper
       p="md"
@@ -178,21 +201,12 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
               highlightSupportedCode,
             ]}
             components={{
-              h1({ children, ...props }) {
-                const { node, ...rest } = props as any;
-                const id = slugify(extractRawText(children));
-                return <h1 id={id} {...rest}>{children}</h1>;
-              },
-              h2({ children, ...props }) {
-                const { node, ...rest } = props as any;
-                const id = slugify(extractRawText(children));
-                return <h2 id={id} {...rest}>{children}</h2>;
-              },
-              h3({ children, ...props }) {
-                const { node, ...rest } = props as any;
-                const id = slugify(extractRawText(children));
-                return <h3 id={id} {...rest}>{children}</h3>;
-              },
+              h1: (props) => renderHeading('h1', props),
+              h2: (props) => renderHeading('h2', props),
+              h3: (props) => renderHeading('h3', props),
+              h4: (props) => renderHeading('h4', props),
+              h5: (props) => renderHeading('h5', props),
+              h6: (props) => renderHeading('h6', props),
               // Custom interactive checkbox renderer
               li({ children, ...props }) {
                 const { node, ...rest } = props as any;

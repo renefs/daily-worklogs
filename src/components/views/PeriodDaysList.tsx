@@ -234,6 +234,12 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
         </Group>
       </Paper>
 
+      {filteredDays.length > 0 && (
+        <Text size="xs" c="dimmed">
+          {t('reports.notesExcludedHint')}
+        </Text>
+      )}
+
       {/* Days List */}
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
         <Stack gap="sm">

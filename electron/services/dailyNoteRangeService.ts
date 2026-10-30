@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import { ensureVaultDir, getYearFromDate } from './vaultService';
 import { parseTaskCounts } from './taskFileService';
 import { mapWithConcurrency } from '../utils/async';
+import { hasWorkContent, stripNotesSection } from '../../src/utils/dailyNoteSections';
 
 export interface DailyNoteRangeSummary {
   days: Array<{
@@ -66,7 +67,8 @@ export async function summarizeDailyNotesInRange(
   vaultPath: string,
   startDate: string,
   endDate: string,
-  concurrency: number
+  concurrency: number,
+  templateContent = ''
 ): Promise<DailyNoteRangeSummary> {
   ensureVaultDir(vaultPath);
   const rangeDates = expandDateRange(startDate, endDate);
@@ -91,8 +93,10 @@ export async function summarizeDailyNotesInRange(
   };
   for (let index = 0; index < rangeDates.length; index++) {
     const date = rangeDates[index];
-    const content = noteContents[index];
-    if (content === null) continue;
+    const rawContent = noteContents[index];
+    if (rawContent === null) continue;
+    const content = stripNotesSection(rawContent);
+    if (!hasWorkContent(content, templateContent)) continue;
 
     const { tasksCompleted, tasksTotal } = parseTaskCounts(content);
     summary.totalTasks += tasksTotal;

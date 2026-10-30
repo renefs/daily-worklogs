@@ -68,3 +68,22 @@ test('respects Spanish labels, dark appearance, and Sunday-start reporting', asy
   await page.getByRole('dialog').getByRole('button', { name: '1 octubre 2026', exact: true }).click();
   await expect(page.locator('[data-tone]')).toHaveCount(3);
 });
+
+test('shows only work content from a day with a Notes section', async ({ page, testVaultDir }) => {
+  const today = new Date();
+  const pad = (value: number) => String(value).padStart(2, '0');
+  const date = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+  fs.mkdirSync(path.join(testVaultDir, String(today.getFullYear())), { recursive: true });
+  fs.writeFileSync(
+    path.join(testVaultDir, String(today.getFullYear()), `${date}.md`),
+    '# Worklog\n\n## Work\n- [x] Ship the release\n- [ ] Plan next sprint\n\n## Notes\n- [x] Buy groceries\nPrivate reflection about lunch\n'
+  );
+  await page.getByRole('button', { name: 'Reports', exact: true }).click();
+  await page.getByRole('tab', { name: 'Entries' }).click();
+  await page.getByRole('button', { name: 'Expand All' }).click();
+  await expect(page.getByText('Ship the release').first()).toBeVisible();
+  await expect(page.getByText('Private reflection about lunch')).toHaveCount(0);
+  await expect(page.getByText('Buy groceries')).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Overview' }).click();
+  await expect(page.getByText('1 of 7', { exact: true })).toBeVisible();
+});

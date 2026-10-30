@@ -149,6 +149,9 @@
     "showProperties": "Show properties"
   },
   "editor": {
+    "notesBadge": "Not in reports",
+    "addNotesSection": "Add notes section",
+    "notesSectionExists": "This note already has a Notes section",
     "editing": "Editing",
     "edit": "Edit",
     "preview": "Preview",
@@ -237,6 +240,7 @@
     "nextYear": "Next Year"
   },
   "reports": {
+    "notesExcludedHint": "Sections under a Notes heading aren't included in reports.",
     "summaryTab": "Overview",
     "documentTab": "Executive Document",
     "daysTab": "Daily Notes",

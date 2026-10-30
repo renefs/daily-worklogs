@@ -8,6 +8,7 @@ import {
 } from '@codemirror/view';
 import { EditorState, RangeSetBuilder, StateField } from '@codemirror/state';
 import { syntaxTree } from '@codemirror/language';
+import { findNotesHeadingLines } from '../../utils/dailyNoteSections';
 import { matchesMarkdownSyntaxNode, sanitizeLivePreviewUrl } from './liveMarkdownUtils';
 
 export interface LiveMarkdownLabels {
@@ -1787,4 +1788,51 @@ export function liveMarkdownExtension(labels: LiveMarkdownLabels) {
     createLiveMarkdownPlugin(labels),
     EditorView.editorAttributes.of({ class: 'cm-live-editor' }),
   ];
+}
+
+/** Read-only badge shown at the end of a Notes heading line. Never part of the document text. */
+class NotesBadgeWidget extends WidgetType {
+  constructor(readonly label: string) {
+    super();
+  }
+
+  eq(other: NotesBadgeWidget): boolean {
+    return other.label === this.label;
+  }
+
+  toDOM(): HTMLElement {
+    const badge = document.createElement('span');
+    badge.className = 'cm-notes-badge';
+    badge.textContent = this.label;
+    badge.setAttribute('aria-hidden', 'true');
+    return badge;
+  }
+
+  ignoreEvent(): boolean {
+    return true;
+  }
+}
+
+/** Builds one badge widget per recognised Notes heading (fenced code blocks are ignored). */
+export function buildNotesBadgeDecorations(state: EditorState, label: string): DecorationSet {
+  const lines = state.doc.toString().split('\n');
+  const builder = new RangeSetBuilder<Decoration>();
+  for (const index of findNotesHeadingLines(lines)) {
+    const line = state.doc.line(index + 1);
+    builder.add(line.to, line.to, Decoration.widget({ widget: new NotesBadgeWidget(label), side: 1 }));
+  }
+  return builder.finish();
+}
+
+/**
+ * Shows a muted "not in reports" badge beside Notes headings. Independent of Live Preview,
+ * so it works in every CodeMirror layout mode. Use for daily notes only.
+ */
+export function notesBadgeExtension(label: string) {
+  return StateField.define<DecorationSet>({
+    create: (state) => buildNotesBadgeDecorations(state, label),
+    update: (decorations, transaction) =>
+      transaction.docChanged ? buildNotesBadgeDecorations(transaction.state, label) : decorations,
+    provide: (field) => EditorView.decorations.from(field),
+  });
 }

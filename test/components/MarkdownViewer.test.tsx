@@ -5,6 +5,23 @@ import { renderWithMantine } from '../utils/test-utils';
 import { MarkdownViewer } from '../../src/components/viewer/MarkdownViewer';
 import { useAppStore } from '../../src/store/useAppStore';
 
+describe('MarkdownViewer Notes badge', () => {
+  it('badges only headings that reports exclude', () => {
+    renderWithMantine(<MarkdownViewer dailyNoteFeatures content={'## Work\n\n## Notes\n\ntext'} />);
+    expect(screen.getByText('Not in reports')).toBeInTheDocument();
+  });
+
+  it('does not badge underlined or quoted Notes headings', () => {
+    renderWithMantine(<MarkdownViewer dailyNoteFeatures content={'Notes\n---\n\n> ## Notes\n'} />);
+    expect(screen.queryByText('Not in reports')).toBeNull();
+  });
+
+  it('shows no badge unless enabled', () => {
+    renderWithMantine(<MarkdownViewer content={'## Notes\n'} />);
+    expect(screen.queryByText('Not in reports')).toBeNull();
+  });
+});
+
 describe('MarkdownViewer syntax highlighting', () => {
   it('highlights supported code languages and leaves unsupported languages readable', () => {
     const { container } = renderWithMantine(

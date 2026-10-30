@@ -26,6 +26,8 @@ export const DEFAULT_TEMPLATES: AppSettings['templates'] = [
 
 ## 📝 General Meeting & Discussion Notes
 - 
+
+## Notes
 `,
   },
   {
@@ -54,6 +56,8 @@ export const DEFAULT_TEMPLATES: AppSettings['templates'] = [
 
 ### 3. Are there any impediments or blockers?
 - None
+
+## Notes
 `,
   },
   {
@@ -65,6 +69,23 @@ export const DEFAULT_TEMPLATES: AppSettings['templates'] = [
 `,
   },
 ];
+
+const TRAILING_NOTES_BLOCK = /\n## Notes\n$/;
+
+/**
+ * Upgrades built-in templates that still match their previous default (the current default
+ * without the trailing Notes section). Customised templates are left untouched.
+ */
+export function upgradeBuiltInTemplates(templates: AppSettings['templates']): AppSettings['templates'] {
+  if (!Array.isArray(templates)) return templates;
+  return templates.map((template) => {
+    const builtIn = DEFAULT_TEMPLATES.find((d) => d.id === template.id);
+    if (!builtIn || !TRAILING_NOTES_BLOCK.test(builtIn.content)) return template;
+    const previousDefault = builtIn.content.replace(TRAILING_NOTES_BLOCK, '');
+    if (template.content !== previousDefault) return template;
+    return { ...template, content: builtIn.content };
+  });
+}
 
 export const DEFAULT_KANBAN_COLUMNS: AppSettings['kanbanColumns'] = [
   {
@@ -345,6 +366,8 @@ export function readSettingsFromDisk(): AppSettings {
       };
     }
   }
+
+  localSettings.templates = upgradeBuiltInTemplates(localSettings.templates);
 
   if (!Array.isArray(localSettings.areas) || localSettings.areas.length === 0) {
     localSettings.areas = DEFAULT_AREAS;

@@ -677,3 +677,21 @@ a.cm-live-link {
 
 
 
+
+/* Muted badge beside Notes headings in daily notes (excluded from reports) */
+.cm-notes-badge {
+  display: inline-block;
+  margin-left: 0.75em;
+  padding: 0 0.5em;
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: 999px;
+  color: var(--mantine-color-dimmed);
+  font-family: var(--mantine-font-family);
+  font-size: 0.7rem;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: normal;
+  vertical-align: middle;
+  user-select: none;
+  pointer-events: none;
+}

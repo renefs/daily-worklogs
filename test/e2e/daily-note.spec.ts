@@ -36,5 +36,35 @@ test.describe('Daily Note Editor & Persistence', () => {
     expect(savedContent).toContain('Automated E2E verification entry');
     expect(savedContent).toContain('Follow-up task');
   });
-});
 
+  test('adds a Notes section with the cursor ready, saves it, and undoes it', async ({ page, testVaultDir }) => {
+    await page.getByRole('button', { name: 'Daily', exact: true }).click();
+    const editor = page.locator('.cm-content');
+    await expect(editor).toBeVisible({ timeout: 15000 });
+
+    const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+    await editor.click();
+    await page.keyboard.press(`${modifier}+a`);
+    await page.keyboard.type('# Day');
+
+    const addButton = page.getByRole('button', { name: 'Add notes section', exact: true });
+    await expect(addButton).toHaveAttribute('aria-disabled', 'false');
+    await addButton.click();
+    await expect(addButton).toHaveAttribute('aria-disabled', 'true');
+    await expect(page.locator('.cm-notes-badge')).toHaveText('Not in reports');
+
+    await page.keyboard.type('Private thought');
+    await page.keyboard.press(`${modifier}+s`);
+
+    const today = dayjs().format('YYYY-MM-DD');
+    const filePath = path.join(testVaultDir, dayjs().format('YYYY'), `${today}.md`);
+    await expect
+      .poll(() => (fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf-8') : ''))
+      .toBe('# Day\n\n## Notes\nPrivate thought');
+
+    await page.keyboard.press(`${modifier}+z`);
+    await page.keyboard.press(`${modifier}+z`);
+    await expect(addButton).toHaveAttribute('aria-disabled', 'false');
+    await expect(page.locator('.cm-notes-badge')).toHaveCount(0);
+  });
+});

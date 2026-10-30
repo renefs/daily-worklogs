@@ -19,9 +19,11 @@ import { useAppStoreSelector } from '../../store/useAppStore';
 import { formatTemplateContent } from '../../utils/dateTemplate';
 import { EditorView, keymap } from '@codemirror/view';
 import { EditorSelection } from '@codemirror/state';
-import { liveMarkdownExtension } from './liveMarkdownExtension';
+import { isolateHistory } from '@codemirror/commands';
+import { liveMarkdownExtension, notesBadgeExtension } from './liveMarkdownExtension';
 import { createEditorAutocompleteExtension } from './wikilinkAutocompleteExtension';
 import { createMarkdownListExtension } from './markdownListContinuation';
+import { appendNotesSection, hasNotesSection } from '../../utils/dailyNoteSections';
 import { parseWikilink } from '../../utils/wikilinkUtils';
 import { EditorToolbar } from './EditorToolbar';
 import { EditorHeaderActions } from './EditorHeaderActions';
@@ -68,6 +70,8 @@ export interface MarkdownEditorProps {
   showStatusAndActions?: boolean;
   /** Show the per-checkbox "Convert to Task" button (daily notes only). Defaults to true. */
   allowConvertToTask?: boolean;
+  /** Daily-note-only features: the "Not in reports" badge beside Notes headings and the "Add notes section" button. Defaults to false. */
+  dailyNoteFeatures?: boolean;
   /**
    * When set, the editor belongs to this (saved) task: converting a checklist item
    * creates a subtask that inherits area, project and tags instead of opening the task modal.
@@ -100,6 +104,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   placeholder,
   tasksStats,
   allowConvertToTask = true,
+  dailyNoteFeatures = false,
   parentTask,
 }) => {
   const { t, i18n } = useTranslation();
@@ -322,6 +327,22 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     [settings, selectedDate, effectiveContent, effectiveOnChange, i18n.language]
   );
 
+  const hasNotes = hasNotesSection(effectiveContent);
+  const canAddNotesSection = dailyNoteFeatures && layoutMode !== 'preview';
+
+  const addNotesSection = () => {
+    const view = editorRef.current?.view;
+    if (!view || hasNotesSection(view.state.doc.toString())) return;
+    const { from, to, insert, cursor } = appendNotesSection(view.state.doc.toString());
+    view.dispatch({
+      changes: { from, to, insert },
+      selection: { anchor: cursor },
+      scrollIntoView: true,
+      annotations: isolateHistory.of('full'),
+    });
+    view.focus();
+  };
+
   const insertTable = () => {
     const tableTemplate = `\n| Item | Description | Status |\n| --- | --- | --- |\n| Task 1 | Details | Done |\n| Task 2 | Details | Pending |\n\n`;
     insertText('', '', tableTemplate);
@@ -473,6 +494,9 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       ]),
       EditorView.lineWrapping,
     ];
+    if (dailyNoteFeatures) {
+      list.push(notesBadgeExtension(t('editor.notesBadge')));
+    }
     if (isLivePreview) {
       list.push(
         ...liveMarkdownExtension({
@@ -485,7 +509,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       );
     }
     return list;
-  }, [isLivePreview, allowConvertToTask, t]);
+  }, [isLivePreview, allowConvertToTask, dailyNoteFeatures, t]);
 
   const convertChecklistItemToSubtask = async (lineText: string, checked: boolean, pos: number) => {
     if (!parentTask) return;
@@ -561,6 +585,9 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             showTemplates={showTemplates}
             templates={settings?.templates}
             onInsertTemplate={insertTemplate}
+            showNotesSection={canAddNotesSection}
+            notesSectionExists={hasNotes}
+            onAddNotesSection={addNotesSection}
           />
 
           {showStatusAndActions && (

@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import { stripNotesSection } from '../../utils/dailyNoteSections';
 import { getReportRange, REPORT_VIEWS } from '../../utils/reportPeriod';
 import type { AppSlice, ReportsSlice } from '../types';
 
@@ -44,7 +45,7 @@ export const createReportsSlice: AppSlice<ReportsSlice> = (set, get) => {
     },
     readReportDay: async (date) => {
       const note = await window.electronAPI.readNote(date);
-      return note?.content ?? '';
+      return stripNotesSection(note?.content ?? '');
     },
     refreshReport: async () => {
       const id = ++requestId;
@@ -74,7 +75,7 @@ export const createReportsSlice: AppSlice<ReportsSlice> = (set, get) => {
               if (!day.exists || day.content !== undefined) return day;
               if (!shouldPreload && !existingContentDates.has(day.date)) return day;
               const note = await window.electronAPI.readNote(day.date);
-              return { ...day, content: note?.content ?? '' };
+              return { ...day, content: stripNotesSection(note?.content ?? '') };
             })
           );
           if (id !== requestId) return;

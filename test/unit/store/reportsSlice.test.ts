@@ -171,4 +171,22 @@ describe('Reports store', () => {
 
     expect(window.electronAPI.getNotesRange).toHaveBeenCalledTimes(callsAfterOpen);
   });
+
+  it('strips Notes sections from note content on both read paths', async () => {
+    const raw = '# Day\n\n## Work\n- [x] Shipped\n\n## Notes\nprivate thoughts\n';
+    vi.mocked(window.electronAPI.readNote).mockResolvedValue({
+      date: '2026-10-01', filename: '2026-10-01.md', filepath: '/mock/2026-10-01.md', content: raw, exists: true,
+    });
+    expect(await useAppStore.getState().readReportDay('2026-10-01')).toBe('# Day\n\n## Work\n- [x] Shipped\n');
+
+    vi.mocked(window.electronAPI.getNotesRange).mockResolvedValue({
+      ...summary('2026-09-28', '2026-10-04'),
+      days: [{ date: '2026-10-01', exists: true, tasksTotal: 1, tasksCompleted: 1 }],
+    });
+    useAppStore.setState({ reportDaysExpanded: true });
+    await useAppStore.getState().refreshReport();
+    const content = useAppStore.getState().reportSummary?.days[0]?.content;
+    expect(content).toContain('Shipped');
+    expect(content).not.toContain('private thoughts');
+  });
 });
