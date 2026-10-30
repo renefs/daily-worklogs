@@ -217,3 +217,14 @@ When implementing new features or refactoring existing ones:
 - [ ] Update or add automated tests in `test/verify-worklog.test.mjs`.
 - [ ] Verify that `npm run typecheck` and `npm test` pass with zero errors.
 - [ ] Keep `README.md` and `CHANGELOG.md` in sync when bumping versions or adding major capabilities.
+
+### 6.5. AI Model Roles
+Thinking and reviewing must be separated from implementation, using the model assigned to each role:
+
+| Provider | Thinking & Reviewing | Implementation |
+|---|---|---|
+| **Gemini** | Gemini Argon | Gemini Flash |
+| **Claude** | Claude Opus | Claude Sonnet |
+
+- **Thinking & Reviewing**: Gemini Argon and Claude Opus analyze tasks, design solutions, plan the work, and review the finished changes.
+- **Implementation**: Gemini Flash and Claude Sonnet write the code, following the plan produced by the thinking model of the same provider.
