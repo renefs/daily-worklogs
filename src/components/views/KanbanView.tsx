@@ -14,7 +14,6 @@ import {
   IconRefresh,
   IconFolder,
 } from '@tabler/icons-react';
-import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { useAppStoreSelector } from '../../store/useAppStore';
 import { DEFAULT_KANBAN_COLUMNS, KanbanColumnConfig, TaskMeta } from '../../types';
@@ -83,31 +82,6 @@ export const KanbanView: React.FC = () => {
     return map;
   }, [allColumns]);
 
-  // Helper to check if a task is closed/completed and older than 30 days
-  const isTaskOldClosed = useMemo(() => {
-    return (task: TaskMeta) => {
-      const behavior = columnBehaviorMap.get(task.status) || task.status;
-      const isClosed =
-        behavior === 'done' ||
-        behavior === 'cancelled' ||
-        task.status === 'done' ||
-        task.status === 'cancelled' ||
-        task.status === 'completed';
-
-      if (!isClosed) return false;
-
-      const dateStr =
-        task.completedDate ||
-        (task.lastModified ? dayjs(task.lastModified).format('YYYY-MM-DD') : null) ||
-        task.created;
-
-      if (!dateStr) return false;
-
-      const diffDays = dayjs().diff(dayjs(dateStr), 'day');
-      return diffDays >= 30;
-    };
-  }, [columnBehaviorMap]);
-
   // Collect all unique tags from tasks
   const allTags = useMemo(() => {
     const tagSet = new Set<string>();
@@ -140,13 +114,7 @@ export const KanbanView: React.FC = () => {
 
   // Filter tasks
   const filteredTasks = useMemo(() => {
-    const hideOld = settings?.hideCompletedOlderThan30Days ?? false;
-
     return tasks.filter((task) => {
-      if (hideOld && isTaskOldClosed(task)) {
-        return false;
-      }
-
       if (search.trim()) {
         const query = search.toLowerCase().trim();
         const matchesTitle = task.title.toLowerCase().includes(query);
@@ -183,8 +151,6 @@ export const KanbanView: React.FC = () => {
     selectedProject,
     priorityFilter,
     tagFilter,
-    settings?.hideCompletedOlderThan30Days,
-    isTaskOldClosed,
     areas,
     projects,
     storeAllTags,
@@ -276,6 +242,9 @@ export const KanbanView: React.FC = () => {
       console.error('Failed to handle drop:', err);
     }
   };
+
+  // undefined falls back to the 30-day default; null means "All"
+  const closedWindowDays = settings?.closedTasksWindowDays === undefined ? 30 : settings.closedTasksWindowDays;
 
   const totalCompleted = useMemo(() => {
     return tasks.filter((t) => {
@@ -374,6 +343,8 @@ export const KanbanView: React.FC = () => {
               key={col.id}
               column={col}
               tasks={columnTasks}
+              closedWindowDays={closedWindowDays}
+              isSearching={search.trim().length > 0}
               isTargeted={dragOverColumn === col.id}
               draggingTaskId={draggingTaskId}
               visibleColumns={visibleColumns}

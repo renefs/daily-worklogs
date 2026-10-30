@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Group,
   Text,
@@ -8,7 +8,7 @@ import {
   Stack,
   Button,
 } from '@mantine/core';
-import { IconPlus, IconLayoutKanban } from '@tabler/icons-react';
+import { IconPlus, IconLayoutKanban, IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import {
   AreaDefinition,
@@ -19,11 +19,16 @@ import {
 } from '../../types';
 import { getColumnIcon, getColumnTitle } from './columnUtils';
 import { KanbanCard } from './KanbanCard';
+import { partitionClosedTasks, sortClosedTasks } from '../../utils/closedTasks';
 import classes from './KanbanColumn.module.css';
 
 export interface KanbanColumnProps {
   column: KanbanColumnConfig;
   tasks: TaskMeta[];
+  /** Recent window for closed columns in days; null shows all closed tasks. */
+  closedWindowDays?: number | null;
+  /** When true, closed columns show every matching task regardless of the window. */
+  isSearching?: boolean;
   isTargeted: boolean;
   draggingTaskId: string | null;
   visibleColumns: KanbanColumnConfig[];
@@ -46,6 +51,8 @@ export interface KanbanColumnProps {
 export const KanbanColumn: React.FC<KanbanColumnProps> = ({
   column,
   tasks,
+  closedWindowDays = 30,
+  isSearching = false,
   isTargeted,
   draggingTaskId,
   visibleColumns,
@@ -66,7 +73,18 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
 }) => {
   const { t } = useTranslation();
 
+  const [showOlder, setShowOlder] = useState(false);
+
   const colTitle = getColumnTitle(column, t);
+
+  const isClosedColumn = column.behavior === 'done' || column.behavior === 'cancelled';
+  let visibleTasks = tasks;
+  let olderCount = 0;
+  if (isClosedColumn) {
+    const { recent, older } = partitionClosedTasks(sortClosedTasks(tasks), closedWindowDays);
+    visibleTasks = isSearching || showOlder ? [...recent, ...older] : recent;
+    olderCount = isSearching ? 0 : older.length;
+  }
 
   return (
     <div
@@ -106,7 +124,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
       {/* Column Task Cards Scrollable Area */}
       <ScrollArea style={{ flex: 1 }} p={8} type="auto" offsetScrollbars>
         <Stack gap={8}>
-          {tasks.map((task) => {
+          {visibleTasks.map((task) => {
             const taskBehavior = columnBehaviorMap.get(task.status) || column.behavior;
             return (
               <KanbanCard
@@ -127,6 +145,20 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
               />
             );
           })}
+
+          {olderCount > 0 && (
+            <Button
+              variant="subtle"
+              size="compact-xs"
+              color="gray"
+              fullWidth
+              className={classes.olderToggle}
+              rightSection={showOlder ? <IconChevronUp size={13} /> : <IconChevronDown size={13} />}
+              onClick={() => setShowOlder((prev) => !prev)}
+            >
+              {showOlder ? t('tasks.hideOlder') : t('tasks.showOlder', { count: olderCount })}
+            </Button>
+          )}
 
           {/* Empty Column Placeholder */}
           {tasks.length === 0 && (

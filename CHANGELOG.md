@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Changed
+- **Recent-First Done & Cancelled Columns**: Closed Kanban columns now sort newest first and show only tasks closed within a configurable window (7, 14, 30, 90 days, or All; default 30). Older tasks stay one click away via an inline "Show N older" toggle, and searching always reveals them. This replaces the "Hide closed tasks older than 30 days" switch; nothing changes on disk.
+
 ## [1.15.3] - 2026-10-30
 
 ### Changed

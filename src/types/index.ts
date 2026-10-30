@@ -198,7 +198,7 @@ export interface AppSettings {
   autoSaveDelay: number; // in ms
   dateFormat: string;
   editorFontSize: number;
-  hideCompletedOlderThan30Days?: boolean;
+  closedTasksWindowDays?: number | null; // Recent window for closed Kanban columns; null = All
   enableDailyRoutines?: boolean;
   routines?: DailyRoutine[];
   showDailyRoutinesPanel?: boolean;

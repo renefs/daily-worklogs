@@ -10,6 +10,8 @@ import {
   ActionIcon,
   Badge,
   Switch,
+  Select,
+  Box,
   useComputedColorScheme,
 } from '@mantine/core';
 import {
@@ -32,6 +34,14 @@ import { KanbanColumnModal } from './KanbanColumnModal';
 
 export const KanbanSettingsTab: React.FC = () => {
   const { t } = useTranslation();
+
+  const closedWindowOptions = [
+    { value: '7', label: t('settings.closedTasksWindowOption7') },
+    { value: '14', label: t('settings.closedTasksWindowOption14') },
+    { value: '30', label: t('settings.closedTasksWindowOption30') },
+    { value: '90', label: t('settings.closedTasksWindowOption90') },
+    { value: 'all', label: t('settings.closedTasksWindowAll') },
+  ];
   const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
   const isDark = computedColorScheme === 'dark';
 
@@ -157,24 +167,31 @@ export const KanbanSettingsTab: React.FC = () => {
     }
   };
 
+  const closedWindowSetting = settings.closedTasksWindowDays;
+  const closedWindowValue =
+    closedWindowSetting === null ? 'all' : String(closedWindowSetting === undefined ? 30 : closedWindowSetting);
+
   return (
     <>
       <Stack gap="md">
-        {/* Hide old completed / closed tasks setting */}
+        {/* Recent window for Done / Cancelled columns */}
         <Paper withBorder p="md" radius="md">
           <Group justify="space-between" align="center">
-            <div style={{ flex: 1, paddingRight: 16 }}>
+            <Box flex={1} pr="md">
               <Text fw={600} size="sm">
-                {t('settings.hideCompletedOlderThan30Days')}
+                {t('settings.closedTasksWindow')}
               </Text>
               <Text size="xs" c="dimmed">
-                {t('settings.hideCompletedOlderThan30DaysDescription')}
+                {t('settings.closedTasksWindowDescription')}
               </Text>
-            </div>
-            <Switch
-              checked={settings.hideCompletedOlderThan30Days ?? false}
-              onChange={(e) =>
-                updateSettings({ hideCompletedOlderThan30Days: e.currentTarget.checked })
+            </Box>
+            <Select
+              w={160}
+              allowDeselect={false}
+              data={closedWindowOptions}
+              value={closedWindowValue}
+              onChange={(value) =>
+                updateSettings({ closedTasksWindowDays: value === 'all' || value === null ? null : Number(value) })
               }
             />
           </Group>

@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import { flushTaskEditor } from '../../services/editorSession';
-import { TaskItem, TaskMeta, TaskPriority, TaskStatus } from '../../types';
+import { DEFAULT_KANBAN_COLUMNS, TaskItem, TaskMeta, TaskPriority, TaskStatus } from '../../types';
 import { AppSlice, TasksSlice } from '../types';
 import { invalidateNotesRefresh } from './notesSlice';
 
@@ -101,8 +101,22 @@ export const createTasksSlice: AppSlice<TasksSlice> = (set, get) => ({
   updateTaskStatus: async (filename: string, status: TaskStatus) => {
     // Optimistically update status in local state for instant drag feedback
     const previousTasks = get().tasks;
+    const columns = get().settings?.kanbanColumns?.length
+      ? get().settings!.kanbanColumns!
+      : DEFAULT_KANBAN_COLUMNS;
+    const behavior = columns.find((c) => c.id === status)?.behavior;
+    const isClosed = behavior === 'done' || behavior === 'cancelled';
+    const todayStr = dayjs().format('YYYY-MM-DD');
     set({
-      tasks: previousTasks.map((t) => (t.filename === filename ? { ...t, status } : t)),
+      tasks: previousTasks.map((t) => {
+        if (t.filename !== filename) return t;
+        // Mirror the update-task-status IPC handler so closed tasks sort and window correctly right away
+        if (isClosed) return { ...t, status, completedDate: t.completedDate || todayStr };
+        const prevBehavior = columns.find((c) => c.id === t.status)?.behavior;
+        const wasClosed = prevBehavior === 'done' || prevBehavior === 'cancelled';
+        if (wasClosed) return { ...t, status, completedDate: undefined };
+        return { ...t, status };
+      }),
     });
 
     if (!window.electronAPI) return;

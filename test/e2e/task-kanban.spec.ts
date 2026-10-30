@@ -46,4 +46,37 @@ test.describe('Task Management & Kanban Board', () => {
     expect(taskContent).toContain('title: Deploy Kubernetes Cluster');
     expect(taskContent).toContain('id: 1');
   });
+
+  test('hides old closed tasks behind "Show older" and finds them via search', async ({ page, testVaultDir }) => {
+    const tasksDir = path.join(testVaultDir, 'tasks');
+    fs.mkdirSync(tasksDir, { recursive: true });
+    const daysAgo = (days: number) => new Date(Date.now() - days * 86400000).toISOString().split('T')[0];
+    const writeClosedTask = (id: number, title: string, completedDaysAgo: number) => {
+      fs.writeFileSync(
+        path.join(tasksDir, `closed-task-${id}.md`),
+        `---\ntaskId: ${id}\ntitle: ${title}\nstatus: done\ncreated: ${daysAgo(completedDaysAgo + 1)}\ncompletedDate: ${daysAgo(completedDaysAgo)}\n---\n\nBody\n`,
+        'utf-8'
+      );
+    };
+    writeClosedTask(1, 'Recent shipped feature', 2);
+    writeClosedTask(2, 'Ancient migration chore', 60);
+
+    await page.getByRole('button', { name: 'Tasks', exact: true }).click();
+    await page.locator('button:has(.tabler-icon-refresh)').click();
+
+    const board = page.locator('#root');
+    await expect(board.getByText('Recent shipped feature')).toBeVisible({ timeout: 10000 });
+    await expect(board.getByText('Ancient migration chore')).toHaveCount(0);
+
+    // Expand older tasks in place
+    await board.getByRole('button', { name: 'Show 1 older' }).click();
+    await expect(board.getByText('Ancient migration chore')).toBeVisible();
+    await board.getByRole('button', { name: 'Hide older' }).click();
+    await expect(board.getByText('Ancient migration chore')).toHaveCount(0);
+
+    // Search reveals old closed tasks and hides the footer
+    await board.getByPlaceholder('Search tasks by title, content, or tags...').fill('Ancient');
+    await expect(board.getByText('Ancient migration chore')).toBeVisible();
+    await expect(board.getByRole('button', { name: /older/ })).toHaveCount(0);
+  });
 });

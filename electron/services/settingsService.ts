@@ -218,7 +218,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autoSaveDelay: 1000,
   dateFormat: 'YYYY-MM-DD',
   editorFontSize: 15,
-  hideCompletedOlderThan30Days: false,
+  closedTasksWindowDays: 30,
   routines: DEFAULT_ROUTINES,
   showDailyRoutinesPanel: true,
   hasCompletedOnboarding: false,
