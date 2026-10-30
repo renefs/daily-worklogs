@@ -139,13 +139,6 @@ export interface TaskWriteInput {
 
 export type WeekStartDay = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0 = Sunday, 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday
 
-export interface NoteTemplate {
-  id: string;
-  name: string;
-  description?: string;
-  content: string;
-}
-
 export type RoutineSchedule = 'everyday' | 'weekdays' | number[]; // [0..6] for Sun..Sat
 
 export interface DailyRoutine {
@@ -191,12 +184,9 @@ export interface AppSettings {
   themeColor: string;
   colorScheme: 'light' | 'dark' | 'auto';
   weekStartDay: WeekStartDay;
-  defaultTemplateId: string;
-  templates: NoteTemplate[];
   kanbanColumns?: KanbanColumnConfig[];
   autoSave: boolean;
   autoSaveDelay: number; // in ms
-  dateFormat: string;
   editorFontSize: number;
   closedTasksWindowDays?: number | null; // Recent window for closed Kanban columns; null = All
   enableDailyRoutines?: boolean;

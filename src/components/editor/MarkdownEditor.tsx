@@ -16,7 +16,6 @@ import { IconCheck } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import clsx from 'clsx';
 import { useAppStoreSelector } from '../../store/useAppStore';
-import { formatTemplateContent } from '../../utils/dateTemplate';
 import { EditorView, keymap } from '@codemirror/view';
 import { EditorSelection } from '@codemirror/state';
 import { isolateHistory } from '@codemirror/commands';
@@ -62,7 +61,6 @@ export interface MarkdownEditorProps {
   isLivePreview?: boolean;
   layoutMode?: 'live' | 'split' | 'edit' | 'preview';
   onLayoutModeChange?: (mode: 'live' | 'split' | 'edit' | 'preview') => void;
-  showTemplates?: boolean;
   showDelete?: boolean;
   showExport?: boolean;
   placeholder?: string;
@@ -97,7 +95,6 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   isLivePreview = true,
   layoutMode,
   onLayoutModeChange,
-  showTemplates = true,
   showDelete = true,
   showExport = true,
   showStatusAndActions = true,
@@ -107,7 +104,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   dailyNoteFeatures = false,
   parentTask,
 }) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const [isDraggingOver, setIsDraggingOver] = React.useState(false);
@@ -295,37 +292,6 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     view.dispatch(transaction);
     view.focus();
   }, []);
-
-  const insertTemplate = useCallback(
-    (templateId: string) => {
-      if (!settings) return;
-      const template = settings.templates.find((t) => t.id === templateId);
-      if (!template) return;
-
-      const processedContent = formatTemplateContent(
-        template.content,
-        selectedDate,
-        settings.dateFormat,
-        settings.language || (i18n.language === 'es' ? 'es' : 'en')
-      );
-      const view = editorRef.current?.view;
-      if (view) {
-        const selection = view.state.selection.main;
-        view.dispatch({
-          changes: { from: selection.from, to: selection.to, insert: processedContent },
-          selection: {
-            anchor: selection.from + processedContent.length,
-            head: selection.from + processedContent.length,
-          },
-        });
-        view.focus();
-      } else {
-        const current = effectiveContent || '';
-        effectiveOnChange(current ? `${current}\n\n${processedContent}` : processedContent);
-      }
-    },
-    [settings, selectedDate, effectiveContent, effectiveOnChange, i18n.language]
-  );
 
   const hasNotes = hasNotesSection(effectiveContent);
   const canAddNotesSection = dailyNoteFeatures && layoutMode !== 'preview';
@@ -582,9 +548,6 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             onInsertText={insertText}
             onInsertTable={insertTable}
             onInsertImage={handleInsertImage}
-            showTemplates={showTemplates}
-            templates={settings?.templates}
-            onInsertTemplate={insertTemplate}
             showNotesSection={canAddNotesSection}
             notesSectionExists={hasNotes}
             onAddNotesSection={addNotesSection}

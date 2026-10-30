@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Removed
+- **Note Templates**: Removed the templates feature, including the Templates settings tab, the "Insert Template" editor menu, the `{{date}}` variable handling and the date format setting (also removed from onboarding). New daily notes now start as a `# YYYY-MM-DD` heading. The obsolete `templates`, `defaultTemplateId` and `dateFormat` keys are dropped from `settings.json` and `.daily-worklogs/config.json` on the next save. Existing notes are untouched, and untouched legacy template notes still do not count as logged days.
+
 ### Added
 - **Private `## Notes` Section in Daily Notes**: Content under a heading that is exactly `Notes` (any level, case-insensitive) is excluded from weekly, monthly and yearly reports, including KPIs, checklist items, the Daily Notes tab and Copy day. Days with only an untouched template or only Notes no longer count as logged. The Standard Worklog and Standup templates now end with a `## Notes` section (unmodified built-in templates are upgraded automatically), and the `### 📋 Task Log` fallback inserts task entries before Notes. Notes headings in daily notes show a muted "Not in reports" badge in every editor mode and in the rendered preview, and the Daily Notes tab explains that Notes sections are not included. A new "Add notes section" toolbar button in the daily note editor appends a `## Notes` heading at the end of the note (undoable, disabled when the note already has one).
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   appendNotesSection,
+  createDailyNoteContent,
   findNotesHeadingLines,
   hasNotesSection,
   hasWorkContent,
@@ -83,28 +84,32 @@ describe('insertBeforeNotesSection', () => {
 });
 
 describe('hasWorkContent', () => {
-  const template = '# {{date}} - Daily Worklog\n\n## Blockers\n- None\n\n## Tasks\n- [ ] \n';
-
-  it('is false for an untouched template', () => {
-    expect(hasWorkContent('# 2026-10-01 - Daily Worklog\n\n## Blockers\n- None\n\n## Tasks\n- [ ] \n', template)).toBe(false);
+  it('is false for an untouched legacy template', () => {
+    expect(hasWorkContent('# 2026-10-01 - Daily Worklog\n\n## Blockers\n- None\n\n## Tasks\n- [ ] \n')).toBe(false);
   });
 
   it('is false for empty content and empty items', () => {
-    expect(hasWorkContent('', template)).toBe(false);
-    expect(hasWorkContent('- \n* [ ]\n- [x] \n', '')).toBe(false);
+    expect(hasWorkContent('')).toBe(false);
+    expect(hasWorkContent('- \n* [ ]\n- [x] \n')).toBe(false);
   });
 
-  it('is true when a line goes beyond headings and template lines', () => {
-    expect(hasWorkContent('## Tasks\n- [x] Shipped\n', template)).toBe(true);
-    expect(hasWorkContent('Just a paragraph', template)).toBe(true);
+  it('is true when a line goes beyond headings and placeholder lines', () => {
+    expect(hasWorkContent('## Tasks\n- [x] Shipped\n')).toBe(true);
+    expect(hasWorkContent('Just a paragraph')).toBe(true);
   });
 
-  it('compares lines trimmed', () => {
-    expect(hasWorkContent('  - None  \r\n', template)).toBe(false);
+  it('compares the "- None" placeholder trimmed', () => {
+    expect(hasWorkContent('  - None  \r\n')).toBe(false);
+  });
+});
+
+describe('createDailyNoteContent', () => {
+  it('creates an ISO date heading', () => {
+    expect(createDailyNoteContent('2026-10-01')).toBe('# 2026-10-01\n\n');
   });
 
-  it('treats template lines as work when no template is given', () => {
-    expect(hasWorkContent('- None', '')).toBe(true);
+  it('does not count as logged work', () => {
+    expect(hasWorkContent(createDailyNoteContent('2026-10-01'))).toBe(false);
   });
 });
 

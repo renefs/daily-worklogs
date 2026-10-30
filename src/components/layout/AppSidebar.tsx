@@ -30,7 +30,7 @@ import { useTranslation } from 'react-i18next';
 import clsx from 'clsx';
 import { useAppStore, useAppStoreSelector } from '../../store/useAppStore';
 import { DailyNoteMeta } from '../../types';
-import { capitalizeFirstLetter, formatTemplateDate } from '../../utils/dateTemplate';
+import { capitalizeFirstLetter, formatDate } from '../../utils/dateFormat';
 import classes from './AppSidebar.module.css';
 import { SidebarCalendar } from './SidebarCalendar';
 
@@ -428,7 +428,7 @@ export const AppSidebar: React.FC = () => {
         <Text size="sm" mb="lg">
           {t('editor.deleteConfirm', {
             date: noteToDelete
-              ? `${formatTemplateDate(noteToDelete, 'dddd, MMMM D, YYYY', i18n.language)} (${noteToDelete}.md)`
+              ? `${formatDate(noteToDelete, 'dddd, MMMM D, YYYY', i18n.language)} (${noteToDelete}.md)`
               : '',
           })}
         </Text>

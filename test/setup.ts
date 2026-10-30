@@ -41,8 +41,6 @@ if (typeof window !== 'undefined') {
       accentColor: 'indigo',
       language: 'en',
       firstDayOfWeek: 1,
-      defaultTemplate: 'standard',
-      templates: [],
       kanbanColumns: [
         { id: 'todo', title: 'To Do' },
         { id: 'in-progress', title: 'In Progress' },

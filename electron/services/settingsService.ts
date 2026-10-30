@@ -5,88 +5,6 @@ import os from 'node:os';
 import type { AppSettings, AreaDefinition, ProjectDefinition } from '../../src/types';
 import { atomicWriteFileSync } from '../utils/atomicFile';
 
-export const DEFAULT_TEMPLATES: AppSettings['templates'] = [
-  {
-    id: 'standard-worklog',
-    name: 'Standard Daily Worklog',
-    description: 'Structured template with Goals, Completed Tasks, In Progress, and Blockers',
-    content: `# {{date}} - Daily Worklog
-
-## 🎯 Today's Goals & Priorities
-- [ ] 
-
-## ✅ Accomplishments & Completed Tasks
-- [ ] 
-
-## ⏳ In Progress
-- [ ] 
-
-## 🚧 Blockers & Notes
-- None
-
-## 📝 General Meeting & Discussion Notes
-- 
-
-## Notes
-`,
-  },
-  {
-    id: 'simple-tasks',
-    name: 'Simple Checklist',
-    description: 'Quick task list with notes',
-    content: `# {{date}}
-
-## Tasks
-- [ ] 
-
-## Notes
-`,
-  },
-  {
-    id: 'standup',
-    name: 'Daily Standup (Yesterday, Today, Blockers)',
-    description: 'Agile daily standup format',
-    content: `# Standup - {{date}}
-
-### 1. What did I achieve yesterday?
-- 
-
-### 2. What will I work on today?
-- [ ] 
-
-### 3. Are there any impediments or blockers?
-- None
-
-## Notes
-`,
-  },
-  {
-    id: 'blank',
-    name: 'Blank Note',
-    description: 'Completely blank note with date header',
-    content: `# {{date}}
-
-`,
-  },
-];
-
-const TRAILING_NOTES_BLOCK = /\n## Notes\n$/;
-
-/**
- * Upgrades built-in templates that still match their previous default (the current default
- * without the trailing Notes section). Customised templates are left untouched.
- */
-export function upgradeBuiltInTemplates(templates: AppSettings['templates']): AppSettings['templates'] {
-  if (!Array.isArray(templates)) return templates;
-  return templates.map((template) => {
-    const builtIn = DEFAULT_TEMPLATES.find((d) => d.id === template.id);
-    if (!builtIn || !TRAILING_NOTES_BLOCK.test(builtIn.content)) return template;
-    const previousDefault = builtIn.content.replace(TRAILING_NOTES_BLOCK, '');
-    if (template.content !== previousDefault) return template;
-    return { ...template, content: builtIn.content };
-  });
-}
-
 export const DEFAULT_KANBAN_COLUMNS: AppSettings['kanbanColumns'] = [
   {
     id: 'backlog',
@@ -232,12 +150,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   themeColor: 'indigo',
   colorScheme: 'auto' as const,
   weekStartDay: 1 as const,
-  defaultTemplateId: 'standard-worklog',
-  templates: DEFAULT_TEMPLATES,
   kanbanColumns: DEFAULT_KANBAN_COLUMNS,
   autoSave: true,
   autoSaveDelay: 1000,
-  dateFormat: 'YYYY-MM-DD',
   editorFontSize: 15,
   closedTasksWindowDays: 30,
   routines: DEFAULT_ROUTINES,
@@ -367,7 +282,14 @@ export function readSettingsFromDisk(): AppSettings {
     }
   }
 
-  localSettings.templates = upgradeBuiltInTemplates(localSettings.templates);
+  // Drop keys of the removed templates feature; the next save removes them from disk.
+  const {
+    templates: _legacyTemplates,
+    defaultTemplateId: _legacyDefaultTemplateId,
+    dateFormat: _legacyDateFormat,
+    ...settingsWithoutLegacyKeys
+  } = localSettings;
+  localSettings = settingsWithoutLegacyKeys;
 
   if (!Array.isArray(localSettings.areas) || localSettings.areas.length === 0) {
     localSettings.areas = DEFAULT_AREAS;

@@ -2,14 +2,13 @@ import { ipcMain } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { AppSettings } from '../../src/types';
-import { formatTemplateContent } from '../../src/utils/dateTemplate';
+import { createDailyNoteContent } from '../../src/utils/dailyNoteSections';
 import { listDailyNoteFiles } from '../services/vaultService';
 import { parseTaskCounts } from '../services/taskFileService';
 import { requireIsoDate } from '../utils/security';
 
 interface NoteHandlerDependencies {
   getSettings: () => AppSettings;
-  defaultTemplates: AppSettings['templates'];
   ensureVaultDir: (vaultPath: string) => void;
   ensureYearDir: (vaultPath: string, year: string) => string;
   getNoteFilePath: (vaultPath: string, date: string) => {
@@ -26,7 +25,6 @@ interface NoteHandlerDependencies {
 export function registerNoteHandlers(dependencies: NoteHandlerDependencies): void {
   const {
     getSettings,
-    defaultTemplates,
     ensureVaultDir,
     ensureYearDir,
     getNoteFilePath,
@@ -51,11 +49,7 @@ export function registerNoteHandlers(dependencies: NoteHandlerDependencies): voi
       };
     }
 
-    const settings = getSettings();
-    const template = settings.templates.find((item) => item.id === settings.defaultTemplateId)
-      || settings.templates[0]
-      || defaultTemplates[0];
-    const content = formatTemplateContent(template.content, date, settings.dateFormat, settings.language);
+    const content = createDailyNoteContent(date);
     return { date, filename, filepath, relativePath, content, exists: false, tasksCompleted: 0, tasksTotal: 0 };
   });
 

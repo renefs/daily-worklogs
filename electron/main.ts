@@ -15,8 +15,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import matter from 'gray-matter';
 import 'dayjs/locale/es';
 import 'dayjs/locale/en';
-import { formatTemplateContent } from '../src/utils/dateTemplate';
-import { insertBeforeNotesSection, stripNotesSection } from '../src/utils/dailyNoteSections';
+import { createDailyNoteContent, insertBeforeNotesSection, stripNotesSection } from '../src/utils/dailyNoteSections';
 import type { TaskItem } from '../src/types';
 import { mapWithConcurrency } from './utils/async';
 import { resolvePathInside } from './utils/security';
@@ -37,7 +36,6 @@ import {
 } from './services/taskFileService';
 import {
   DEFAULT_AREAS,
-  DEFAULT_TEMPLATES,
   getColumnBehavior,
   getSettings,
   getVaultConfigPath,
@@ -414,7 +412,6 @@ app.whenReady().then(() => {
 
   registerNoteHandlers({
     getSettings,
-    defaultTemplates: DEFAULT_TEMPLATES,
     ensureVaultDir,
     ensureYearDir,
     getNoteFilePath,
@@ -455,12 +452,7 @@ app.whenReady().then(() => {
     if (fs.existsSync(filepath)) {
       content = fs.readFileSync(filepath, 'utf-8');
     } else {
-      const settings = getSettings();
-      const template =
-        settings.templates.find((t: any) => t.id === settings.defaultTemplateId) ||
-        settings.templates[0] ||
-        DEFAULT_TEMPLATES[0];
-      content = formatTemplateContent(template.content, targetDate, settings.dateFormat, settings.language);
+      content = createDailyNoteContent(targetDate);
     }
 
     const behavior = getColumnBehavior(status, getSettings());

@@ -67,8 +67,7 @@ export async function summarizeDailyNotesInRange(
   vaultPath: string,
   startDate: string,
   endDate: string,
-  concurrency: number,
-  templateContent = ''
+  concurrency: number
 ): Promise<DailyNoteRangeSummary> {
   ensureVaultDir(vaultPath);
   const rangeDates = expandDateRange(startDate, endDate);
@@ -96,7 +95,7 @@ export async function summarizeDailyNotesInRange(
     const rawContent = noteContents[index];
     if (rawContent === null) continue;
     const content = stripNotesSection(rawContent);
-    if (!hasWorkContent(content, templateContent)) continue;
+    if (!hasWorkContent(content)) continue;
 
     const { tasksCompleted, tasksTotal } = parseTaskCounts(content);
     summary.totalTasks += tasksTotal;

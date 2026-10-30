@@ -26,10 +26,8 @@ import {
   IconSettings,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
-import dayjs from 'dayjs';
 import { useAppStoreSelector } from '../../store/useAppStore';
 import { WeekStartDay } from '../../types';
-import { formatTemplateDate } from '../../utils/dateTemplate';
 import { StepWelcome } from './onboarding/StepWelcome';
 import { StepVault } from './onboarding/StepVault';
 import { StepLanguage } from './onboarding/StepLanguage';
@@ -62,7 +60,6 @@ export const OnboardingWizardModal: React.FC = () => {
   const [language, setLanguage] = useState<'en' | 'es'>(
     settings?.language || (i18n.language === 'es' ? 'es' : 'en')
   );
-  const [dateFormat, setDateFormat] = useState(settings?.dateFormat || 'YYYY-MM-DD');
   const [weekStartDay, setWeekStartDay] = useState<WeekStartDay>(settings?.weekStartDay ?? 1);
   const [autoSave, setAutoSave] = useState(settings?.autoSave ?? true);
   const [themeColor, setThemeColor] = useState(settings?.themeColor || 'indigo');
@@ -75,7 +72,6 @@ export const OnboardingWizardModal: React.FC = () => {
     if (settings && isOnboardingOpen) {
       setVaultPath(settings.vaultPath || '');
       setLanguage(settings.language || (i18n.language === 'es' ? 'es' : 'en'));
-      setDateFormat(settings.dateFormat || 'YYYY-MM-DD');
       setWeekStartDay(settings.weekStartDay ?? 1);
       setAutoSave(settings.autoSave ?? true);
       setThemeColor(settings.themeColor || 'indigo');
@@ -113,7 +109,6 @@ export const OnboardingWizardModal: React.FC = () => {
     await completeOnboarding({
       vaultPath,
       language,
-      dateFormat,
       weekStartDay,
       autoSave,
       themeColor,
@@ -126,9 +121,6 @@ export const OnboardingWizardModal: React.FC = () => {
 
   const nextStep = () => setActiveStep((current) => (current < 5 ? current + 1 : current));
   const prevStep = () => setActiveStep((current) => (current > 0 ? current - 1 : current));
-
-  const sampleDate = dayjs().format('YYYY-MM-DD');
-  const previewFormattedDate = formatTemplateDate(sampleDate, dateFormat, language);
 
   return (
     <Modal
@@ -227,10 +219,7 @@ export const OnboardingWizardModal: React.FC = () => {
           {activeStep === 2 && (
             <StepLanguage
               language={language}
-              dateFormat={dateFormat}
               onLanguageChange={handleLanguageChange}
-              onDateFormatChange={setDateFormat}
-              previewFormattedDate={previewFormattedDate}
             />
           )}
           {activeStep === 3 && (

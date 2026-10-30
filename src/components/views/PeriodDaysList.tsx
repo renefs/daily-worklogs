@@ -33,7 +33,7 @@ import { useTranslation } from 'react-i18next';
 import { PeriodSummary, WorklogDaySummary } from '../../types';
 import { MarkdownViewer } from '../viewer/MarkdownViewer';
 import { useAppStoreSelector } from '../../store/useAppStore';
-import { formatLocalizedDateTitle } from '../../utils/dateTemplate';
+import { formatLocalizedDateTitle } from '../../utils/dateFormat';
 
 interface PeriodDaysListProps {
   periodSummary: PeriodSummary | null;

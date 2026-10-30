@@ -1,10 +1,10 @@
 import { ipcMain } from 'electron';
 import fs from 'node:fs';
 import type { AppSettings, TaskMeta } from '../../src/types';
- import { summarizeDailyNotesInRange } from '../services/dailyNoteRangeService';
+import { summarizeDailyNotesInRange } from '../services/dailyNoteRangeService';
 import { ensureTasksDir } from '../services/vaultService';
 import { readTaskFiles, buildTaskFromFile } from '../services/taskFileService';
-import { getColumnBehavior, DEFAULT_TEMPLATES } from '../services/settingsService';
+import { getColumnBehavior } from '../services/settingsService';
 
 interface ReportHandlerDependencies {
   getSettings: () => AppSettings;
@@ -17,16 +17,11 @@ export function registerReportHandlers(dependencies: ReportHandlerDependencies):
   ipcMain.handle('get-notes-range', async (_event, startDate: string, endDate: string) => {
     const settings = getSettings();
     const vaultPath = settings.vaultPath;
-    const defaultTemplate =
-      settings.templates.find((t) => t.id === settings.defaultTemplateId) ||
-      settings.templates[0] ||
-      DEFAULT_TEMPLATES[0];
     const dailySummary = await summarizeDailyNotesInRange(
       vaultPath,
       startDate,
       endDate,
-      fileReadConcurrency,
-      defaultTemplate.content
+      fileReadConcurrency
     );
     const { days, totalTasks: dailyTasksTotal, completedTasks: dailyTasksCompleted, activeDays, dailyChecklistItems } = dailySummary;
     let totalTasks = dailyTasksTotal;

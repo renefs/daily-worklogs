@@ -330,68 +330,6 @@ while ((m = inlineCodeRegex.exec(sampleInline)) !== null) {
 assert.deepStrictEqual(inlineMatches, ['npm install', 'npm run dev'], 'Extracted inline code correctly');
 console.log('✓ Code blocks (fenced) and inline code regex verification passed');
 
-// 10. Test Localized Template Date Formatting & Custom {{date}} Format
-import dayjs from 'dayjs';
-import 'dayjs/locale/es.js';
-import 'dayjs/locale/en.js';
-
-function formatTemplateDate(dateStr, format, lang) {
-  const targetLang = lang === 'es' ? 'es' : 'en';
-  const targetFormat = format && format.trim() ? format.trim() : 'YYYY-MM-DD';
-  try {
-    const d = dayjs(dateStr).locale(targetLang);
-    if (!d.isValid()) return dateStr;
-    return d.format(targetFormat);
-  } catch {
-    return dateStr;
-  }
-}
-
-function formatTemplateContent(content, dateStr, dateFormat, lang) {
-  if (!content) return '';
-  const targetLang = lang === 'es' ? 'es' : 'en';
-  const defaultFormat = dateFormat && dateFormat.trim() ? dateFormat.trim() : 'YYYY-MM-DD';
-
-  let processed = content.replace(/\{\{date:([^}]+)\}\}/g, (_match, customFmt) => {
-    return formatTemplateDate(dateStr, customFmt.trim(), targetLang);
-  });
-
-  processed = processed.replace(/\{\{date\}\}/g, () => {
-    return formatTemplateDate(dateStr, defaultFormat, targetLang);
-  });
-
-  return processed;
-}
-
-const testDate = '2026-08-20'; // A Thursday in August 2026
-
-// Test 10.1: Default format
-const template1 = '# {{date}} - Daily Worklog';
-const out1 = formatTemplateContent(template1, testDate, 'YYYY-MM-DD', 'en');
-assert.strictEqual(out1, '# 2026-08-20 - Daily Worklog', 'Default format produces ISO date');
-
-// Test 10.2: Full localized date in English
-const out2 = formatTemplateContent(template1, testDate, 'dddd, MMMM D, YYYY', 'en');
-assert.strictEqual(out2, '# Thursday, August 20, 2026 - Daily Worklog', 'Full English date format matched');
-
-// Test 10.3: Full localized date in Spanish
-const out3 = formatTemplateContent(template1, testDate, 'dddd, D [de] MMMM [de] YYYY', 'es');
-assert.strictEqual(out3, '# jueves, 20 de agosto de 2026 - Daily Worklog', 'Full Spanish date format matched');
-
-// Test 10.4: Custom format (DD/MM/YYYY)
-const out4 = formatTemplateContent(template1, testDate, 'DD/MM/YYYY', 'en');
-assert.strictEqual(out4, '# 20/08/2026 - Daily Worklog', 'Custom DD/MM/YYYY matched');
-
-// Test 10.5: Inline custom date token {{date:FORMAT}}
-const templateWithInline = '# Standup {{date:YYYY/MM/DD}} ({{date:dddd}})\nLogged on {{date}}';
-const out5 = formatTemplateContent(templateWithInline, testDate, 'DD/MM/YYYY', 'es');
-assert.strictEqual(
-  out5,
-  '# Standup 2026/08/20 (jueves)\nLogged on 20/08/2026',
-  'Inline custom date tokens and global template format resolve together'
-);
-console.log('✓ Localized template date formatting and custom {{date}} format tests passed');
-
 // 11. Test Image Markdown Parsing and Unique Filename Generation
 function slugify(text) {
   return text
@@ -600,11 +538,8 @@ function simulateGetSettings(localSettingsFile, machineVaultPath) {
     themeColor: 'indigo',
     colorScheme: 'auto',
     weekStartDay: 1,
-    defaultTemplateId: 'standard-worklog',
-    templates: [],
     kanbanColumns: [],
     routines: [],
-    dateFormat: 'YYYY-MM-DD',
     hasCompletedOnboarding: false,
   };
 
@@ -641,10 +576,7 @@ const computerASettings = {
   vaultPath: computerAVaultPath,
   language: 'es',
   themeColor: 'teal',
-  dateFormat: 'DD/MM/YYYY',
-  templates: [
-    { id: 'custom-template', name: 'Custom Template A', content: '# Custom {{date}}' },
-  ],
+  weekStartDay: 0,
   routines: [
     { id: 'r1', title: 'Daily Standup Routine', schedule: 'weekdays', enabled: true },
   ],
@@ -663,8 +595,7 @@ assert.strictEqual(
 );
 const savedVaultConfig = readVaultConfig(sharedCloudVault);
 assert.strictEqual(savedVaultConfig.language, 'es');
-assert.strictEqual(savedVaultConfig.dateFormat, 'DD/MM/YYYY');
-assert.strictEqual(savedVaultConfig.templates.length, 1);
+assert.strictEqual(savedVaultConfig.weekStartDay, 0);
 assert.strictEqual(savedVaultConfig.routines[0].title, 'Daily Standup Routine');
 assert.strictEqual(savedVaultConfig.vaultPath, undefined, 'Machine-specific vaultPath must NOT be in vault config');
 
@@ -675,8 +606,7 @@ const computerBInitialSettings = {
   vaultPath: computerBMachineVaultPath,
   language: 'en', // Default on fresh install
   themeColor: 'indigo',
-  dateFormat: 'YYYY-MM-DD',
-  templates: [],
+  weekStartDay: 1,
   routines: [],
   hasCompletedOnboarding: false,
 };
@@ -685,9 +615,7 @@ fs.writeFileSync(computerBSettingsFile, JSON.stringify(computerBInitialSettings,
 // Computer B opens the app -> getSettings() loads the configuration from the cloud vault!
 const computerBLoadedSettings = simulateGetSettings(computerBSettingsFile, computerBMachineVaultPath);
 assert.strictEqual(computerBLoadedSettings.language, 'es', 'Computer B should load synced language');
-assert.strictEqual(computerBLoadedSettings.dateFormat, 'DD/MM/YYYY', 'Computer B should load synced date format');
-assert.strictEqual(computerBLoadedSettings.templates.length, 1, 'Computer B should load synced custom templates');
-assert.strictEqual(computerBLoadedSettings.templates[0].id, 'custom-template');
+assert.strictEqual(computerBLoadedSettings.weekStartDay, 0, 'Computer B should load synced week start day');
 assert.strictEqual(computerBLoadedSettings.routines.length, 1, 'Computer B should load synced routines');
 assert.strictEqual(computerBLoadedSettings.routines[0].title, 'Daily Standup Routine');
 assert.strictEqual(computerBLoadedSettings.vaultPath, computerBMachineVaultPath, 'Computer B preserves its machine-specific path');

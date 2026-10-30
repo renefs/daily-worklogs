@@ -4,8 +4,6 @@ import {
   ActionIcon,
   Tooltip,
   Divider,
-  Menu,
-  Button,
 } from '@mantine/core';
 import {
   IconBold,
@@ -19,7 +17,6 @@ import {
   IconCode,
   IconTable,
   IconPhoto,
-  IconTemplate,
   IconNotes,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
@@ -28,9 +25,6 @@ export interface EditorToolbarProps {
   onInsertText: (before: string, after?: string, defaultText?: string) => void;
   onInsertTable: () => void;
   onInsertImage: () => void;
-  showTemplates?: boolean;
-  templates?: { id: string; name: string }[];
-  onInsertTemplate?: (templateId: string) => void;
   /** Show the "Add notes section" button (daily note editor only). */
   showNotesSection?: boolean;
   /** True when the note already has a Notes section; the button is then inert. */
@@ -42,9 +36,6 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onInsertText,
   onInsertTable,
   onInsertImage,
-  showTemplates = true,
-  templates = [],
-  onInsertTemplate,
   showNotesSection = false,
   notesSectionExists = false,
   onAddNotesSection,
@@ -184,30 +175,6 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             <IconNotes size={15} />
           </ActionIcon>
         </Tooltip>
-      )}
-
-      {/* Template Selector */}
-      {showTemplates && templates.length > 0 && onInsertTemplate && (
-        <Menu shadow="md" width={220}>
-          <Menu.Target>
-            <Button
-              variant="subtle"
-              size="compact-xs"
-              leftSection={<IconTemplate size={13} />}
-              style={{ marginLeft: 2 }}
-            >
-              {t('editor.chooseTemplate')}
-            </Button>
-          </Menu.Target>
-          <Menu.Dropdown>
-            <Menu.Label>{t('settings.templates')}</Menu.Label>
-            {templates.map((tpl) => (
-              <Menu.Item key={tpl.id} onClick={() => onInsertTemplate(tpl.id)}>
-                {tpl.name}
-              </Menu.Item>
-            ))}
-          </Menu.Dropdown>
-        </Menu>
       )}
     </Group>
   );

@@ -20,7 +20,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useAppStoreSelector } from '../../store/useAppStore';
 import { PeriodSummary, TaskMeta, TaskPriority, DailyChecklistItem } from '../../types';
-import { formatLocalizedDateTitle } from '../../utils/dateTemplate';
+import { formatLocalizedDateTitle } from '../../utils/dateFormat';
 import { getTagColor } from '../../utils/tagUtils';
 import {
   DEFAULT_AREAS,

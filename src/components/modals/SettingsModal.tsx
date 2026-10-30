@@ -3,7 +3,6 @@ import { Modal, Tabs, Group, Text, Button } from '@mantine/core';
 import {
   IconSettings,
   IconPalette,
-  IconTemplate,
   IconFolder,
   IconLayoutKanban,
   IconChecklist,
@@ -18,7 +17,6 @@ import { AreasProjectsManager } from '../settings/AreasProjectsManager';
 import { GeneralSettingsTab } from './settings/GeneralSettingsTab';
 import { KanbanSettingsTab } from './settings/KanbanSettingsTab';
 import { AppearanceSettingsTab } from './settings/AppearanceSettingsTab';
-import { TemplatesSettingsTab } from './settings/TemplatesSettingsTab';
 import { AboutSettingsTab } from './settings/AboutSettingsTab';
 
 export const SettingsModal: React.FC = () => {
@@ -80,9 +78,6 @@ export const SettingsModal: React.FC = () => {
           <Tabs.Tab value="appearance" leftSection={<IconPalette size={16} />}>
             {t('settings.appearance')}
           </Tabs.Tab>
-          <Tabs.Tab value="templates" leftSection={<IconTemplate size={16} />}>
-            {t('settings.templates')}
-          </Tabs.Tab>
           <Tabs.Tab value="about" leftSection={<IconInfoCircle size={16} />}>
             {t('settings.about')}
           </Tabs.Tab>
@@ -110,10 +105,6 @@ export const SettingsModal: React.FC = () => {
 
         <Tabs.Panel value="appearance">
           <AppearanceSettingsTab />
-        </Tabs.Panel>
-
-        <Tabs.Panel value="templates">
-          <TemplatesSettingsTab />
         </Tabs.Panel>
 
         <Tabs.Panel value="about">

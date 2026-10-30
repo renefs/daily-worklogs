@@ -18,7 +18,7 @@ import { MarkdownEditor } from '../editor/MarkdownEditor';
 import { MarkdownViewer } from '../viewer/MarkdownViewer';
 import { ExportModal } from '../modals/ExportModal';
 import classes from './DailyView.module.css';
-import { formatLocalizedDateTitle } from '../../utils/dateTemplate';
+import { formatLocalizedDateTitle } from '../../utils/dateFormat';
 
 export const DailyView: React.FC = () => {
   const { t, i18n } = useTranslation();

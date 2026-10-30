@@ -62,7 +62,6 @@ export interface NotesSlice {
   keepLocalNote: () => Promise<void>;
   deleteActiveNote: (date?: string) => Promise<void>;
   refreshNotesList: () => Promise<void>;
-  applyTemplate: (templateId: string) => void;
   toggleTaskInNote: (taskText: string, checked: boolean) => void;
 }
 

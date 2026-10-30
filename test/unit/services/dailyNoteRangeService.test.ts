@@ -41,10 +41,9 @@ describe('summarizeDailyNotesInRange', () => {
     expect(summary.totalTasks).toBe(1);
   });
 
-  it('skips untouched template days', async () => {
-    const template = '# {{date}}\n\n## Tasks\n- [ ] \n\n## Blockers\n- None\n\n## Notes\n';
+  it('skips untouched legacy template days', async () => {
     writeNote('2026-10-01', '# 2026-10-01\n\n## Tasks\n- [ ] \n\n## Blockers\n- None\n\n## Notes\n');
-    const summary = await summarizeDailyNotesInRange(vault, '2026-10-01', '2026-10-01', 2, template);
+    const summary = await summarizeDailyNotesInRange(vault, '2026-10-01', '2026-10-01', 2);
     expect(summary.days).toHaveLength(0);
     expect(summary.activeDays).toBe(0);
     expect(summary.totalTasks).toBe(0);

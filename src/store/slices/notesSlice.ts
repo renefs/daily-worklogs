@@ -1,7 +1,6 @@
 import { notifications } from '@mantine/notifications';
 import { DailyNote, DailyNoteMeta } from '../../types';
 import i18n from '../../i18n';
-import { formatTemplateContent } from '../../utils/dateTemplate';
 import { AppSlice, NotesSlice } from '../types';
 
 let notesRefreshGeneration = 0;
@@ -223,21 +222,6 @@ export const createNotesSlice: AppSlice<NotesSlice> = (set, get) => ({
       if (notesRefreshInFlight === request) notesRefreshInFlight = null;
     } catch (err) {
       console.error('Failed to list notes:', err);
-    }
-  },
-
-  applyTemplate: (templateId: string) => {
-    const { settings, selectedDate, activeNote } = get();
-    if (!settings || !activeNote) return;
-    const template = settings.templates.find((t) => t.id === templateId);
-    if (template) {
-      const newContent = formatTemplateContent(
-        template.content,
-        selectedDate,
-        settings.dateFormat,
-        settings.language || (i18n.language === 'es' ? 'es' : 'en')
-      );
-      get().setNoteContent(newContent);
     }
   },
 

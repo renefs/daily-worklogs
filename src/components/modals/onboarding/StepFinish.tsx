@@ -13,7 +13,6 @@ import {
   IconSettings,
   IconLayoutKanban,
   IconClock,
-  IconTemplate,
   IconAdjustments,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
@@ -73,15 +72,6 @@ export const StepFinish: React.FC = () => {
               </ThemeIcon>
               <Text size="xs" fw={500}>
                 {t('onboarding.settingsNoticeRoutines')}
-              </Text>
-            </Group>
-
-            <Group gap={8} wrap="nowrap">
-              <ThemeIcon size={20} radius="xl" color="blue" variant="light">
-                <IconTemplate size={12} />
-              </ThemeIcon>
-              <Text size="xs" fw={500}>
-                {t('onboarding.settingsNoticeTemplates')}
               </Text>
             </Group>
 

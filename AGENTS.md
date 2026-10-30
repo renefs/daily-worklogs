@@ -64,7 +64,7 @@ daily-worklog/
 │   │   │   └── TagsManager.tsx
 │   │   ├── viewer/                 # Rendered Markdown visualizer with interactive GFM task checkboxes
 │   │   └── views/                  # Main application views
-│   │       ├── DailyView.tsx       # Daily worklog note editor, templates, and routines panel
+│   │       ├── DailyView.tsx       # Daily worklog note editor and routines panel
 │   │       ├── WeeklyView.tsx      # Continuous weekly aggregated report & KPI breakdown
 │   │       ├── weekly/             # Focused weekly dashboard sections
 │   │       │   └── WeeklyDashboard.tsx
@@ -93,7 +93,7 @@ daily-worklog/
 │   │   └── index.ts                # Application TypeScript interfaces & domain models
 │   ├── utils/                      # Pure helper utilities
 │   │   ├── areaProjectUtils.ts     # Calculations, progress bars, and cascade renames for Areas/Projects
-│   │   ├── dateTemplate.ts         # Template variables replacement (e.g. {{date}}, {{date:YYYY-MM-DD}})
+│   │   ├── dateFormat.ts           # Date formatting helpers (formatDate, formatLocalizedDateTitle)
 │   │   └── tagUtils.ts             # Tag parsing, normalization, and hierarchy helpers
 │   ├── App.tsx                     # Root MantineProvider, theme configuration, and layout shell
 │   └── main.tsx                    # React application entrypoint
@@ -126,7 +126,7 @@ When a user selects a vault folder, the application structures and persists file
 
 ### Key Storage Specifications:
 1. **Yearly Subfolders**: Daily notes are saved under `<vault>/YYYY/YYYY-MM-DD.md`. The note scanner also maintains backward compatibility for any notes located at the vault root.
-2. **Cross-Computer Sync (`.daily-worklogs/config.json`)**: When opening a vault stored in cloud folders (iCloud Drive, Dropbox, Google Drive, OneDrive, Syncthing), configuration (templates, Kanban columns, Areas, Projects, Tags, routines, date formats, theme preferences) is automatically synchronized while keeping the machine's local directory path intact.
+2. **Cross-Computer Sync (`.daily-worklogs/config.json`)**: When opening a vault stored in cloud folders (iCloud Drive, Dropbox, Google Drive, OneDrive, Syncthing), configuration (Kanban columns, Areas, Projects, Tags, routines, theme preferences) is automatically synchronized while keeping the machine's local directory path intact.
 3. **Tasks as Markdown**: Each task in `tasks/*.md` contains YAML frontmatter (`taskId`, `title`, `status`, `priority`, `area`, `project`, `created`, `due`, `tags`, etc.) followed by a markdown body for detailed specifications and checklists.
 
 ---
@@ -134,9 +134,8 @@ When a user selects a vault folder, the application structures and persists file
 ## 5. Domain Models & Core Features
 
 ### 5.1. Daily Worklogs
-- **One-Click Daily Note**: Instantly creates or opens today's note using configurable templates (Standard Worklog, Agile Standup, Simple Checklist, Blank, or custom user-defined templates).
-- **Private Notes Section**: A heading that is exactly `Notes` (any level, case-insensitive) marks personal content that is excluded from all reports (parser in `src/utils/dailyNoteSections.ts`). Days with only Notes or an untouched template do not count as logged.
-- **Template Variables**: Supports `{{date}}`, `{{time}}`, `{{year}}`, `{{month}}`, `{{day}}`, and custom formatting like `{{date:dddd, MMMM D, YYYY}}`.
+- **One-Click Daily Note**: Instantly creates or opens today's note. New notes start with an ISO date heading (`# YYYY-MM-DD`).
+- **Private Notes Section**: A heading that is exactly `Notes` (any level, case-insensitive) marks personal content that is excluded from all reports (parser in `src/utils/dailyNoteSections.ts`). Days with only Notes or untouched legacy placeholder content do not count as logged.
 - **Editor Modes**: Live Preview (Obsidian-like), Split View, Code View (pure CodeMirror), and Rendered Preview.
 - **Interactive Checklists**: Checkbox toggles (`- [ ]` / `- [x]`) in the visualizer update the underlying file on disk in real time.
 

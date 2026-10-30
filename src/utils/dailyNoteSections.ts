@@ -138,23 +138,24 @@ export function insertBeforeNotesSection(content: string, block: string): string
   return `${before ? `${before}\n\n` : ''}${trimmedBlock}\n\n${after}`;
 }
 
+/** Lines that older notes carry from the former built-in templates and that are not work. */
+const PLACEHOLDER_LINES: ReadonlySet<string> = new Set(['- None']);
+
+/** Content of a newly created daily note: an ISO date heading. */
+export function createDailyNoteContent(date: string): string {
+  return `# ${date}\n\n`;
+}
+
 /**
  * True when the work content has any line beyond headings, empty bullets/checkboxes,
- * or lines that are part of the default template.
+ * or placeholder lines.
  */
-export function hasWorkContent(workContent: string, templateContent = ''): boolean {
-  const templateLines = new Set(
-    templateContent
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line && !line.includes('{{'))
-  );
-
+export function hasWorkContent(workContent: string): boolean {
   return workContent.split('\n').some((rawLine) => {
     const line = rawLine.trim();
     if (!line) return false;
     if (parseHeading(line)) return false;
     if (EMPTY_ITEM_PATTERN.test(line)) return false;
-    return !templateLines.has(line);
+    return !PLACEHOLDER_LINES.has(line);
   });
 }
