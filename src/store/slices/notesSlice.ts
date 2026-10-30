@@ -14,6 +14,26 @@ export function invalidateNotesRefresh(): void {
   notesRefreshInFlight = null;
 }
 
+function areNotesListsEqual(a: DailyNoteMeta[], b: DailyNoteMeta[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    const left = a[i];
+    const right = b[i];
+    if (
+      left.date !== right.date ||
+      left.filename !== right.filename ||
+      left.filepath !== right.filepath ||
+      left.relativePath !== right.relativePath ||
+      left.lastModified !== right.lastModified ||
+      left.size !== right.size
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export const createNotesSlice: AppSlice<NotesSlice> = (set, get) => ({
   activeNote: null,
   isSaving: false,
@@ -197,7 +217,9 @@ export const createNotesSlice: AppSlice<NotesSlice> = (set, get) => ({
       }
       const request = notesRefreshInFlight;
       const notes = await request.promise;
-      if (request.generation === notesRefreshGeneration) set({ notesList: notes });
+      if (request.generation === notesRefreshGeneration && !areNotesListsEqual(get().notesList, notes)) {
+        set({ notesList: notes });
+      }
       if (notesRefreshInFlight === request) notesRefreshInFlight = null;
     } catch (err) {
       console.error('Failed to list notes:', err);

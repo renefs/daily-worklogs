@@ -12,6 +12,39 @@ export function invalidateTasksRefresh(): void {
   tasksRefreshInFlight = null;
 }
 
+function areTaskListsEqual(a: TaskMeta[], b: TaskMeta[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    const left = a[i];
+    const right = b[i];
+    if (
+      left.id !== right.id ||
+      left.taskId !== right.taskId ||
+      left.filename !== right.filename ||
+      left.filepath !== right.filepath ||
+      left.title !== right.title ||
+      left.status !== right.status ||
+      left.priority !== right.priority ||
+      left.area !== right.area ||
+      left.project !== right.project ||
+      left.created !== right.created ||
+      left.due !== right.due ||
+      left.startedDate !== right.startedDate ||
+      left.completedDate !== right.completedDate ||
+      left.parent !== right.parent ||
+      left.lastModified !== right.lastModified ||
+      left.checklistTotal !== right.checklistTotal ||
+      left.checklistCompleted !== right.checklistCompleted ||
+      (left.tags?.length ?? 0) !== (right.tags?.length ?? 0) ||
+      Boolean(left.tags?.some((tag, idx) => tag !== right.tags?.[idx]))
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export const createTasksSlice: AppSlice<TasksSlice> = (set, get) => ({
   tasks: [],
   activeTask: null,
@@ -35,7 +68,11 @@ export const createTasksSlice: AppSlice<TasksSlice> = (set, get) => ({
       const request = tasksRefreshInFlight;
       const tasks = await request.promise;
       if (request.generation === tasksRefreshGeneration) {
-        set({ tasks: tasks || [], isTasksLoading: false });
+        const nextTasks = tasks || [];
+        set((state) => ({
+          tasks: areTaskListsEqual(state.tasks, nextTasks) ? state.tasks : nextTasks,
+          isTasksLoading: false,
+        }));
       }
       if (tasksRefreshInFlight === request) tasksRefreshInFlight = null;
     } catch (err) {

@@ -96,12 +96,12 @@ export function PeriodHeaderNav({ date, period, weekStartDay, onDateChange, onPe
           </Button>
         </Group>
       </Group>
-      <Tabs id="report" value={activeTab} onChange={(value) => {
-        if (value === 'dashboard' || value === 'days' || value === 'tasks') onTabChange(value);
+      <Tabs id="report" value={period === 'year' && activeTab === 'days' ? 'dashboard' : activeTab} onChange={(value) => {
+        if (value === 'dashboard' || value === 'tasks' || (value === 'days' && period !== 'year')) onTabChange(value);
       }}>
         <Tabs.List>
           <Tabs.Tab value="dashboard">{t('dashboard.summary')}</Tabs.Tab>
-          <Tabs.Tab value="days">{t('reports.entriesTab')}</Tabs.Tab>
+          {period !== 'year' && <Tabs.Tab value="days">{t('reports.entriesTab')}</Tabs.Tab>}
           <Tabs.Tab value="tasks">{t('nav.tasks')}</Tabs.Tab>
         </Tabs.List>
       </Tabs>

@@ -45,6 +45,7 @@ export function ReportsView() {
     }
   };
   const openTask = (task: TaskMeta) => { void state.openTask(task, undefined, REPORT_VIEWS[state.period]); };
+  const activeTab = state.period === 'year' && state.tab === 'days' ? 'dashboard' : state.tab;
   const empty = !!summary && summary.activeDays === 0 && summary.totalTasks === 0 &&
     !(summary.periodTaskCount ?? 0) &&
     ![summary.completedTasksList, summary.inProgressTasksList, summary.waitingTasksList, summary.backlogTasksList].some((tasks) => tasks?.length);
@@ -52,10 +53,10 @@ export function ReportsView() {
     <Stack gap="xl" className={classes.view}>
       <PeriodHeaderNav date={state.date} period={state.period} weekStartDay={state.weekStartDay}
         onDateChange={state.setDate} onPeriodChange={(period) => { void state.openReports(period); }}
-        activeTab={state.tab} onTabChange={state.setTab}
+        activeTab={activeTab} onTabChange={state.setTab}
         onCopyReport={() => { void copyReport(); }} onExport={() => setExportOpened(true)}
         exportDisabled={!summary || state.loading || !!state.error} />
-      <div id={`report-panel-${state.tab}`} data-testid="report-content" role="tabpanel" aria-labelledby={`report-tab-${state.tab}`} className={classes.content} aria-busy={state.loading}>
+      <div id={`report-panel-${activeTab}`} data-testid="report-content" role="tabpanel" aria-labelledby={`report-tab-${activeTab}`} className={classes.content} aria-busy={state.loading}>
         {state.loading ? <Center py="xl"><Loader aria-label={t('common.loading')} /></Center>
           : state.error ? <Alert color="red" title={t('reports.loadFailed')} role="alert">
             <Text size="sm" mb="sm">{t('reports.loadFailedDescription')}</Text>
@@ -67,11 +68,11 @@ export function ReportsView() {
             <Text c="dimmed" ta="center">{t('reports.emptyPeriodDescription')}</Text>
             <Button variant="light" onClick={() => state.setDate(dayjs().format('YYYY-MM-DD'))}>{t(`reports.current.${state.period}`)}</Button>
           </Stack>
-          : state.tab === 'dashboard' && summary ? <ReportsOverview date={state.date} period={state.period}
+          : activeTab === 'dashboard' && summary ? <ReportsOverview date={state.date} period={state.period}
             summary={summary} weekStartDay={state.weekStartDay} onOpenTask={openTask}
             onViewTasks={() => state.setTab('tasks')} onOpenDay={(date) => { void state.openDay(date); }}
             onOpenPeriod={(period, date) => { void state.openReports(period, date); }} />
-          : state.tab === 'tasks' ? <PeriodTasksBreakdown periodSummary={summary} onOpenTask={openTask} />
+          : activeTab === 'tasks' ? <PeriodTasksBreakdown periodSummary={summary} onOpenTask={openTask} />
           : <PeriodDaysList key={`${state.period}-${state.date}`} periodSummary={summary} />}
       </div>
       <Text size="xs" c="dimmed" className={classes.footer} aria-live="polite">{label}</Text>

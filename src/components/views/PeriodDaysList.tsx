@@ -59,7 +59,7 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
   const daysList: WorklogDaySummary[] = useMemo(() => {
     return (periodSummary?.days || []).map((day) => ({
       ...day,
-      content: loadedContent[day.date] ?? day.content,
+      content: day.content ?? loadedContent[day.date],
     }));
   }, [periodSummary, loadedContent]);
 
@@ -75,7 +75,10 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
   const loadDayContent = async (date: string): Promise<string> => {
     if (loadedContent[date] !== undefined) return loadedContent[date];
     const existing = periodSummary?.days.find((d) => d.date === date)?.content;
-    if (existing !== undefined) return existing;
+    if (existing !== undefined) {
+      setLoadedContent((current) => ({ ...current, [date]: existing }));
+      return existing;
+    }
     const content = await readReportDay(date);
     setLoadedContent((current) => ({ ...current, [date]: content }));
     return content;
@@ -111,9 +114,11 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
     setCollapsedMap(newMap);
   };
 
+  const showSearchBar = reportPeriod !== 'week';
+
   // Filtered list of days
   const filteredDays = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
+    const query = showSearchBar ? searchQuery.trim().toLowerCase() : '';
     return daysList.filter((day) => {
       const hasContent = day.exists;
       if (onlyWithNotes && !hasContent) {
@@ -130,7 +135,7 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
 
       return dateMatches || contentMatches || dayFormatted.includes(query);
     });
-  }, [daysList, onlyWithNotes, searchQuery, i18n.language]);
+  }, [daysList, onlyWithNotes, searchQuery, showSearchBar, i18n.language]);
 
   const handleCopyDayMarkdown = async (day: WorklogDaySummary, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -181,30 +186,32 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
         }}
       >
         <Group justify="space-between" wrap="wrap" gap="sm">
-          <Group gap="sm" style={{ flex: 1, minWidth: 260 }}>
-            <TextInput
-              placeholder={t('reports.searchDays')}
-              leftSection={<IconSearch size={16} />}
-              rightSection={
-                searchQuery ? (
-                  <CloseButton
-                    size="xs"
-                    onClick={() => setSearchQuery('')}
-                    aria-label={t('reports.clearSearch')}
-                  />
-                ) : null
-              }
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.currentTarget.value);
-                if (e.currentTarget.value.trim()) {
-                  void Promise.all(daysList.filter((day) => day.exists).map((day) => loadDayContent(day.date)));
+          <Group gap="sm" style={{ flex: 1, minWidth: showSearchBar ? 260 : undefined }}>
+            {showSearchBar && (
+              <TextInput
+                placeholder={t('reports.searchDays')}
+                leftSection={<IconSearch size={16} />}
+                rightSection={
+                  searchQuery ? (
+                    <CloseButton
+                      size="xs"
+                      onClick={() => setSearchQuery('')}
+                      aria-label={t('reports.clearSearch')}
+                    />
+                  ) : null
                 }
-              }}
-              size="xs"
-              radius="md"
-              style={{ flex: 1 }}
-            />
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.currentTarget.value);
+                  if (e.currentTarget.value.trim()) {
+                    void Promise.all(daysList.filter((day) => day.exists).map((day) => loadDayContent(day.date)));
+                  }
+                }}
+                size="xs"
+                radius="md"
+                style={{ flex: 1 }}
+              />
+            )}
             <Switch
               label={t('reports.filterWithNotes')}
               checked={onlyWithNotes}

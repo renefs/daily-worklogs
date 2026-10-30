@@ -31,9 +31,10 @@ describe('Report header navigation', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Entries' }));
     expect(p.onTabChange).toHaveBeenCalledWith('days');
   });
-  it('selects a year directly', async () => {
+  it('selects a year directly and hides the Entries tab for yearly reports', async () => {
     const p = props('year');
     renderWithMantine(<PeriodHeaderNav {...p} />);
+    expect(screen.queryByRole('tab', { name: 'Entries' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /choose period/i }));
     fireEvent.click(await screen.findByRole('button', { name: '2024', exact: true }));
     expect(p.onDateChange).toHaveBeenCalledWith('2024-01-01');

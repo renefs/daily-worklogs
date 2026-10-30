@@ -87,7 +87,88 @@ describe('Reports store', () => {
     useAppStore.getState().setReportDate('2026-11-01');
     expect(useAppStore.getState().reportDaysExpanded).toBe(true);
 
+    useAppStore.getState().setReportTab('days');
     await useAppStore.getState().openReports('year');
     expect(useAppStore.getState().reportDaysExpanded).toBe(false);
+    expect(useAppStore.getState().reportTab).toBe('dashboard');
+  });
+
+  it('refreshes the active report range in place without blinking loading state or clearing summary', async () => {
+    const initialSummary: PeriodSummary = {
+      ...summary('2026-09-28', '2026-10-04'),
+      activeDays: 1,
+      days: [{ date: '2026-10-01', exists: true, tasksTotal: 1, tasksCompleted: 1, content: '# Initial note' }],
+    };
+    vi.mocked(window.electronAPI.getNotesRange).mockResolvedValueOnce(initialSummary);
+
+    await useAppStore.getState().openReports('week');
+    await waitFor(() => expect(useAppStore.getState().reportSummary).toEqual(initialSummary));
+
+    let resolveRange: ((value: PeriodSummary) => void) | undefined;
+    vi.mocked(window.electronAPI.getNotesRange).mockImplementationOnce(
+      () => new Promise((resolve) => { resolveRange = resolve; })
+    );
+    vi.mocked(window.electronAPI.readNote).mockResolvedValueOnce({
+      date: '2026-10-01',
+      filename: '2026-10-01.md',
+      filepath: '/mock/2026-10-01.md',
+      content: '# Updated note',
+      exists: true,
+    });
+
+    const refreshPromise = useAppStore.getState().refreshReport();
+
+    // While refreshing the same period range, existing summary stays visible and loading does not flash
+    expect(useAppStore.getState().isReportLoading).toBe(false);
+    expect(useAppStore.getState().reportSummary).toEqual(initialSummary);
+
+    resolveRange?.({
+      ...summary('2026-09-28', '2026-10-04'),
+      activeDays: 1,
+      days: [{ date: '2026-10-01', exists: true, tasksTotal: 2, tasksCompleted: 2 }],
+    });
+    await refreshPromise;
+
+    expect(useAppStore.getState().isReportLoading).toBe(false);
+    expect(useAppStore.getState().reportSummary?.days[0]?.content).toBe('# Updated note');
+  });
+
+  it('does not trigger report refresh when focus refresh returns unchanged notes and tasks', async () => {
+    const noteMeta = {
+      date: '2026-10-01',
+      filename: '2026-10-01.md',
+      filepath: '/mock/2026/2026-10-01.md',
+      relativePath: '2026/2026-10-01.md',
+      lastModified: '2026-10-01T10:00:00.000Z',
+      size: 42,
+    };
+    const taskMeta = {
+      id: 'task-1',
+      taskId: 1,
+      filename: 'task-1.md',
+      filepath: '/mock/tasks/task-1.md',
+      title: 'Task 1',
+      status: 'todo',
+      priority: 'medium' as const,
+      created: '2026-10-01',
+      tags: ['work'],
+      lastModified: '2026-10-01T10:00:00.000Z',
+      checklistTotal: 0,
+      checklistCompleted: 0,
+    };
+    useAppStore.setState({ notesList: [noteMeta], tasks: [taskMeta] });
+    vi.mocked(window.electronAPI.listNotes).mockResolvedValue([{ ...noteMeta }]);
+    vi.mocked(window.electronAPI.listTasks).mockResolvedValue([{ ...taskMeta, tags: ['work'] }]);
+
+    await useAppStore.getState().openReports('week');
+    await waitFor(() => expect(useAppStore.getState().isReportLoading).toBe(false));
+    const callsAfterOpen = vi.mocked(window.electronAPI.getNotesRange).mock.calls.length;
+
+    await Promise.all([
+      useAppStore.getState().refreshNotesList(),
+      useAppStore.getState().refreshTasksList(),
+    ]);
+
+    expect(window.electronAPI.getNotesRange).toHaveBeenCalledTimes(callsAfterOpen);
   });
 });

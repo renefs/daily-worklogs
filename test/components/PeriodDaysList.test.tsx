@@ -101,5 +101,15 @@ describe('PeriodDaysList Component', () => {
     fireEvent.click(screen.getByRole('button', { name: /collapse all/i }));
     expect(useAppStore.getState().reportDaysExpanded).toBe(false);
   });
+
+  it('hides the search bar on the weekly entries list and shows it on the monthly entries list', () => {
+    const { unmount } = renderWithMantine(<PeriodDaysList periodSummary={mockPeriodSummary} />);
+    expect(screen.queryByPlaceholderText(/search in daily logs/i)).not.toBeInTheDocument();
+    unmount();
+
+    useAppStore.setState({ reportPeriod: 'month' });
+    renderWithMantine(<PeriodDaysList periodSummary={{ ...mockPeriodSummary, period: 'month' }} />);
+    expect(screen.getByPlaceholderText(/search in daily logs/i)).toBeInTheDocument();
+  });
 });
 
