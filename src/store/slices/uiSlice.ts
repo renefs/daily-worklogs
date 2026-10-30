@@ -1,22 +1,66 @@
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
-import { AppSettings, AppViewMode, DEFAULT_KANBAN_COLUMNS } from '../../types';
+import { AppSettings, AppViewMode, DEFAULT_KANBAN_COLUMNS, TaskItem } from '../../types';
 import i18n, { getSystemLanguage } from '../../i18n';
 import { DEFAULT_AREAS } from '../../utils/areaProjectUtils';
+import { DEFAULT_THEME_COLOR } from '../../shared/defaultData';
 import { flushTaskEditor } from '../../services/editorSession';
 import { getReportPeriod, isReportView } from '../../utils/reportPeriod';
-import { AppSlice, UiSlice } from '../types';
+import { DEFAULT_SETTINGS_SECTION } from '../../utils/settingsSections';
+import { AppSlice, AppState, UiSlice } from '../types';
 
 dayjs.extend(isoWeek);
+
+type StoreGet = () => AppState;
+type StoreSet = (partial: Partial<AppState> | ((state: AppState) => Partial<AppState>)) => void;
+
+/**
+ * Switches the visible view after flushing the open task draft and the dirty note.
+ * Resolves to false, leaving all state untouched, when a flush fails so edits are never dropped.
+ * `extraState` is applied in the same update as the view change.
+ */
+async function navigateToView(
+  get: StoreGet,
+  set: StoreSet,
+  view: AppViewMode,
+  extraState: Partial<AppState> = {}
+): Promise<boolean> {
+  const currentView = get().currentView;
+  if (view === currentView) return true;
+
+  if (currentView === 'task') {
+    const saved = await flushTaskEditor();
+    if (!saved) return false;
+  }
+  if (get().isDirty && get().activeNote) {
+    const saved = await get().saveActiveNote({ force: true });
+    if (!saved) return false;
+  }
+
+  const nextReportPeriod = isReportView(view) ? getReportPeriod(view) : null;
+  set({
+    ...extraState,
+    currentView: view,
+    ...(nextReportPeriod ? {
+      reportPeriod: nextReportPeriod,
+      reportTab: nextReportPeriod === 'year' && get().reportTab === 'days' ? 'dashboard' : get().reportTab,
+      reportDaysExpanded: nextReportPeriod !== get().reportPeriod ? false : get().reportDaysExpanded,
+      reportDate: get().hasOpenedReports ? get().reportDate : get().selectedDate,
+      hasOpenedReports: true,
+    } : {}),
+  });
+  return true;
+}
 
 export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
   currentView: 'daily',
   selectedDate: dayjs().format('YYYY-MM-DD'),
   isLoading: true,
-  isSettingsOpen: false,
-  settingsActiveTab: 'general',
+  settingsActiveTab: DEFAULT_SETTINGS_SECTION,
+  settingsReturnView: 'daily',
   isOnboardingOpen: false,
   isSidebarCollapsed: false,
+  appInfo: null,
 
   initApp: async () => {
     try {
@@ -38,6 +82,10 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
           get().refreshTagsList(),
           get().loadRoutineCompletions(get().selectedDate),
           get().loadNoteForDate(get().selectedDate),
+          window.electronAPI.getAppInfo?.().then(
+            (appInfo) => set({ appInfo }),
+            (err: unknown) => console.error('Failed to get app info:', err)
+          ),
         ]);
         set({ isLoading: false });
       } else {
@@ -46,7 +94,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
           settings: {
             vaultPath: '/mock/vault',
             language: getSystemLanguage(),
-            themeColor: 'indigo',
+            themeColor: DEFAULT_THEME_COLOR,
             colorScheme: 'auto',
             weekStartDay: 1,
             kanbanColumns: DEFAULT_KANBAN_COLUMNS,
@@ -104,40 +152,56 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
   },
 
   setCurrentView: async (view: AppViewMode) => {
-    const currentView = get().currentView;
-    if (view === currentView) return;
+    await navigateToView(get, set, view);
+  },
 
-    if (currentView === 'task') {
-      const saved = await flushTaskEditor();
-      if (!saved) return;
-    }
-    if (get().isDirty && get().activeNote) {
-      const saved = await get().saveActiveNote({ force: true });
-      if (!saved) return;
+  openSettings: async (tab) => {
+    const state = get();
+    if (state.currentView === 'settings') {
+      // Already there: just switch section and make sure nothing floats above the page.
+      set({
+        settingsActiveTab: tab ?? state.settingsActiveTab,
+        isRoutinesDrawerOpen: false,
+      });
+      return;
     }
 
-    const nextReportPeriod = isReportView(view) ? getReportPeriod(view) : null;
-    set({
-      currentView: view,
-      ...(nextReportPeriod ? {
-        reportPeriod: nextReportPeriod,
-        reportTab: nextReportPeriod === 'year' && get().reportTab === 'days' ? 'dashboard' : get().reportTab,
-        reportDaysExpanded: nextReportPeriod !== get().reportPeriod ? false : get().reportDaysExpanded,
-        reportDate: get().hasOpenedReports ? get().reportDate : get().selectedDate,
-        hasOpenedReports: true,
-      } : {}),
+    // Section, return view and drawer change in the same update as the view, so a refused
+    // navigation (failed flush) leaves every one of them untouched.
+    await navigateToView(get, set, 'settings', {
+      settingsReturnView: state.currentView,
+      settingsActiveTab: tab ?? state.settingsActiveTab,
+      isRoutinesDrawerOpen: false,
     });
   },
 
-  setIsSettingsOpen: (open: boolean) => {
-    set({ isSettingsOpen: open });
+  closeSettings: async () => {
+    if (get().currentView !== 'settings') return;
+    let target = get().settingsReturnView;
+
+    if (target === 'task') {
+      // Settings may have changed this task on disk (moved column, renamed tag), so reopen the fresh copy.
+      const active = get().activeTask;
+      let fresh: TaskItem | null = null;
+      if (active?.filename && window.electronAPI) {
+        try {
+          fresh = await window.electronAPI.readTask(active.filename);
+        } catch {
+          fresh = null;
+        }
+      }
+      if (fresh) {
+        set({ activeTask: fresh, isTaskDirty: false });
+      } else if (active?.filename) {
+        // The task is gone, so fall back to where the task editor would have returned.
+        target = get().previousView === 'task' ? 'tasks' : get().previousView;
+        set({ activeTask: null, isTaskDirty: false });
+      }
+    }
+    await navigateToView(get, set, target);
   },
 
-  openSettings: (tab = 'general') => {
-    set({ isSettingsOpen: true, settingsActiveTab: tab });
-  },
-
-  setSettingsActiveTab: (tab: string) => {
+  setSettingsActiveTab: (tab) => {
     set({ settingsActiveTab: tab });
   },
 

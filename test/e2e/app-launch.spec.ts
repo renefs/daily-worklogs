@@ -43,7 +43,10 @@ test.describe('Application Launch & View Navigation', () => {
     await page.getByRole('button', { name: 'Expand sidebar', exact: true }).click();
     await expect(page.locator('p').filter({ hasText: /^Notes$/ })).toBeVisible();
     await page.getByRole('button', { name: 'Open settings', exact: true }).click();
-    await expect(page.getByRole('dialog')).toBeVisible();
+    // Settings is a page now, not a dialog
+    await expect(page.getByTestId('settings-view')).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Open settings', exact: true })).toHaveAttribute('aria-current', 'page');
   });
 
   test('opens period pickers and navigates across years', async ({ page }) => {

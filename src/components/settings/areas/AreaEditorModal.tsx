@@ -8,9 +8,6 @@ import {
   Text,
   Button,
   ThemeIcon,
-  Tooltip,
-  ColorSwatch,
-  CheckIcon,
   TagsInput,
 } from '@mantine/core';
 import {
@@ -26,6 +23,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { AreaDefinition } from '../../../types';
 import { AREA_COLOR_PALETTE } from '../../../utils/areaProjectUtils';
+import { ColorSwatchPicker } from '../appearance/ColorSwatchPicker';
 
 export const AVAILABLE_ICONS = [
   { value: 'folder', label: 'Folder', icon: <IconFolder size={16} /> },
@@ -159,21 +157,12 @@ export const AreaEditorModal: React.FC<AreaEditorModalProps> = ({
           <Text size="sm" fw={500} mb={6}>
             {t('areas.areaColor', 'Area Color')}
           </Text>
-          <Group gap="xs">
-            {AREA_COLOR_PALETTE.map((c) => (
-              <Tooltip key={c} label={c} withArrow>
-                <ColorSwatch
-                  color={`var(--mantine-color-${c}-6)`}
-                  size={28}
-                  radius="md"
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => setAreaColor(c)}
-                >
-                  {areaColor === c && <CheckIcon size={12} color="#fff" />}
-                </ColorSwatch>
-              </Tooltip>
-            ))}
-          </Group>
+          <ColorSwatchPicker
+            colors={AREA_COLOR_PALETTE}
+            value={areaColor}
+            onChange={setAreaColor}
+            label={t('areas.areaColor', 'Area Color')}
+          />
         </div>
 
         <TagsInput

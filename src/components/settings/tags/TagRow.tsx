@@ -79,7 +79,12 @@ export const TagRow: React.FC<TagRowProps> = ({
           </Badge>
 
           <Tooltip label={t('common.edit') || 'Edit Tag'} withArrow>
-            <ActionIcon size="sm" variant="subtle" onClick={() => onEdit(tag)}>
+            <ActionIcon
+              size="sm"
+              variant="subtle"
+              aria-label={t('tags.editTagAria', { name: tag.name })}
+              onClick={() => onEdit(tag)}
+            >
               <IconEdit size={14} />
             </ActionIcon>
           </Tooltip>
@@ -89,6 +94,7 @@ export const TagRow: React.FC<TagRowProps> = ({
               size="sm"
               variant="subtle"
               color="red"
+              aria-label={t('tags.deleteTagAria', { name: tag.name })}
               onClick={() => onDelete(tag)}
             >
               <IconTrash size={14} />

@@ -34,8 +34,9 @@ import {
   buildTaskFromFile,
   type TaskFileRead,
 } from './services/taskFileService';
+import { DEFAULT_AREAS } from '../src/shared/defaultData';
+import { nativeText } from './services/nativeText';
 import {
-  DEFAULT_AREAS,
   getColumnBehavior,
   getSettings,
   getVaultConfigPath,
@@ -161,12 +162,13 @@ function showAbout(): void {
   if (process.platform === 'darwin') {
     app.showAboutPanel();
   } else {
+    const language = getSettings().language;
     dialog.showMessageBox(mainWindow || (undefined as any), {
       type: 'info',
-      title: 'About Daily Worklog',
+      title: nativeText(language, 'menuAbout'),
       message: 'Daily Worklog',
-      detail: `Version: ${app.getVersion() || '1.15.3'}\nElectron: ${process.versions.electron}\nChromium: ${process.versions.chrome}\nNode.js: ${process.versions.node}\nOS: ${process.platform} (${process.arch})\n\nCross-platform Daily Worklog Desktop Application`,
-      buttons: ['OK'],
+      detail: `${nativeText(language, 'aboutVersion')}: ${app.getVersion()}\nElectron: ${process.versions.electron}\nChromium: ${process.versions.chrome}\nNode.js: ${process.versions.node}\n${nativeText(language, 'aboutOperatingSystem')}: ${process.platform} (${process.arch})\n\n${nativeText(language, 'aboutDescription')}`,
+      buttons: [nativeText(language, 'aboutOk')],
     });
   }
 }
@@ -383,8 +385,8 @@ app.whenReady().then(() => {
 
   app.setAboutPanelOptions({
     applicationName: 'Daily Worklog',
-    applicationVersion: app.getVersion() || '1.15.3',
-    version: app.getVersion() || '1.15.3',
+    applicationVersion: app.getVersion(),
+    version: app.getVersion(),
     copyright: 'Copyright © 2026 Daily Worklog',
     authors: ['Daily Worklog Team'],
     website: 'https://github.com/renefs/daily-worklogs',
@@ -392,16 +394,19 @@ app.whenReady().then(() => {
     credits: 'Cross-platform desktop application to store, edit, and visualize daily worklogs using Markdown.',
   });
 
-  setupApplicationMenu({
-    getMainWindow: () => mainWindow,
-    showAbout,
-    getSettings,
-  });
+  const buildApplicationMenu = () =>
+    setupApplicationMenu({
+      getMainWindow: () => mainWindow,
+      showAbout,
+      getSettings,
+    });
+  buildApplicationMenu();
 
   // Register domain IPC handlers
   registerSettingsHandlers({
     getMainWindow: () => mainWindow,
     setupVaultWatcher,
+    refreshApplicationMenu: buildApplicationMenu,
   });
 
   registerSystemHandlers({
@@ -483,6 +488,7 @@ app.whenReady().then(() => {
 
   registerImageHandlers({
     getVaultPath: () => getSettings().vaultPath,
+    getLanguage: () => getSettings().language,
     getMainWindow: () => mainWindow,
     ensureImagesDir,
   });

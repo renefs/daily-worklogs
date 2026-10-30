@@ -1,0 +1,8 @@
+.searchInput {
+  width: 100%;
+  max-width: rem(360px);
+}
+
+.emptyState {
+  text-align: center;
+}

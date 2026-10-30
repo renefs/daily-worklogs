@@ -27,6 +27,7 @@ import {
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { useAppStoreSelector } from '../../store/useAppStore';
+import { DEFAULT_THEME_COLOR } from '../../shared/defaultData';
 import { WeekStartDay } from '../../types';
 import { StepWelcome } from './onboarding/StepWelcome';
 import { StepVault } from './onboarding/StepVault';
@@ -44,13 +45,13 @@ export const OnboardingWizardModal: React.FC = () => {
     isOnboardingOpen,
     completeOnboarding,
     openSettings,
-    loadSettings,
+    changeVault,
   } = useAppStoreSelector((state) => ({
     settings: state.settings,
     isOnboardingOpen: state.isOnboardingOpen,
     completeOnboarding: state.completeOnboarding,
     openSettings: state.openSettings,
-    loadSettings: state.loadSettings,
+    changeVault: state.changeVault,
   }));
 
   const [activeStep, setActiveStep] = useState(0);
@@ -62,7 +63,7 @@ export const OnboardingWizardModal: React.FC = () => {
   );
   const [weekStartDay, setWeekStartDay] = useState<WeekStartDay>(settings?.weekStartDay ?? 1);
   const [autoSave, setAutoSave] = useState(settings?.autoSave ?? true);
-  const [themeColor, setThemeColor] = useState(settings?.themeColor || 'indigo');
+  const [themeColor, setThemeColor] = useState(settings?.themeColor || DEFAULT_THEME_COLOR);
   const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'auto'>(
     settings?.colorScheme || 'auto'
   );
@@ -74,19 +75,14 @@ export const OnboardingWizardModal: React.FC = () => {
       setLanguage(settings.language || (i18n.language === 'es' ? 'es' : 'en'));
       setWeekStartDay(settings.weekStartDay ?? 1);
       setAutoSave(settings.autoSave ?? true);
-      setThemeColor(settings.themeColor || 'indigo');
+      setThemeColor(settings.themeColor || DEFAULT_THEME_COLOR);
       setThemeMode(settings.colorScheme || 'auto');
     }
   }, [settings, isOnboardingOpen, i18n.language]);
 
   const handleSelectDirectory = async () => {
-    if (window.electronAPI?.selectVaultDirectory) {
-      const selected = await window.electronAPI.selectVaultDirectory();
-      if (selected) {
-        setVaultPath(selected);
-        await loadSettings();
-      }
-    }
+    const selected = await changeVault();
+    if (selected) setVaultPath(selected);
   };
 
   const handleOpenDirectory = async () => {

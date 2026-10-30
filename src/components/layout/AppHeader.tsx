@@ -16,7 +16,7 @@ export function AppHeader() {
     currentView,
     isRoutinesDrawerOpen,
     toggleRoutinesDrawer,
-    setIsSettingsOpen,
+    openSettings,
   } = useAppStoreSelector((s) => ({
     settings: s.settings,
     routineCompletionsByDate: s.routineCompletionsByDate,
@@ -24,7 +24,7 @@ export function AppHeader() {
     currentView: s.currentView,
     isRoutinesDrawerOpen: s.isRoutinesDrawerOpen,
     toggleRoutinesDrawer: s.toggleRoutinesDrawer,
-    setIsSettingsOpen: s.setIsSettingsOpen,
+    openSettings: s.openSettings,
   }));
 
   const isMac = typeof window !== 'undefined' && (window.electronAPI?.platform === 'darwin' || /Macintosh|Mac OS X/i.test(navigator.userAgent));
@@ -101,7 +101,7 @@ export function AppHeader() {
               size="md"
               color="gray"
               aria-label={t('nav.openSettings')}
-              onClick={() => setIsSettingsOpen(true)}
+              onClick={() => void openSettings()}
             >
               <IconSettings size={17} />
             </ActionIcon>

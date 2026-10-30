@@ -22,6 +22,7 @@ export const TaskView: React.FC = () => {
 
   const {
     activeTask,
+    setActiveTask,
     closeTaskEditor,
     createOrUpdateTask,
     deleteTask,
@@ -37,6 +38,7 @@ export const TaskView: React.FC = () => {
     taskModalInitialStatus,
   } = useAppStoreSelector((state) => ({
     activeTask: state.activeTask,
+    setActiveTask: state.setActiveTask,
     closeTaskEditor: state.closeTaskEditor,
     createOrUpdateTask: state.createOrUpdateTask,
     deleteTask: state.deleteTask,
@@ -174,14 +176,20 @@ export const TaskView: React.FC = () => {
     };
   }, [handleSave]);
 
-  // Flush before shutdown
+  // Flush before this view is left (navigation, Settings, shutdown)
   useEffect(() => {
     return registerTaskEditorFlush(async () => {
-      if (!form.isDirty) return true;
-      const saved = await handleSaveRef.current();
-      return Boolean(saved);
+      if (form.isDirty) {
+        const saved = await handleSaveRef.current();
+        if (!saved) return false;
+      }
+      // Autosave only updates the file. Mirror it into the store so reopening this task later
+      // (for example when coming back from Settings) shows what was saved instead of a stale copy.
+      const persisted = persistedTaskRef.current;
+      if (persisted && persisted !== lastActiveTaskRef.current) setActiveTask(persisted);
+      return true;
     });
-  }, [form.isDirty]);
+  }, [form.isDirty, setActiveTask]);
 
   const handleLogToDaily = async () => {
     if (!form.title.trim()) return;

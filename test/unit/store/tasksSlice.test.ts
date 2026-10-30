@@ -51,3 +51,40 @@ describe('updateTaskStatus optimistic update', () => {
     expect(task.completedDate).toBeUndefined();
   });
 });
+
+describe('moveTasksToStatus', () => {
+  const task = (id: string, status: string): TaskMeta => ({ ...baseTask, id, filename: `${id}.md`, status });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAppStore.setState({ settings: null });
+  });
+
+  it('updates every task through the task status path and reports success', async () => {
+    let disk = [task('a', 'review'), task('b', 'review')];
+    window.electronAPI.listTasks = vi.fn(async () => disk);
+    window.electronAPI.updateTaskStatus = vi.fn(async (filename: string, status: string) => {
+      disk = disk.map((item) => (item.filename === filename ? { ...item, status } : item));
+      return { success: true } as never;
+    });
+    useAppStore.setState({ tasks: disk });
+
+    const ok = await useAppStore.getState().moveTasksToStatus([
+      { filename: 'a.md', status: 'todo' },
+      { filename: 'b.md', status: 'todo' },
+    ]);
+
+    expect(ok).toBe(true);
+    expect(window.electronAPI.updateTaskStatus).toHaveBeenCalledTimes(2);
+    expect(useAppStore.getState().tasks.map((item) => item.status)).toEqual(['todo', 'todo']);
+  });
+
+  it('reports failure when a task keeps its old status', async () => {
+    const disk = [task('a', 'review')];
+    window.electronAPI.listTasks = vi.fn(async () => disk);
+    window.electronAPI.updateTaskStatus = vi.fn(async () => ({ success: false } as never));
+    useAppStore.setState({ tasks: disk });
+
+    expect(await useAppStore.getState().moveTasksToStatus([{ filename: 'a.md', status: 'todo' }])).toBe(false);
+  });
+});

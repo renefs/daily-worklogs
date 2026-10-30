@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   Button,
-  CheckIcon,
-  ColorSwatch,
   Group,
   Modal,
   Stack,
@@ -13,6 +11,7 @@ import { IconTag } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { TagDefinition } from '../../../types';
 import { getTagColor, TAG_COLOR_PALETTE } from '../../../utils/tagUtils';
+import { ColorSwatchPicker } from '../appearance/ColorSwatchPicker';
 
 interface TagEditorModalProps {
   opened: boolean;
@@ -108,19 +107,14 @@ export const TagEditorModal: React.FC<TagEditorModalProps> = ({
           <Text size="sm" fw={500} mb={6}>
             {t('tags.tagColor') || 'Tag Color'}
           </Text>
-          <Group gap="xs">
-            {TAG_COLOR_PALETTE.map((c) => (
-              <ColorSwatch
-                key={c}
-                color={`var(--mantine-color-${c}-filled)`}
-                size={26}
-                style={{ cursor: 'pointer', transition: 'transform 0.1s ease' }}
-                onClick={() => setFormColor(c)}
-              >
-                {formColor === c && <CheckIcon style={{ width: 12, height: 12, color: 'white' }} />}
-              </ColorSwatch>
-            ))}
-          </Group>
+          <ColorSwatchPicker
+            colors={TAG_COLOR_PALETTE}
+            value={formColor}
+            onChange={setFormColor}
+            label={t('tags.tagColor')}
+            size={26}
+            swatchColor={(color) => `var(--mantine-color-${color}-filled)`}
+          />
         </div>
 
         <TextInput

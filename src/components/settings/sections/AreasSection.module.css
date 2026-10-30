@@ -1,0 +1,17 @@
+.searchInput {
+  width: 100%;
+  max-width: rem(360px);
+}
+
+.emptyState {
+  text-align: center;
+}
+
+.emptyIcon {
+  opacity: 0.5;
+  margin: 0 auto rem(8px);
+}
+
+.orphansPanel {
+  border-color: var(--mantine-color-orange-5);
+}

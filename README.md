@@ -19,7 +19,8 @@ Current version: **1.15.3** — see the [changelog](CHANGELOG.md) for release de
 - 📈 **Yearly Analytics & Tracking**: Comprehensive annual tracking view summarizing total worklogs, completed tasks, monthly activity distributions, and deliverable progress across Areas and Projects.
 - 📋 **Task Management with Areas & Projects**: Kanban board and dedicated Task View featuring permanent Areas of responsibility, finite Projects with live progress bars, automatic sequential GitHub-style IDs (`#1`, `#2`), and tag inheritance. Done and Cancelled columns show the newest closed tasks first within a configurable recent window (default 30 days), with an inline "Show older" toggle and search that always reaches older tasks.
 - 🏷️ **Interactive Tagging & Autocomplete**: Live `#` tag autocomplete popup inside the markdown editor and task descriptions, with full tag management in Settings.
-- 🔄 **Cross-Device Vault Synchronization**: Workspace configuration automatically synchronizes across devices when using iCloud, Dropbox, OneDrive, Google Drive, or Syncthing.
+- ⚙️ **Full-Page Settings**: A dedicated Settings page with a section navigation (General, Editor, Appearance, Areas & Projects, Task Board, Tags, Routines, About). Back or Esc returns to where you were, and deleting a board column asks where its tasks should go.
+- 🔄 **Cross-Device Vault Synchronization**: Workspace configuration automatically synchronizes across devices when using iCloud, Dropbox, OneDrive, Google Drive, or Syncthing. Settings sections that follow the vault say so.
 - ⚡ **Memory-Efficient Data Loading**: Task details, period note content, and heavy modal code load on demand, with segmented routine history and built-in memory diagnostics.
 - 🎨 **Mantine UI v7 Theming**: Light, Dark, and Automatic OS-synced mode support with 9 curated accent color themes.
 - 🌐 **Multi-Language (i18n)**: Full English (default) and Spanish support with instant language switching. Modular architecture ready for more languages.
@@ -80,14 +81,15 @@ daily-worklog/
 │   │   ├── editor/          # CodeMirror 6 Markdown Editor & Toolbar
 │   │   ├── viewer/          # Rendered Markdown Visualizer with interactive tasks
 │   │   ├── layout/          # AppShell, AppHeader, AppSidebar
-│   │   ├── modals/          # Settings, onboarding, task, routine, and export dialogs
-│   │   ├── settings/        # Areas, projects, and tag management
+│   │   ├── modals/          # Onboarding, task, and export dialogs
+│   │   ├── settings/        # Settings sections and their managers (areas, board, tags, routines)
 │   │   ├── tasks/           # Shared task detail and property components
-│   │   ├── views/           # Daily, period, yearly, Kanban, and task views
+│   │   ├── views/           # Daily, period, yearly, Kanban, task, and Settings views
 │   │   │   ├── monthly/     # Monthly dashboard sections
 │   │   │   ├── weekly/      # Weekly dashboard sections
 │   │   │   └── yearly/      # Yearly dashboard sections
 │   ├── i18n/                # Translation catalogs (en.json, es.json)
+│   ├── shared/              # Defaults shared by the main process and the renderer
 │   ├── store/               # Zustand store composed from domain slices
 │   ├── styles/              # Mantine CSS imports & typography
 │   ├── types/               # TypeScript interfaces & API definitions

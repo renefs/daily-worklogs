@@ -33,13 +33,13 @@ export const AppSpotlight: React.FC = () => {
     setCurrentView,
     openReports,
     openTaskModal,
-    setIsSettingsOpen,
+    openSettings,
   } = useAppStoreSelector((state) => ({
     setSelectedDate: state.setSelectedDate,
     setCurrentView: state.setCurrentView,
     openReports: state.openReports,
     openTaskModal: state.openTaskModal,
-    setIsSettingsOpen: state.setIsSettingsOpen,
+    openSettings: state.openSettings,
   }));
 
   const [query, setQuery] = useState('');
@@ -148,7 +148,7 @@ export const AppSpotlight: React.FC = () => {
             </Spotlight.Action>
 
             <Spotlight.Action
-              onClick={() => handleCommand(() => setIsSettingsOpen(true))}
+              onClick={() => handleCommand(() => openSettings())}
               leftSection={<IconSettings size={18} />}
             >
               <Text size="sm">{t('settings.title', 'Preferences & Settings')}</Text>

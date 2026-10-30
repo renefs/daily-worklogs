@@ -25,6 +25,11 @@
   color: var(--app-sidebar-text);
 }
 
+.railButton[data-active] {
+  background: var(--app-sidebar-active);
+  color: var(--app-sidebar-text);
+}
+
 .railButton:disabled,
 .railButton[data-disabled] {
   opacity: 0.35;

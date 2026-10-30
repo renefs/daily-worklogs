@@ -14,6 +14,7 @@ import { AppSidebar } from './AppSidebar';
 import { NavigationRail } from './NavigationRail';
 import { isReportView } from '../../utils/reportPeriod';
 import { flushTaskEditor } from '../../services/editorSession';
+import { normalizeSettingsSection } from '../../utils/settingsSections';
 import { DailyRoutinesPanel } from '../routines/DailyRoutinesPanel';
 import classes from './AppLayout.module.css';
 import clsx from 'clsx';
@@ -22,15 +23,10 @@ const DailyView = React.lazy(() => import('../views/DailyView').then((module) =>
 const ReportsView = React.lazy(() => import('../views/ReportsView').then((module) => ({ default: module.ReportsView })));
 const KanbanView = React.lazy(() => import('../views/KanbanView').then((module) => ({ default: module.KanbanView })));
 const TaskView = React.lazy(() => import('../views/TaskView').then((module) => ({ default: module.TaskView })));
+const SettingsView = React.lazy(() => import('../views/SettingsView').then((module) => ({ default: module.SettingsView })));
 
-const SettingsModal = React.lazy(() =>
-  import('../modals/SettingsModal').then((module) => ({ default: module.SettingsModal }))
-);
 const TaskModal = React.lazy(() =>
   import('../modals/TaskModal').then((module) => ({ default: module.TaskModal }))
-);
-const ManageRoutinesModal = React.lazy(() =>
-  import('../modals/ManageRoutinesModal').then((module) => ({ default: module.ManageRoutinesModal }))
 );
 const OnboardingWizardModal = React.lazy(() =>
   import('../modals/OnboardingWizardModal').then((module) => ({ default: module.OnboardingWizardModal }))
@@ -44,9 +40,7 @@ export const AppLayout: React.FC = () => {
     isLoading,
     openSettings,
     isSidebarCollapsed,
-    isSettingsOpen,
     isTaskModalOpen,
-    isManageRoutinesModalOpen,
     isOnboardingOpen,
     isRoutinesDrawerOpen,
     toggleRoutinesDrawer,
@@ -59,9 +53,7 @@ export const AppLayout: React.FC = () => {
     isLoading: state.isLoading,
     openSettings: state.openSettings,
     isSidebarCollapsed: state.isSidebarCollapsed,
-    isSettingsOpen: state.isSettingsOpen,
     isTaskModalOpen: state.isTaskModalOpen,
-    isManageRoutinesModalOpen: state.isManageRoutinesModalOpen,
     isOnboardingOpen: state.isOnboardingOpen,
     isRoutinesDrawerOpen: state.isRoutinesDrawerOpen,
     toggleRoutinesDrawer: state.toggleRoutinesDrawer,
@@ -96,7 +88,7 @@ export const AppLayout: React.FC = () => {
   useEffect(() => {
     if (window.electronAPI?.onOpenSettings) {
       const unsub = window.electronAPI.onOpenSettings((tab) => {
-        openSettings(tab || 'general');
+        openSettings(tab ? normalizeSettingsSection(tab) : undefined);
       });
       return unsub;
     }
@@ -184,13 +176,12 @@ export const AppLayout: React.FC = () => {
           {isReportView(currentView) && <ReportsView />}
           {currentView === 'tasks' && <KanbanView />}
           {currentView === 'task' && <TaskView />}
+          {currentView === 'settings' && <SettingsView />}
         </React.Suspense>
       </AppShell.Main>
 
       <React.Suspense fallback={null}>
-        {isSettingsOpen && <SettingsModal />}
         {isTaskModalOpen && <TaskModal />}
-        {isManageRoutinesModalOpen && <ManageRoutinesModal />}
         {isOnboardingOpen && <OnboardingWizardModal />}
       </React.Suspense>
       {settings?.enableDailyRoutines !== false && (

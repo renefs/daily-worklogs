@@ -9,8 +9,9 @@ describe('useAppStore', () => {
     useAppStore.setState({
       currentView: 'daily',
       selectedDate: '2026-09-07',
-      isSettingsOpen: false,
       settingsActiveTab: 'general',
+      settingsReturnView: 'daily',
+      isRoutinesDrawerOpen: false,
       isTaskModalOpen: false,
       isSidebarCollapsed: false,
       tasks: [],
@@ -91,14 +92,24 @@ describe('useAppStore', () => {
     expect(useAppStore.getState().selectedDate).toBe('2026-10-01');
   });
 
-  it('opens and closes settings modal with active tab', () => {
-    const store = useAppStore.getState();
-    store.openSettings('areas');
-    expect(useAppStore.getState().isSettingsOpen).toBe(true);
-    expect(useAppStore.getState().settingsActiveTab).toBe('areas');
+  it('opens the settings view on the requested section and returns to the previous view', async () => {
+    await useAppStore.getState().setCurrentView('tasks');
 
-    useAppStore.getState().setIsSettingsOpen(false);
-    expect(useAppStore.getState().isSettingsOpen).toBe(false);
+    await useAppStore.getState().openSettings('areas');
+    expect(useAppStore.getState().currentView).toBe('settings');
+    expect(useAppStore.getState().settingsActiveTab).toBe('areas');
+    expect(useAppStore.getState().settingsReturnView).toBe('tasks');
+
+    await useAppStore.getState().closeSettings();
+    expect(useAppStore.getState().currentView).toBe('tasks');
+  });
+
+  it('remembers the last settings section when none is requested', async () => {
+    await useAppStore.getState().openSettings('tags');
+    await useAppStore.getState().closeSettings();
+
+    await useAppStore.getState().openSettings();
+    expect(useAppStore.getState().settingsActiveTab).toBe('tags');
   });
 
   it('toggles task modal open and closed with specified initial status', async () => {

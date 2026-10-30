@@ -50,10 +50,9 @@ export const DailyRoutinesPanel: React.FC<DailyRoutinesPanelProps> = ({
     completeAllDailyRoutines,
     resetDailyRoutines,
     saveRoutinesList,
-    toggleDailyRoutinesPanel,
     toggleRoutinesDrawer,
     openExternalUrl,
-    openManageRoutinesModal,
+    openSettings,
   } = useAppStoreSelector((state) => ({
     settings: state.settings,
     routineCompletionsByDate: state.routineCompletionsByDate,
@@ -62,10 +61,9 @@ export const DailyRoutinesPanel: React.FC<DailyRoutinesPanelProps> = ({
     completeAllDailyRoutines: state.completeAllDailyRoutines,
     resetDailyRoutines: state.resetDailyRoutines,
     saveRoutinesList: state.saveRoutinesList,
-    toggleDailyRoutinesPanel: state.toggleDailyRoutinesPanel,
     toggleRoutinesDrawer: state.toggleRoutinesDrawer,
     openExternalUrl: state.openExternalUrl,
-    openManageRoutinesModal: state.openManageRoutinesModal,
+    openSettings: state.openSettings,
   }));
 
   const [quickTitle, setQuickTitle] = useState('');
@@ -125,10 +123,8 @@ export const DailyRoutinesPanel: React.FC<DailyRoutinesPanelProps> = ({
   const handleClose = () => {
     if (onClose) {
       onClose();
-    } else if (isDrawer) {
-      toggleRoutinesDrawer(false);
     } else {
-      void toggleDailyRoutinesPanel();
+      toggleRoutinesDrawer(false);
     }
   };
 
@@ -200,7 +196,8 @@ export const DailyRoutinesPanel: React.FC<DailyRoutinesPanelProps> = ({
                 variant="subtle"
                 size="sm"
                 color="gray"
-                onClick={openManageRoutinesModal}
+                aria-label={t('routines.manage')}
+                onClick={() => void openSettings('routines')}
               >
                 <IconSettings size={15} />
               </ActionIcon>
@@ -255,7 +252,7 @@ export const DailyRoutinesPanel: React.FC<DailyRoutinesPanelProps> = ({
               size="xs"
               variant="subtle"
               leftSection={<IconPlus size={14} />}
-              onClick={openManageRoutinesModal}
+              onClick={() => void openSettings('routines')}
             >
               {t('routines.manage')}
             </Button>

@@ -1015,10 +1015,15 @@ const menuSourcePath = fs.existsSync(path.resolve('electron/services/menuService
   ? path.resolve('electron/services/menuService.ts')
   : path.resolve('electron/main.ts');
 const menuContent = fs.readFileSync(menuSourcePath, 'utf-8');
+// The label is translated through the native text catalog, so check both the menu item and its English label.
+const nativeTextContent = fs.readFileSync(path.resolve('electron/services/nativeText.ts'), 'utf-8');
 assert.strictEqual(
-  menuContent.includes("label: 'Save'") && menuContent.includes("accelerator: 'CmdOrCtrl+S'"),
+  menuContent.includes("label: text('menuSave')") &&
+    menuContent.includes("accelerator: 'CmdOrCtrl+S'") &&
+    nativeTextContent.includes("menuSave: 'Save'") &&
+    nativeTextContent.includes("menuSave: 'Guardar'"),
   true,
-  'Application File menu must include Save option with CmdOrCtrl+S accelerator'
+  'Application File menu must include a translated Save option with CmdOrCtrl+S accelerator'
 );
 
 const enJson = JSON.parse(fs.readFileSync(path.resolve('src/i18n/locales/en.json'), 'utf-8'));

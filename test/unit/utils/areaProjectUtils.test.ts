@@ -31,12 +31,22 @@ describe('areaProjectUtils', () => {
   ];
 
   describe('getAreaColor & getAreaIcon', () => {
-    it('returns configured color and icon for known default areas', () => {
-      expect(getAreaColor('Webcast', DEFAULT_AREAS)).toBe('indigo');
-      expect(getAreaIcon('Webcast', DEFAULT_AREAS)).toBe('broadcast');
+    it('returns configured color and icon for configured areas', () => {
+      const configuredAreas: AreaDefinition[] = [
+        { id: 'webcast', name: 'Webcast', color: 'indigo', icon: 'broadcast' },
+        { id: 'vc', name: 'VC', color: 'teal', icon: 'video' },
+      ];
+      expect(getAreaColor('Webcast', configuredAreas)).toBe('indigo');
+      expect(getAreaIcon('Webcast', configuredAreas)).toBe('broadcast');
 
-      expect(getAreaColor('VC', DEFAULT_AREAS)).toBe('teal');
-      expect(getAreaIcon('VC', DEFAULT_AREAS)).toBe('video');
+      expect(getAreaColor('VC', configuredAreas)).toBe('teal');
+      expect(getAreaIcon('VC', configuredAreas)).toBe('video');
+    });
+
+    it('seeds neutral defaults for new installs', () => {
+      const names = DEFAULT_AREAS.map((a) => a.name);
+      expect(names).not.toContain('Webcast');
+      expect(names).toContain('General');
     });
 
     it('falls back gracefully for unknown areas', () => {

@@ -8,14 +8,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
-### Removed
-- **Note Templates**: Removed the templates feature, including the Templates settings tab, the "Insert Template" editor menu, the `{{date}}` variable handling and the date format setting (also removed from onboarding). New daily notes now start as a `# YYYY-MM-DD` heading. The obsolete `templates`, `defaultTemplateId` and `dateFormat` keys are dropped from `settings.json` and `.daily-worklogs/config.json` on the next save. Existing notes are untouched, and untouched legacy template notes still do not count as logged days.
-
 ### Added
 - **Private `## Notes` Section in Daily Notes**: Content under a heading that is exactly `Notes` (any level, case-insensitive) is excluded from weekly, monthly and yearly reports, including KPIs, checklist items, the Daily Notes tab and Copy day. Days with only an untouched template or only Notes no longer count as logged. The Standard Worklog and Standup templates now end with a `## Notes` section (unmodified built-in templates are upgraded automatically), and the `### 📋 Task Log` fallback inserts task entries before Notes. Notes headings in daily notes show a muted "Not in reports" badge in every editor mode and in the rendered preview, and the Daily Notes tab explains that Notes sections are not included. A new "Add notes section" toolbar button in the daily note editor appends a `## Notes` heading at the end of the note (undoable, disabled when the note already has one).
 
 ### Changed
+- **Settings Is Now a Page**: Settings replaces the modal with a full-page view and a left section navigation (Preferences: General, Editor, Appearance; Workspace: Areas & Projects, Task Board, Tags, Routines; About). Every entry point (header, rail, command palette, app menu, routines panel) opens it, the rail highlights it, and a Back control or Esc returns to the previous view. Esc never leaves Settings while a dialog, the command palette, a select list or a text field is in use. Opening Settings first saves the open note or task draft, and returning to a task reopens the saved copy. The last visited section is remembered, and sections that follow the vault between computers say so.
+- **Editor Section**: Auto-save and editor font size now live together in a new Editor section. The font size is saved once when you release the slider instead of on every step.
+- **Single Preferences Entry**: The native menu has one Settings entry (application menu on macOS, File menu on Windows and Linux), and the menu, file dialogs and About dialog follow the app language.
+- **Shared Settings Header and Theme Colors**: All Settings sections share one header with the theme's primary color, and the color mode and accent pickers are shared with the setup wizard. Accent color falls back to indigo everywhere.
+- **Neutral Defaults for New Installs**: New vaults start with the areas "Work" and "General", no projects, and the same default routines. Existing vaults keep their areas, projects and routines.
 - **Recent-First Done & Cancelled Columns**: Closed Kanban columns now sort newest first and show only tasks closed within a configurable window (7, 14, 30, 90 days, or All; default 30). Older tasks stay one click away via an inline "Show N older" toggle, and searching always reveals them. This replaces the "Hide closed tasks older than 30 days" switch; nothing changes on disk.
+
+### Fixed
+- **Deleting a Column No Longer Hides Its Tasks**: Deleting a custom column asks for confirmation, shows how many tasks it holds and moves them to a column you choose first. Resetting the board columns protects tasks in custom columns the same way, and hiding a column that still has tasks warns you.
+- **Zero Areas Persist**: Deleting the last area no longer brings the default areas back after a reload.
+- **Changing the Vault Reloads Everything**: Choosing another vault folder reloads notes, tasks, tags and routine completions, and drops the task that was open in the previous vault.
+- **Area Search**: Search now matches area and project tags, and orphaned projects stay visible when no area matches.
+- **Routines Switched Off**: The routines list and its Add buttons are disabled while the feature is off. The on/off switch lives only in the Routines section.
+- **Accessibility**: Color swatches are keyboard-reachable labelled buttons, and the column and routine reorder, edit and delete buttons have accessible names.
+- **Localized Settings Text**: Vault notifications, column labels and badges, and the version display no longer contain hardcoded English or a hardcoded version number.
+
+### Removed
+- The unused `showDailyRoutinesPanel` setting (also dropped from existing config files on the next save), the duplicate routines toggle in General, the duplicate Preferences menu item, the duplicate version display and the native About button in the About section.
+- **Note Templates**: Removed the templates feature, including the Templates settings tab, the "Insert Template" editor menu, the `{{date}}` variable handling and the date format setting (also removed from onboarding). New daily notes now start as a `# YYYY-MM-DD` heading. The obsolete `templates`, `defaultTemplateId` and `dateFormat` keys are dropped from `settings.json` and `.daily-worklogs/config.json` on the next save. Existing notes are untouched, and untouched legacy template notes still do not count as logged days.
 
 ## [1.15.3] - 2026-10-30
 

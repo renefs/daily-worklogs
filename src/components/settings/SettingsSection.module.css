@@ -1,0 +1,42 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-lg);
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--mantine-spacing-sm);
+}
+
+.heading {
+  flex: 1;
+  min-width: rem(220px);
+}
+
+.title {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+}
+
+.hint {
+  display: flex;
+  align-items: flex-start;
+  gap: rem(6px);
+  color: var(--mantine-color-dimmed);
+}
+
+.hintIcon {
+  flex-shrink: 0;
+  margin-top: rem(2px);
+}

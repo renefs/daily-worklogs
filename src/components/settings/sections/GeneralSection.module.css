@@ -1,0 +1,11 @@
+.vaultPath {
+  background-color: var(--mantine-color-default-hover);
+  border-radius: var(--mantine-radius-sm);
+  font-family: var(--mantine-font-family-monospace);
+  word-break: break-all;
+}
+
+.wizardText {
+  flex: 1;
+  padding-right: var(--mantine-spacing-md);
+}

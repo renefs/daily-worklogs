@@ -135,6 +135,15 @@ export const createTasksSlice: AppSlice<TasksSlice> = (set, get) => ({
     }
   },
 
+  moveTasksToStatus: async (moves) => {
+    // Sequential on purpose: each update rewrites a task file and refreshes the list.
+    for (const move of moves) {
+      await get().updateTaskStatus(move.filename, move.status);
+    }
+    const byFilename = new Map(get().tasks.map((task) => [task.filename, task.status]));
+    return moves.every((move) => byFilename.get(move.filename) === move.status);
+  },
+
   deleteTask: async (filename: string) => {
     if (!window.electronAPI) return;
     try {
@@ -231,7 +240,9 @@ export const createTasksSlice: AppSlice<TasksSlice> = (set, get) => ({
       if (!saved) return;
     }
     const current = get().currentView;
-    const prev = returnView || (current === 'task' ? get().previousView : current);
+    // Settings is not a place the editor can return to; use the view Settings was opened from instead.
+    const fromView = current === 'settings' ? get().settingsReturnView : current;
+    const prev = returnView || (current === 'task' || fromView === 'task' ? get().previousView : fromView);
     let detailedTask: TaskItem | null = null;
     if (task) {
       if ('content' in task && typeof task.content === 'string') {

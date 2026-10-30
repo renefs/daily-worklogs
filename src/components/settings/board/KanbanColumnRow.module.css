@@ -1,0 +1,25 @@
+.row {
+  background-color: light-dark(var(--mantine-color-white), var(--mantine-color-dark-6));
+  transition: opacity 0.15s ease;
+}
+
+.rowHidden {
+  opacity: 0.65;
+  background-color: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-8));
+}
+
+.iconBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: rem(32px);
+  height: rem(32px);
+  border-radius: rem(8px);
+  flex-shrink: 0;
+  background-color: var(--column-color-light);
+  color: var(--column-color-filled);
+}
+
+.details {
+  min-width: 0;
+}

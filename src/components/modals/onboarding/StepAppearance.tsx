@@ -7,25 +7,11 @@ import {
   Card,
   Group,
   Switch,
-  Select,
   Badge,
-  ColorSwatch,
-  CheckIcon,
 } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
-
-const THEME_COLORS = [
-  'claude',
-  'indigo',
-  'teal',
-  'blue',
-  'violet',
-  'cyan',
-  'green',
-  'orange',
-  'grape',
-  'pink',
-];
+import { ColorSchemeControl } from '../../settings/appearance/ColorSchemeControl';
+import { ThemeColorPicker } from '../../settings/appearance/ThemeColorPicker';
 
 export interface StepAppearanceProps {
   autoSave: boolean;
@@ -63,7 +49,7 @@ export const StepAppearance: React.FC<StepAppearanceProps> = ({
           <Stack gap="xs">
             <Group justify="space-between" align="center">
               <Text size="sm" fw={600}>
-                {t('onboarding.autoSaveTitle')}
+                {t('settings.autoSave')}
               </Text>
               <Switch
                 checked={autoSave}
@@ -73,7 +59,7 @@ export const StepAppearance: React.FC<StepAppearanceProps> = ({
               />
             </Group>
             <Text size="xs" c="dimmed">
-              {t('onboarding.autoSaveDescription')}
+              {t('settings.autoSaveDescription')}
             </Text>
           </Stack>
         </Card>
@@ -82,20 +68,9 @@ export const StepAppearance: React.FC<StepAppearanceProps> = ({
         <Card withBorder radius="md" p="md">
           <Stack gap="xs">
             <Text size="sm" fw={600}>
-              {t('onboarding.colorSchemeTitle')}
+              {t('settings.colorScheme')}
             </Text>
-            <Select
-              value={themeMode}
-              onChange={(val) =>
-                onThemeModeChange((val as 'light' | 'dark' | 'auto') || 'auto')
-              }
-              data={[
-                { value: 'auto', label: t('settings.auto') },
-                { value: 'light', label: t('settings.light') },
-                { value: 'dark', label: t('settings.dark') },
-              ]}
-              allowDeselect={false}
-            />
+            <ColorSchemeControl value={themeMode} onChange={onThemeModeChange} />
           </Stack>
         </Card>
       </SimpleGrid>
@@ -105,28 +80,16 @@ export const StepAppearance: React.FC<StepAppearanceProps> = ({
         <Stack gap="xs">
           <Group justify="space-between">
             <Text size="sm" fw={600}>
-              {t('onboarding.themeColorTitle')}
+              {t('settings.themeColor')}
             </Text>
             <Badge size="sm" variant="light" color={themeColor}>
-              {themeColor}
+              {t(`settings.themeColorNames.${themeColor}`, { defaultValue: themeColor })}
             </Badge>
           </Group>
           <Text size="xs" c="dimmed">
-            {t('onboarding.themeColorDesc')}
+            {t('settings.themeDescription')}
           </Text>
-          <Group gap={10} mt={4}>
-            {THEME_COLORS.map((col) => (
-              <ColorSwatch
-                key={col}
-                color={`var(--mantine-color-${col}-6)`}
-                size={28}
-                style={{ cursor: 'pointer' }}
-                onClick={() => onThemeColorChange(col)}
-              >
-                {themeColor === col && <CheckIcon size={12} color="#fff" />}
-              </ColorSwatch>
-            ))}
-          </Group>
+          <ThemeColorPicker value={themeColor} onChange={onThemeColorChange} size={28} />
         </Stack>
       </Card>
     </Stack>

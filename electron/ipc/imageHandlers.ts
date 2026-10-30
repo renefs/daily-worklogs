@@ -2,9 +2,11 @@ import { dialog, ipcMain, type BrowserWindow } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import dayjs from 'dayjs';
+import { nativeText } from '../services/nativeText';
 
 interface ImageHandlerDependencies {
   getVaultPath: () => string;
+  getLanguage: () => string;
   getMainWindow: () => BrowserWindow | null;
   ensureImagesDir: (vaultPath: string) => string;
 }
@@ -57,7 +59,7 @@ function imageResult(filename: string, destPath: string) {
 }
 
 export function registerImageHandlers(dependencies: ImageHandlerDependencies): void {
-  const { getVaultPath, getMainWindow, ensureImagesDir } = dependencies;
+  const { getVaultPath, getLanguage, getMainWindow, ensureImagesDir } = dependencies;
 
   ipcMain.handle('save-image', async (_event, payload: SaveImagePayload) => {
     try {
@@ -84,10 +86,10 @@ export function registerImageHandlers(dependencies: ImageHandlerDependencies): v
     const mainWindow = getMainWindow();
     if (!mainWindow) return { success: false, error: 'No window available' };
     const result = await dialog.showOpenDialog(mainWindow, {
-      title: 'Select Image',
+      title: nativeText(getLanguage(), 'dialogSelectImage'),
       filters: [
-        { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico'] },
-        { name: 'All Files', extensions: ['*'] },
+        { name: nativeText(getLanguage(), 'dialogImages'), extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico'] },
+        { name: nativeText(getLanguage(), 'dialogAllFiles'), extensions: ['*'] },
       ],
       properties: ['openFile'],
     });

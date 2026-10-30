@@ -1,48 +1,8 @@
 import { AreaDefinition, ProjectDefinition, TagDefinition, TaskMeta } from '../types';
+import { DEFAULT_AREAS } from '../shared/defaultData';
 import { getTagColor } from './tagUtils';
 
-export const DEFAULT_AREAS: AreaDefinition[] = [
-  {
-    id: 'webcast',
-    name: 'Webcast',
-    color: 'indigo',
-    icon: 'broadcast',
-    description: 'Streaming, live events, recording & encoding services',
-    defaultTags: ['webcast'],
-  },
-  {
-    id: 'vc',
-    name: 'VC',
-    color: 'teal',
-    icon: 'video',
-    description: 'Videoconference rooms, endpoints & unified communications',
-    defaultTags: ['vc'],
-  },
-  {
-    id: 'asr',
-    name: 'ASR',
-    color: 'violet',
-    icon: 'microphone',
-    description: 'Automatic speech recognition, audio processing & transcription',
-    defaultTags: ['asr'],
-  },
-  {
-    id: 'infra',
-    name: 'Infrastructure',
-    color: 'blue',
-    icon: 'server',
-    description: 'Core servers, networks, cloud services & deployments',
-    defaultTags: ['infra'],
-  },
-  {
-    id: 'general',
-    name: 'General',
-    color: 'gray',
-    icon: 'folder',
-    description: 'General administrative & miscellaneous tasks',
-    defaultTags: [],
-  },
-];
+export { DEFAULT_AREAS };
 
 export const AREA_COLOR_PALETTE = [
   'indigo',

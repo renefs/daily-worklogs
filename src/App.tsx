@@ -12,6 +12,7 @@ import { Notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
 import { useAppStore, useAppStoreSelector } from './store/useAppStore';
 import { AppLayout } from './components/layout/AppLayout';
+import { DEFAULT_THEME_COLOR } from './shared/defaultData';
 
 const ColorSchemeSync: React.FC<{ colorScheme?: 'light' | 'dark' | 'auto' }> = ({ colorScheme }) => {
   const { colorScheme: activeScheme, setColorScheme } = useMantineColorScheme();
@@ -94,7 +95,7 @@ export const App: React.FC = () => {
   const currentLocale = i18n.language === 'es' ? 'es' : 'en';
 
   const theme = useMemo(() => {
-    const primaryColorKey = settings?.themeColor || 'blue';
+    const primaryColorKey = settings?.themeColor || DEFAULT_THEME_COLOR;
     const customPalettes: Record<string, MantineColorsTuple> = {
       blue: modernBlueColors,
       claude: claudeColors,

@@ -102,8 +102,8 @@ export const AreaCard: React.FC<AreaCardProps> = ({
           <Tooltip label={t('areas.addProjectToArea', 'Add project to {{area}}', { area: area.name })} withArrow>
             <ActionIcon
               variant="subtle"
-              color="indigo"
               size="sm"
+              aria-label={t('areas.addProjectToArea', 'Add project to {{area}}', { area: area.name })}
               onClick={() => onAddProject(area.name)}
             >
               <IconPlus size={16} />
@@ -114,6 +114,7 @@ export const AreaCard: React.FC<AreaCardProps> = ({
               variant="subtle"
               color="gray"
               size="sm"
+              aria-label={t('areas.editAreaAria', { name: area.name })}
               onClick={() => onEditArea(area)}
             >
               <IconEdit size={16} />
@@ -124,6 +125,7 @@ export const AreaCard: React.FC<AreaCardProps> = ({
               variant="subtle"
               color="red"
               size="sm"
+              aria-label={t('areas.deleteAreaAria', { name: area.name })}
               onClick={() => onDeleteArea(area)}
             >
               <IconTrash size={16} />

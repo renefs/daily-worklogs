@@ -1,4 +1,5 @@
 import { StateCreator } from 'zustand';
+import type { AppInfo } from '../types/electron';
 import {
   AppSettings,
   AppViewMode,
@@ -10,6 +11,7 @@ import {
   PeriodSummary,
   ReportPeriod,
   ReportTab,
+  SettingsSectionId,
   TagDefinition,
   TaskItem,
   TaskMeta,
@@ -21,17 +23,26 @@ export interface UiSlice {
   currentView: AppViewMode;
   selectedDate: string; // YYYY-MM-DD
   isLoading: boolean;
-  isSettingsOpen: boolean;
-  settingsActiveTab: string;
+  /** Section shown by the Settings view; remembered between visits. */
+  settingsActiveTab: SettingsSectionId;
+  /** View to return to when leaving Settings. Kept apart from previousView, which belongs to the task editor. */
+  settingsReturnView: AppViewMode;
   isOnboardingOpen: boolean;
   isSidebarCollapsed: boolean;
+  /** Static build and runtime details, loaded once at startup for the About section. */
+  appInfo: AppInfo | null;
 
   initApp: () => Promise<void>;
   setSelectedDate: (date: string) => Promise<void>;
   setCurrentView: (view: AppViewMode) => Promise<void>;
-  setIsSettingsOpen: (open: boolean) => void;
-  openSettings: (tab?: string) => void;
-  setSettingsActiveTab: (tab: string) => void;
+  /**
+   * Opens the Settings view, flushing pending edits first. Without a section the last one is shown.
+   * Does nothing when navigation is refused (for example a task draft that cannot be saved).
+   */
+  openSettings: (tab?: SettingsSectionId) => Promise<void>;
+  /** Leaves Settings for the view it was opened from. */
+  closeSettings: () => Promise<void>;
+  setSettingsActiveTab: (tab: SettingsSectionId) => void;
   openOnboarding: () => void;
   closeOnboarding: () => void;
   completeOnboarding: (partial?: Partial<AppSettings>) => Promise<void>;
@@ -44,6 +55,10 @@ export interface SettingsSlice {
 
   loadSettings: () => Promise<void>;
   updateSettings: (partial: Partial<AppSettings>) => Promise<void>;
+  /** Re-reads settings and every vault-backed list (notes, tasks, tags, routine completions). */
+  reloadVaultData: () => Promise<void>;
+  /** Opens the folder picker and, when a vault was chosen, reloads all vault data. Resolves to the new path. */
+  changeVault: () => Promise<string | null>;
 }
 
 export interface NotesSlice {
@@ -96,6 +111,11 @@ export interface TasksSlice {
     content: string;
   }) => Promise<TaskItem | null>;
   updateTaskStatus: (filename: string, status: TaskStatus) => Promise<void>;
+  /**
+   * Moves several tasks to other statuses through the regular task-status update path.
+   * Resolves to true only when every task now has its requested status.
+   */
+  moveTasksToStatus: (moves: Array<{ filename: string; status: TaskStatus }>) => Promise<boolean>;
   deleteTask: (filename: string) => Promise<void>;
   logTaskToDailyNote: (task: TaskMeta | { title: string; status: TaskStatus; priority?: TaskPriority; filename?: string; taskId?: number }, targetDate?: string) => Promise<boolean>;
   openTaskModal: (task?: TaskMeta | TaskItem | Partial<TaskItem> | null, defaultStatus?: TaskStatus) => void;
@@ -128,7 +148,6 @@ export interface TagsSlice {
 }
 
 export interface RoutinesSlice {
-  isManageRoutinesModalOpen: boolean;
   isRoutinesDrawerOpen: boolean;
   routineCompletionsByDate: Record<string, string[]>;
 
@@ -137,10 +156,7 @@ export interface RoutinesSlice {
   completeAllDailyRoutines: (date: string, routineIds: string[]) => Promise<void>;
   resetDailyRoutines: (date: string) => Promise<void>;
   saveRoutinesList: (routines: DailyRoutine[]) => Promise<void>;
-  toggleDailyRoutinesPanel: () => Promise<void>;
   toggleRoutinesDrawer: (open?: boolean) => void;
-  openManageRoutinesModal: () => void;
-  closeManageRoutinesModal: () => void;
 }
 
 export interface ReportsSlice {

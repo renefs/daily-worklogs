@@ -191,7 +191,6 @@ export interface AppSettings {
   closedTasksWindowDays?: number | null; // Recent window for closed Kanban columns; null = All
   enableDailyRoutines?: boolean;
   routines?: DailyRoutine[];
-  showDailyRoutinesPanel?: boolean;
   hasCompletedOnboarding?: boolean;
   tags?: TagDefinition[];
   areas?: AreaDefinition[];
@@ -202,6 +201,16 @@ export type ReportPeriod = 'week' | 'month' | 'year';
 export type ReportTab = 'dashboard' | 'days' | 'tasks';
 
 export type AppViewMode = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'tasks' | 'task' | 'settings';
+
+export type SettingsSectionId =
+  | 'general'
+  | 'editor'
+  | 'appearance'
+  | 'areas'
+  | 'kanban'
+  | 'tags'
+  | 'routines'
+  | 'about';
 
 export interface DailyChecklistItem {
   date: string;

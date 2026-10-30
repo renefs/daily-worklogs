@@ -22,12 +22,14 @@ import {
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
-import { useAppStoreSelector } from '../../store/useAppStore';
-import { TagDefinition } from '../../types';
-import { TagRow } from './tags/TagRow';
-import { TagEditorModal } from './tags/TagEditorModal';
+import { useAppStoreSelector } from '../../../store/useAppStore';
+import { TagDefinition } from '../../../types';
+import { TagRow } from '../tags/TagRow';
+import { TagEditorModal } from '../tags/TagEditorModal';
+import { SettingsSection } from '../SettingsSection';
+import classes from './TagsSection.module.css';
 
-export const TagsManager: React.FC = () => {
+export const TagsSection: React.FC = () => {
   const { t } = useTranslation();
 
   const {
@@ -149,62 +151,45 @@ export const TagsManager: React.FC = () => {
     }
   };
 
+  const actions = (
+    <>
+      <Badge size="sm" variant="light">
+        {allTags.length} {t('tags.registeredTags')}
+      </Badge>
+      <Tooltip label={t('tags.scanTooltip')} withArrow>
+        <Button variant="default" size="sm" leftSection={<IconRefresh size={14} />} onClick={refreshTagsList}>
+          {t('tags.refreshTags')}
+        </Button>
+      </Tooltip>
+      <Button leftSection={<IconPlus size={16} />} variant="filled" size="sm" onClick={handleOpenAdd}>
+        {t('tags.newTag')}
+      </Button>
+    </>
+  );
+
+  const searchField = (
+    <TextInput
+      aria-label={t('tags.searchTags')}
+      placeholder={t('tags.searchTags')}
+      leftSection={<IconSearch size={15} />}
+      value={search}
+      onChange={(e) => setSearch(e.currentTarget.value)}
+      size="sm"
+      className={classes.searchInput}
+    />
+  );
+
   return (
-    <Stack gap="lg">
-      {/* Top Header */}
-      <Group justify="space-between" align="center" wrap="wrap">
-        <div>
-          <Group gap="xs" align="center">
-            <Text fw={700} size="lg">
-              {t('tags.managerTitle')}
-            </Text>
-            <Badge size="sm" variant="light" color="teal">
-              {allTags.length} {t('tags.registeredTags')}
-            </Badge>
-          </Group>
-          <Text size="xs" c="dimmed">
-            {t('tags.managerSubtitle')}
-          </Text>
-        </div>
-
-        <Group gap="xs">
-          <Tooltip label={t('tags.scanTooltip')} withArrow>
-            <Button
-              variant="default"
-              size="sm"
-              leftSection={<IconRefresh size={14} />}
-              onClick={refreshTagsList}
-            >
-              {t('tags.refreshTags') || 'Scan Vault'}
-            </Button>
-          </Tooltip>
-
-          <Button
-            leftSection={<IconPlus size={16} />}
-            variant="filled"
-            color="teal"
-            size="sm"
-            onClick={handleOpenAdd}
-          >
-            {t('tags.newTag') || 'New Tag'}
-          </Button>
-        </Group>
-      </Group>
-
-      {/* Filter and Search Bar */}
-      <Paper withBorder radius="md" p="xs">
-        <TextInput
-          placeholder={t('tags.searchTags')}
-          leftSection={<IconSearch size={15} />}
-          value={search}
-          onChange={(e) => setSearch(e.currentTarget.value)}
-          size="sm"
-        />
-      </Paper>
-
+    <SettingsSection
+      title={t('tags.managerTitle')}
+      description={t('tags.managerSubtitle')}
+      actions={actions}
+      search={searchField}
+      scope="vault"
+    >
       {/* Tags Rows List */}
       {filteredTags.length === 0 ? (
-        <Paper withBorder radius="md" p="xl" style={{ textAlign: 'center' }}>
+        <Paper withBorder radius="md" p="xl" className={classes.emptyState}>
           <ThemeIcon size="lg" radius="xl" variant="light" color="gray" mb="xs">
             <IconTag size={20} />
           </ThemeIcon>
@@ -301,6 +286,6 @@ export const TagsManager: React.FC = () => {
           </Group>
         </Stack>
       </Modal>
-    </Stack>
+    </SettingsSection>
   );
 };

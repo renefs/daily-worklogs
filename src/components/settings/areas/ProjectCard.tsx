@@ -126,6 +126,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
               variant="subtle"
               color="gray"
               size="xs"
+              aria-label={t('areas.editProjectAria', { name: project.name })}
               onClick={() => onEdit(project)}
             >
               <IconEdit size={14} />
@@ -136,6 +137,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
               variant="subtle"
               color="red"
               size="xs"
+              aria-label={t('areas.deleteProjectAria', { name: project.name })}
               onClick={() => onDelete(project)}
             >
               <IconTrash size={14} />

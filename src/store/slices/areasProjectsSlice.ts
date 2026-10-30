@@ -54,9 +54,10 @@ export const createAreasProjectsSlice: AppSlice<AreasProjectsSlice> = (_set, get
     const updatedAreas = currentAreas.filter(
       (a) => a.id.toLowerCase() !== clean && a.name.toLowerCase() !== clean
     );
-    const targetArea = updatedAreas[0]?.name || 'General';
+    // Without any area left, projects keep their name and show up as unassigned instead of pointing at a phantom area.
+    const targetArea = updatedAreas[0]?.name;
     const updatedProjects = (get().projects || []).map((p) =>
-      areaToRemove && (p.areaName || '').toLowerCase() === areaToRemove.name.toLowerCase()
+      targetArea && areaToRemove && (p.areaName || '').toLowerCase() === areaToRemove.name.toLowerCase()
         ? { ...p, areaName: targetArea }
         : p
     );

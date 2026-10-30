@@ -9,9 +9,6 @@ import {
   Text,
   Button,
   ThemeIcon,
-  Tooltip,
-  ColorSwatch,
-  CheckIcon,
   TagsInput,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
@@ -24,6 +21,7 @@ import {
   getAreaColor,
   getProjectColor,
 } from '../../../utils/areaProjectUtils';
+import { ColorSwatchPicker } from '../appearance/ColorSwatchPicker';
 
 export interface ProjectEditorModalProps {
   opened: boolean;
@@ -184,21 +182,12 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
           <Text size="sm" fw={500} mb={6}>
             {t('areas.projectColor', 'Project Color')}
           </Text>
-          <Group gap="xs">
-            {AREA_COLOR_PALETTE.map((c) => (
-              <Tooltip key={c} label={c} withArrow>
-                <ColorSwatch
-                  color={`var(--mantine-color-${c}-6)`}
-                  size={28}
-                  radius="md"
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => setProjectColor(c)}
-                >
-                  {projectColor === c && <CheckIcon size={12} color="#fff" />}
-                </ColorSwatch>
-              </Tooltip>
-            ))}
-          </Group>
+          <ColorSwatchPicker
+            colors={AREA_COLOR_PALETTE}
+            value={projectColor}
+            onChange={setProjectColor}
+            label={t('areas.projectColor', 'Project Color')}
+          />
         </div>
 
         <TagsInput

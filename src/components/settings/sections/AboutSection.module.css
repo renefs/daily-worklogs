@@ -1,0 +1,32 @@
+.heroCard {
+  text-align: center;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: rem(56px);
+  height: rem(56px);
+  border-radius: rem(14px);
+  background-color: var(--mantine-primary-color-filled);
+  color: var(--mantine-color-white);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.appName {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.tagline {
+  max-width: rem(460px);
+}
+
+.detailsCard {
+  background-color: var(--mantine-color-default-hover);
+}
+
+.mono {
+  font-family: var(--mantine-font-family-monospace);
+}

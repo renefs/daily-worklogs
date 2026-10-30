@@ -13,13 +13,14 @@ import classes from './NavigationRail.module.css';
 
 export function NavigationRail() {
   const { t } = useTranslation();
-  const { currentView, isSidebarCollapsed, toggleSidebarCollapse, setIsSettingsOpen } = useAppStoreSelector((s) => ({
+  const { currentView, isSidebarCollapsed, toggleSidebarCollapse, openSettings } = useAppStoreSelector((s) => ({
     currentView: s.currentView,
     isSidebarCollapsed: s.isSidebarCollapsed,
     toggleSidebarCollapse: s.toggleSidebarCollapse,
-    setIsSettingsOpen: s.setIsSettingsOpen,
+    openSettings: s.openSettings,
   }));
   const isDailyView = currentView === 'daily';
+  const isSettingsView = currentView === 'settings';
   const isToggleDisabled = !isDailyView;
   const isCollapsed = isToggleDisabled || isSidebarCollapsed;
   const toggleLabel = t(isCollapsed ? 'nav.expandSidebar' : 'nav.collapseSidebar');
@@ -57,11 +58,19 @@ export function NavigationRail() {
         </UnstyledButton>
       </Tooltip>
 
-      <Tooltip label={t('settings.title')} position="right">
+      {/* An open tooltip swallows the first Esc, so it is remounted and disabled while Settings is the current page. */}
+      <Tooltip
+        key={isSettingsView ? 'settings-current' : 'settings'}
+        label={t('settings.title')}
+        position="right"
+        disabled={isSettingsView}
+      >
         <UnstyledButton
           className={classes.railButton}
           aria-label={t('nav.openSettings')}
-          onClick={() => setIsSettingsOpen(true)}
+          aria-current={isSettingsView ? 'page' : undefined}
+          data-active={isSettingsView || undefined}
+          onClick={() => void openSettings()}
         >
           <IconSettings size={18} />
         </UnstyledButton>

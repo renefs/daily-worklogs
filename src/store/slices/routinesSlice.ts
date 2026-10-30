@@ -2,7 +2,6 @@ import { DailyRoutine } from '../../types';
 import { AppSlice, RoutinesSlice } from '../types';
 
 export const createRoutinesSlice: AppSlice<RoutinesSlice> = (set, get) => ({
-  isManageRoutinesModalOpen: false,
   isRoutinesDrawerOpen: false,
   routineCompletionsByDate: {},
 
@@ -57,25 +56,9 @@ export const createRoutinesSlice: AppSlice<RoutinesSlice> = (set, get) => ({
     await get().updateSettings({ routines });
   },
 
-  toggleDailyRoutinesPanel: async () => {
-    const settings = get().settings;
-    if (!settings) return;
-    const current = settings.showDailyRoutinesPanel !== false;
-    await get().updateSettings({ showDailyRoutinesPanel: !current });
-  },
-
   toggleRoutinesDrawer: (open?: boolean) => {
     set((state) => ({
       isRoutinesDrawerOpen: typeof open === 'boolean' ? open : !state.isRoutinesDrawerOpen,
     }));
   },
-
-  openManageRoutinesModal: () => {
-    set({ isManageRoutinesModalOpen: true });
-  },
-
-  closeManageRoutinesModal: () => {
-    set({ isManageRoutinesModalOpen: false });
-  },
 });
-

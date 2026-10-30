@@ -7,8 +7,6 @@ import {
   Button,
   TextInput,
   Select,
-  ColorSwatch,
-  CheckIcon,
   Divider,
   Switch,
 } from '@mantine/core';
@@ -21,6 +19,7 @@ import {
   getColumnIcon,
   getColumnTitle,
 } from '../../kanban/columnUtils';
+import { ColorSwatchPicker } from '../appearance/ColorSwatchPicker';
 
 function slugify(text: string): string {
   return text
@@ -207,20 +206,12 @@ export const KanbanColumnModal: React.FC<KanbanColumnModalProps> = ({
           <Text size="sm" fw={500} mb={6}>
             {t('settings.columnColor')}
           </Text>
-          <Group gap="xs" wrap="wrap">
-            {AVAILABLE_COLUMN_COLORS.map((c) => (
-              <ColorSwatch
-                key={c}
-                color={`var(--mantine-color-${c}-6)`}
-                size={28}
-                radius="md"
-                style={{ color: '#fff', cursor: 'pointer' }}
-                onClick={() => setColColor(c)}
-              >
-                {colColor === c && <CheckIcon width={12} />}
-              </ColorSwatch>
-            ))}
-          </Group>
+          <ColorSwatchPicker
+            colors={AVAILABLE_COLUMN_COLORS}
+            value={colColor}
+            onChange={setColColor}
+            label={t('settings.columnColor')}
+          />
         </div>
 
         <Divider my="xs" />

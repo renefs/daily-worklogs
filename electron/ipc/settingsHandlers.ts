@@ -10,27 +10,34 @@ import {
   writeVaultConfig,
 } from '../services/settingsService';
 import { ensureVaultDir, getYearFromDate } from '../services/vaultService';
+import { nativeText } from '../services/nativeText';
 
 interface SettingsHandlerDependencies {
   getMainWindow: () => BrowserWindow | null;
   setupVaultWatcher: (vaultPath: string) => void;
+  /** Rebuilds the native menu, which carries translated labels. */
+  refreshApplicationMenu: () => void;
 }
 
 export function registerSettingsHandlers(dependencies: SettingsHandlerDependencies): void {
-  const { getMainWindow, setupVaultWatcher } = dependencies;
+  const { getMainWindow, setupVaultWatcher, refreshApplicationMenu } = dependencies;
 
   ipcMain.handle('get-settings', () => {
     return getSettings();
   });
 
   ipcMain.handle('save-settings', (_event, partialSettings: Partial<AppSettings>) => {
-    const previousVaultPath = getSettings().vaultPath;
+    const previous = getSettings();
+    const previousVaultPath = previous.vaultPath;
     const updated = saveSettings(partialSettings);
     if (updated.vaultPath) {
       ensureVaultDir(updated.vaultPath);
     }
     if (updated.vaultPath !== previousVaultPath) {
       setupVaultWatcher(updated.vaultPath);
+    }
+    if (updated.language !== previous.language) {
+      refreshApplicationMenu();
     }
     return updated;
   });
@@ -68,7 +75,7 @@ export function registerSettingsHandlers(dependencies: SettingsHandlerDependenci
     const currentSettings = getSettings();
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openDirectory', 'createDirectory'],
-      title: 'Select Worklog Vault Folder',
+      title: nativeText(currentSettings.language, 'dialogSelectVault'),
       defaultPath: currentSettings.vaultPath,
     });
 
@@ -90,6 +97,7 @@ export function registerSettingsHandlers(dependencies: SettingsHandlerDependenci
         writeVaultConfig(selected, currentSettings);
       }
       setupVaultWatcher(selected);
+      if (getSettings().language !== currentSettings.language) refreshApplicationMenu();
       return selected;
     }
     return null;

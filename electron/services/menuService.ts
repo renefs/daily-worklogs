@@ -1,6 +1,7 @@
 import { Menu, MenuItemConstructorOptions, shell, type BrowserWindow } from 'electron';
 import fs from 'node:fs';
 import type { AppSettings } from '../../src/types';
+import { nativeText } from './nativeText';
 
 interface MenuServiceDependencies {
   getMainWindow: () => BrowserWindow | null;
@@ -11,6 +12,14 @@ interface MenuServiceDependencies {
 export function setupApplicationMenu(dependencies: MenuServiceDependencies): void {
   const { getMainWindow, showAbout, getSettings } = dependencies;
   const isMac = process.platform === 'darwin';
+  const text = (key: Parameters<typeof nativeText>[1]) => nativeText(getSettings().language, key);
+
+  const openSettings = () => {
+    const mainWindow = getMainWindow();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('open-settings');
+    }
+  };
 
   const template: MenuItemConstructorOptions[] = [
     ...(isMac
@@ -19,19 +28,14 @@ export function setupApplicationMenu(dependencies: MenuServiceDependencies): voi
             label: 'Daily Worklog',
             submenu: [
               {
-                label: 'About Daily Worklog',
+                label: text('menuAbout'),
                 click: () => showAbout(),
               },
               { type: 'separator' as const },
               {
-                label: 'Preferences...',
+                label: text('menuSettings'),
                 accelerator: 'CmdOrCtrl+,',
-                click: () => {
-                  const mainWindow = getMainWindow();
-                  if (mainWindow && !mainWindow.isDestroyed()) {
-                    mainWindow.webContents.send('open-settings');
-                  }
-                },
+                click: openSettings,
               },
               { type: 'separator' as const },
               { role: 'services' as const },
@@ -46,10 +50,10 @@ export function setupApplicationMenu(dependencies: MenuServiceDependencies): voi
         ]
       : []),
     {
-      label: 'File',
+      label: text('menuFile'),
       submenu: [
         {
-          label: 'Save',
+          label: text('menuSave'),
           accelerator: 'CmdOrCtrl+S',
           click: () => {
             const mainWindow = getMainWindow();
@@ -59,18 +63,18 @@ export function setupApplicationMenu(dependencies: MenuServiceDependencies): voi
           },
         },
         { type: 'separator' as const },
+        // macOS already has Settings in the application menu; listing it twice would register the accelerator twice.
+        ...(isMac
+          ? []
+          : [
+              {
+                label: text('menuSettings'),
+                accelerator: 'CmdOrCtrl+,',
+                click: openSettings,
+              },
+            ]),
         {
-          label: 'Preferences...',
-          accelerator: 'CmdOrCtrl+,',
-          click: () => {
-            const mainWindow = getMainWindow();
-            if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send('open-settings');
-            }
-          },
-        },
-        {
-          label: 'Open Vault in File Manager',
+          label: text('menuOpenVault'),
           click: () => {
             const { vaultPath } = getSettings();
             if (vaultPath && fs.existsSync(vaultPath)) {
@@ -83,7 +87,7 @@ export function setupApplicationMenu(dependencies: MenuServiceDependencies): voi
       ],
     },
     {
-      label: 'Edit',
+      label: text('menuEdit'),
       submenu: [
         { role: 'undo' as const },
         { role: 'redo' as const },
@@ -95,7 +99,7 @@ export function setupApplicationMenu(dependencies: MenuServiceDependencies): voi
       ],
     },
     {
-      label: 'View',
+      label: text('menuView'),
       submenu: [
         { role: 'reload' as const },
         { role: 'forceReload' as const },
@@ -109,7 +113,7 @@ export function setupApplicationMenu(dependencies: MenuServiceDependencies): voi
       ],
     },
     {
-      label: 'Window',
+      label: text('menuWindow'),
       submenu: [
         { role: 'minimize' as const },
         { role: 'zoom' as const },
@@ -127,7 +131,7 @@ export function setupApplicationMenu(dependencies: MenuServiceDependencies): voi
       role: 'help',
       submenu: [
         {
-          label: 'Daily Worklog GitHub',
+          label: text('menuGithub'),
           click: async () => {
             await shell.openExternal('https://github.com/renefs/daily-worklogs');
           },
@@ -136,7 +140,7 @@ export function setupApplicationMenu(dependencies: MenuServiceDependencies): voi
           ? [
               { type: 'separator' as const },
               {
-                label: 'About Daily Worklog',
+                label: text('menuAbout'),
                 click: () => showAbout(),
               },
             ]

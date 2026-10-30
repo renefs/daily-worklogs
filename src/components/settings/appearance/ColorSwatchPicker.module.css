@@ -1,0 +1,9 @@
+.swatch {
+  color: var(--mantine-color-white);
+  cursor: pointer;
+}
+
+.swatch:focus-visible {
+  outline: rem(2px) solid var(--mantine-primary-color-filled);
+  outline-offset: rem(2px);
+}

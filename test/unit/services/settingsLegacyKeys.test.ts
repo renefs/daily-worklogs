@@ -53,4 +53,20 @@ describe('readSettingsFromDisk legacy template keys', () => {
     expect(settings.weekStartDay).toBe(3);
     expect(settings.themeColor).toBe('teal');
   });
+
+  it('drops the removed showDailyRoutinesPanel key from local and vault config', () => {
+    fs.writeFileSync(
+      path.join(userDataDir, 'settings.json'),
+      JSON.stringify({ vaultPath: vaultDir, showDailyRoutinesPanel: false })
+    );
+    fs.mkdirSync(path.join(vaultDir, '.daily-worklogs'), { recursive: true });
+    fs.writeFileSync(
+      path.join(vaultDir, '.daily-worklogs', 'config.json'),
+      JSON.stringify({ version: 1, showDailyRoutinesPanel: true })
+    );
+
+    const settings = readSettingsFromDisk() as unknown as Record<string, unknown>;
+
+    expect(settings).not.toHaveProperty('showDailyRoutinesPanel');
+  });
 });

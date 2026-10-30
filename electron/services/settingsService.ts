@@ -2,152 +2,16 @@ import { app, nativeTheme } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import type { AppSettings, AreaDefinition, ProjectDefinition } from '../../src/types';
+import { DEFAULT_KANBAN_COLUMNS, type AppSettings } from '../../src/types';
+import { DEFAULT_AREAS, DEFAULT_PROJECTS, DEFAULT_ROUTINES, DEFAULT_THEME_COLOR } from '../../src/shared/defaultData';
 import { atomicWriteFileSync } from '../utils/atomicFile';
-
-export const DEFAULT_KANBAN_COLUMNS: AppSettings['kanbanColumns'] = [
-  {
-    id: 'backlog',
-    title: 'Backlog',
-    titleKey: 'tasks.columnBacklog',
-    color: 'gray',
-    iconName: 'inbox',
-    visible: true,
-    behavior: 'backlog',
-  },
-  {
-    id: 'todo',
-    title: 'To do',
-    titleKey: 'tasks.columnTodo',
-    color: 'blue',
-    iconName: 'circle-dot',
-    visible: true,
-    behavior: 'todo',
-  },
-  {
-    id: 'in_progress',
-    title: 'In progress',
-    titleKey: 'tasks.columnInProgress',
-    color: 'indigo',
-    iconName: 'player-play',
-    visible: true,
-    behavior: 'in_progress',
-  },
-  {
-    id: 'waiting',
-    title: 'Waiting',
-    titleKey: 'tasks.columnWaiting',
-    color: 'yellow',
-    iconName: 'hourglass',
-    visible: true,
-    behavior: 'waiting',
-  },
-  {
-    id: 'done',
-    title: 'Done',
-    titleKey: 'tasks.columnDone',
-    color: 'teal',
-    iconName: 'circle-check',
-    visible: true,
-    behavior: 'done',
-  },
-];
-
-export const DEFAULT_ROUTINES: AppSettings['routines'] = [
-  {
-    id: 'routine-email',
-    title: 'Check Email & Messages',
-    description: 'Review inbox and team chat channels',
-    url: '',
-    schedule: 'weekdays' as const,
-    enabled: true,
-  },
-  {
-    id: 'routine-calendar',
-    title: 'Check Calendar & Schedule',
-    description: 'Review meetings and agenda for today',
-    url: '',
-    schedule: 'weekdays' as const,
-    enabled: true,
-  },
-  {
-    id: 'routine-monitoring',
-    title: 'Check System Status & Monitoring',
-    description: 'Verify server health, alerts and dashboards',
-    url: 'https://uptimerobot.com',
-    schedule: 'everyday' as const,
-    enabled: true,
-  },
-];
-
-export const DEFAULT_AREAS: AreaDefinition[] = [
-  {
-    id: 'webcast',
-    name: 'Webcast',
-    color: 'indigo',
-    icon: 'broadcast',
-    description: 'Streaming, live events, recording & encoding services',
-    defaultTags: ['webcast'],
-  },
-  {
-    id: 'vc',
-    name: 'VC',
-    color: 'teal',
-    icon: 'video',
-    description: 'Videoconference rooms, endpoints & unified communications',
-    defaultTags: ['vc'],
-  },
-  {
-    id: 'asr',
-    name: 'ASR',
-    color: 'violet',
-    icon: 'microphone',
-    description: 'Automatic speech recognition, audio processing & transcription',
-    defaultTags: ['asr'],
-  },
-  {
-    id: 'infra',
-    name: 'Infrastructure',
-    color: 'blue',
-    icon: 'server',
-    description: 'Core servers, networks, cloud services & deployments',
-    defaultTags: ['infra'],
-  },
-  {
-    id: 'general',
-    name: 'General',
-    color: 'gray',
-    icon: 'folder',
-    description: 'General administrative & miscellaneous tasks',
-    defaultTags: [],
-  },
-];
-
-export const DEFAULT_PROJECTS: ProjectDefinition[] = [
-  {
-    id: 'proj-wowza',
-    name: 'Migración Wowza',
-    areaName: 'Webcast',
-    description: 'Migración de arquitectura de streaming a nueva versión de Wowza',
-    color: 'indigo',
-    status: 'active' as const,
-  },
-  {
-    id: 'proj-sala1',
-    name: 'Renovación Sala 1',
-    areaName: 'VC',
-    description: 'Renovación de hardware y cableado de videoconferencia en Sala 1',
-    color: 'teal',
-    status: 'active' as const,
-  },
-];
 
 export const defaultVaultPath = path.join(os.homedir(), 'Documents', 'DailyWorklog');
 
 export const DEFAULT_SETTINGS: AppSettings = {
   vaultPath: defaultVaultPath,
   language: 'en' as const,
-  themeColor: 'indigo',
+  themeColor: DEFAULT_THEME_COLOR,
   colorScheme: 'auto' as const,
   weekStartDay: 1 as const,
   kanbanColumns: DEFAULT_KANBAN_COLUMNS,
@@ -156,7 +20,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   editorFontSize: 15,
   closedTasksWindowDays: 30,
   routines: DEFAULT_ROUTINES,
-  showDailyRoutinesPanel: true,
+  enableDailyRoutines: true,
   hasCompletedOnboarding: false,
   areas: DEFAULT_AREAS,
   projects: DEFAULT_PROJECTS,
@@ -282,16 +146,19 @@ export function readSettingsFromDisk(): AppSettings {
     }
   }
 
-  // Drop keys of the removed templates feature; the next save removes them from disk.
+  // Drop keys of removed features; the next save removes them from disk.
   const {
     templates: _legacyTemplates,
     defaultTemplateId: _legacyDefaultTemplateId,
     dateFormat: _legacyDateFormat,
+    showDailyRoutinesPanel: _legacyShowDailyRoutinesPanel,
     ...settingsWithoutLegacyKeys
   } = localSettings;
   localSettings = settingsWithoutLegacyKeys;
 
-  if (!Array.isArray(localSettings.areas) || localSettings.areas.length === 0) {
+  // Seed defaults only when a key is missing (new installs). An explicitly empty
+  // list is a valid user choice and must survive a reload.
+  if (!Array.isArray(localSettings.areas)) {
     localSettings.areas = DEFAULT_AREAS;
   }
   if (!Array.isArray(localSettings.projects)) {

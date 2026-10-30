@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import type { AppSettings } from '../../src/types';
 import { defaultVaultPath } from '../services/settingsService';
+import { nativeText } from '../services/nativeText';
 import { ensureVaultDir } from '../services/vaultService';
 
 interface SystemHandlerDependencies {
@@ -15,13 +16,13 @@ export function registerSystemHandlers(dependencies: SystemHandlerDependencies):
   const { getMainWindow, getSettings, showAbout } = dependencies;
 
   ipcMain.handle('get-app-version', () => {
-    return app.getVersion() || '1.15.3';
+    return app.getVersion();
   });
 
   ipcMain.handle('get-app-info', () => {
     return {
       name: 'Daily Worklog',
-      version: app.getVersion() || '1.15.3',
+      version: app.getVersion(),
       electron: process.versions.electron,
       chrome: process.versions.chrome,
       node: process.versions.node,
@@ -64,11 +65,11 @@ export function registerSystemHandlers(dependencies: SystemHandlerDependencies):
 
     const ext = format === 'html' ? 'html' : format === 'txt' ? 'txt' : 'md';
     const result = await dialog.showSaveDialog(mainWindow, {
-      title: `Export ${title}`,
+      title: nativeText(getSettings().language, 'dialogExport', { title }),
       defaultPath: defaultPath || `${title}.${ext}`,
       filters: [
         { name: format.toUpperCase(), extensions: [ext] },
-        { name: 'All Files', extensions: ['*'] },
+        { name: nativeText(getSettings().language, 'dialogAllFiles'), extensions: ['*'] },
       ],
     });
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   Stack,
   Group,
@@ -9,6 +9,7 @@ import {
   Paper,
   Modal,
   ThemeIcon,
+  Tooltip,
 } from '@mantine/core';
 import {
   IconPlus,
@@ -19,19 +20,25 @@ import {
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { useTranslation } from 'react-i18next';
-import { useAppStoreSelector } from '../../store/useAppStore';
-import { AreaDefinition, ProjectDefinition } from '../../types';
-import { DEFAULT_AREAS } from '../../utils/areaProjectUtils';
-import { AreaEditorModal } from './areas/AreaEditorModal';
-import { ProjectEditorModal } from './areas/ProjectEditorModal';
-import { AreaCard } from './areas/AreaCard';
-import { ProjectCard } from './areas/ProjectCard';
+import { useAppStoreSelector } from '../../../store/useAppStore';
+import { AreaDefinition, ProjectDefinition } from '../../../types';
+import { AreaEditorModal } from '../areas/AreaEditorModal';
+import { ProjectEditorModal } from '../areas/ProjectEditorModal';
+import { AreaCard } from '../areas/AreaCard';
+import { ProjectCard } from '../areas/ProjectCard';
+import { filterAreas, findOrphanedProjects } from '../areas/areaSearch';
+import { SettingsSection } from '../SettingsSection';
+import classes from './AreasSection.module.css';
 
-export const AreasProjectsManager: React.FC = () => {
+type DeleteTarget =
+  | { type: 'area'; item: AreaDefinition }
+  | { type: 'project'; item: ProjectDefinition };
+
+export const AreasSection: React.FC = () => {
   const { t } = useTranslation();
 
   const {
-    areas = DEFAULT_AREAS,
+    areas,
     projects = [],
     tasks,
     allTags,
@@ -62,39 +69,13 @@ export const AreasProjectsManager: React.FC = () => {
   const [projectDefaultArea, setProjectDefaultArea] = useState<string | undefined>(undefined);
 
   // Delete modal state
-  const [deleteTarget, setDeleteTarget] = useState<{ type: 'area' | 'project'; item: any } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 
-  // Filtered areas
-  const filteredAreas = useMemo(() => {
-    const q = search.toLowerCase().trim();
-    if (!q) return areas;
-    return areas.filter((a) => {
-      const matchArea =
-        a.name.toLowerCase().includes(q) || (a.description && a.description.toLowerCase().includes(q));
-      const matchChildProjects = projects.some(
-        (p) =>
-          p.areaName.toLowerCase() === a.name.toLowerCase() &&
-          (p.name.toLowerCase().includes(q) || (p.description && p.description.toLowerCase().includes(q)))
-      );
-      return matchArea || matchChildProjects;
-    });
-  }, [areas, projects, search]);
-
-  // Projects whose parent area doesn't match any known area
-  const orphanedProjects = useMemo(() => {
-    const areaNames = new Set(areas.map((a) => a.name.toLowerCase()));
-    const q = search.toLowerCase().trim();
-    return projects.filter((p) => {
-      const isOrphan = !areaNames.has((p.areaName || '').toLowerCase());
-      if (!isOrphan) return false;
-      if (!q) return true;
-      return (
-        p.name.toLowerCase().includes(q) ||
-        (p.description && p.description.toLowerCase().includes(q)) ||
-        (p.areaName && p.areaName.toLowerCase().includes(q))
-      );
-    });
-  }, [areas, projects, search]);
+  const query = search.trim();
+  const filteredAreas = filterAreas(areas, projects, query);
+  // Orphans are independent from the area list: they must stay visible even when no area matches.
+  const orphanedProjects = findOrphanedProjects(areas, projects, query);
+  const hasNothingToShow = filteredAreas.length === 0 && orphanedProjects.length === 0;
 
   const handleOpenAddArea = () => {
     setEditingArea(null);
@@ -164,61 +145,62 @@ export const AreasProjectsManager: React.FC = () => {
     setDeleteTarget(null);
   };
 
+  const searchField = (
+    <TextInput
+      aria-label={t('areas.searchPlaceholder')}
+      placeholder={t('areas.searchPlaceholder')}
+      leftSection={<IconSearch size={15} />}
+      value={search}
+      onChange={(e) => setSearch(e.currentTarget.value)}
+      size="sm"
+      className={classes.searchInput}
+    />
+  );
+
+  const actions = (
+    <>
+      <Tooltip label={t('areas.createAreaFirst')} disabled={areas.length > 0} withArrow>
+        <Button
+          leftSection={<IconPlus size={16} />}
+          variant="light"
+          size="sm"
+          disabled={areas.length === 0}
+          onClick={() => handleOpenAddProject()}
+        >
+          {t('areas.newProject')}
+        </Button>
+      </Tooltip>
+
+      <Button leftSection={<IconPlus size={16} />} variant="filled" size="sm" onClick={handleOpenAddArea}>
+        {t('areas.newArea')}
+      </Button>
+    </>
+  );
+
   return (
-    <Stack gap="lg">
-      {/* Header with Title and Search/Actions */}
-      <Group justify="space-between" align="center" wrap="wrap">
-        <div>
-          <Text fw={700} size="lg">
-            {t('areas.title', 'Areas & Projects')}
-          </Text>
-          <Text size="xs" c="dimmed">
-            {t('areas.subtitle', 'Organize tasks into permanent domains of responsibility (Areas) and focused deliverables (Projects).')}
-          </Text>
-        </div>
-
-        <Group gap="xs">
-          <TextInput
-            placeholder={t('areas.searchPlaceholder', 'Search areas, projects, or tags...')}
-            leftSection={<IconSearch size={15} />}
-            value={search}
-            onChange={(e) => setSearch(e.currentTarget.value)}
-            size="sm"
-            style={{ width: 220 }}
-          />
-
-          <Button
-            leftSection={<IconPlus size={16} />}
-            variant="light"
-            color="indigo"
-            size="sm"
-            onClick={() => handleOpenAddProject()}
-          >
-            {t('areas.newProject', 'New Project')}
-          </Button>
-
-          <Button
-            leftSection={<IconPlus size={16} />}
-            variant="filled"
-            color="indigo"
-            size="sm"
-            onClick={handleOpenAddArea}
-          >
-            {t('areas.newArea', 'New Area')}
-          </Button>
-        </Group>
-      </Group>
-
+    <SettingsSection
+      title={t('areas.title')}
+      description={t('areas.subtitle')}
+      actions={actions}
+      search={searchField}
+      scope="vault"
+    >
       {/* Areas & Projects List */}
-      {filteredAreas.length === 0 ? (
-        <Paper p="xl" withBorder radius="md" style={{ textAlign: 'center' }}>
-          <IconFolders size={36} color="gray" style={{ opacity: 0.5, margin: '0 auto 8px' }} />
+      {hasNothingToShow ? (
+        <Paper p="xl" withBorder radius="md" className={classes.emptyState}>
+          <IconFolders size={36} color="gray" className={classes.emptyIcon} />
           <Text size="sm" c="dimmed">
-            {t('areas.noAreasFound', 'No areas found')}
+            {query ? t('areas.noSearchResults') : t('areas.noAreasFound', 'No areas found')}
           </Text>
-          <Button mt="md" size="xs" variant="light" color="indigo" onClick={handleOpenAddArea}>
-            {t('areas.createFirstArea', 'Create Area')}
-          </Button>
+          {query ? (
+            <Button mt="md" size="xs" variant="light" onClick={() => setSearch('')}>
+              {t('areas.clearSearch')}
+            </Button>
+          ) : (
+            <Button mt="md" size="xs" variant="light" onClick={handleOpenAddArea}>
+              {t('areas.createFirstArea', 'Create Area')}
+            </Button>
+          )}
         </Paper>
       ) : (
         <Stack gap="md">
@@ -240,7 +222,7 @@ export const AreasProjectsManager: React.FC = () => {
 
           {/* Orphaned / Unassigned Projects */}
           {orphanedProjects.length > 0 && (
-            <Paper withBorder radius="md" p="md" style={{ borderColor: 'var(--mantine-color-orange-5)' }}>
+            <Paper withBorder radius="md" p="md" className={classes.orphansPanel}>
               <Group justify="space-between" align="center" mb="sm">
                 <Group gap="xs">
                   <ThemeIcon color="orange" variant="light" size="md" radius="md">
@@ -323,6 +305,6 @@ export const AreasProjectsManager: React.FC = () => {
           </Group>
         </Stack>
       </Modal>
-    </Stack>
+    </SettingsSection>
   );
 };

@@ -1,0 +1,40 @@
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: rem(2px);
+  width: rem(210px);
+  flex-shrink: 0;
+  padding-right: var(--mantine-spacing-md);
+  border-right: 1px solid var(--mantine-color-default-border);
+  overflow-y: auto;
+}
+
+.groupLabel {
+  padding: var(--mantine-spacing-md) var(--mantine-spacing-sm) rem(4px);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.groupLabel:first-child {
+  padding-top: 0;
+}
+
+.divider {
+  margin: var(--mantine-spacing-xs) 0;
+}
+
+@media (max-width: 48em) {
+  .nav {
+    flex-direction: row;
+    width: auto;
+    padding: 0 0 var(--mantine-spacing-xs);
+    border-right: none;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    overflow-x: auto;
+  }
+
+  .groupLabel,
+  .divider {
+    display: none;
+  }
+}
