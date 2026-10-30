@@ -241,7 +241,7 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
       )}
 
       {/* Days List */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+      <div data-testid="report-days-list" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
         <Stack gap="sm">
           {filteredDays.length === 0 ? (
             <Card withBorder radius="md" p="xl" style={{ textAlign: 'center' }}>
@@ -384,9 +384,7 @@ export const PeriodDaysList: React.FC<PeriodDaysListProps> = ({ periodSummary })
                   <Collapse in={!isCollapsed}>
                     <div style={{ padding: 12 }}>
                       {hasContent ? (
-                        <div style={{ maxHeight: 380, overflowY: 'auto' }}>
-                          <MarkdownViewer content={day.content || ''} allowToggleTasks={false} />
-                        </div>
+                        <MarkdownViewer content={day.content || ''} allowToggleTasks={false} />
                       ) : (
                         <Group justify="space-between" align="center" p="xs">
                           <Text size="xs" c="dimmed">

@@ -91,3 +91,25 @@ test('shows only work content from a day with a Notes section', async ({ page, t
   await page.getByRole('tab', { name: 'Overview' }).click();
   await expect(page.getByText('1 of 7', { exact: true })).toBeVisible();
 });
+
+test('scrolls the entries list with the wheel while the pointer is over a long note', async ({ page, testVaultDir }) => {
+  const today = new Date();
+  const pad = (value: number) => String(value).padStart(2, '0');
+  const date = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+  const entries = Array.from({ length: 60 }, (_, index) => `- [x] Entry ${index}`).join('\n');
+  fs.mkdirSync(path.join(testVaultDir, String(today.getFullYear())), { recursive: true });
+  fs.writeFileSync(path.join(testVaultDir, String(today.getFullYear()), `${date}.md`), `# Worklog\n\n## Work\n${entries}\n`);
+  await page.getByRole('button', { name: 'Reports', exact: true }).click();
+  await page.getByRole('tab', { name: 'Entries' }).click();
+  await page.getByRole('button', { name: 'Expand All' }).click();
+  const note = page.getByText('Entry 0', { exact: true }).first();
+  await expect(note).toBeVisible();
+  const box = (await note.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, 240);
+  await expect.poll(() => page.getByTestId('report-days-list').evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  const nestedScrollers = await page.getByTestId('report-days-list').evaluate((list) =>
+    Array.from(list.querySelectorAll<HTMLElement>('*')).filter((el) =>
+      el.scrollHeight > el.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(el).overflowY)).length);
+  expect(nestedScrollers).toBe(0);
+});

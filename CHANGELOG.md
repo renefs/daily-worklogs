@@ -23,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Recent-First Done & Cancelled Columns**: Closed Kanban columns now sort newest first and show only tasks closed within a configurable window (7, 14, 30, 90 days, or All; default 30). Older tasks stay one click away via an inline "Show N older" toggle, and searching always reveals them. This replaces the "Hide closed tasks older than 30 days" switch; nothing changes on disk.
 
 ### Fixed
+- **Reliable Scrolling in Report Entries**: Expanded notes in the Entries tab no longer have their own scroll box, so the mouse wheel always moves the list instead of getting caught inside a note.
 - **Deleting a Column No Longer Hides Its Tasks**: Deleting a custom column asks for confirmation, shows how many tasks it holds and moves them to a column you choose first. Resetting the board columns protects tasks in custom columns the same way, and hiding a column that still has tasks warns you.
 - **Zero Areas Persist**: Deleting the last area no longer brings the default areas back after a reload.
 - **Changing the Vault Reloads Everything**: Choosing another vault folder reloads notes, tasks, tags and routine completions, and drops the task that was open in the previous vault.
