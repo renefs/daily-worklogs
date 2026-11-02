@@ -32,6 +32,9 @@ if (typeof window !== 'undefined') {
   }
   window.ResizeObserver = MockResizeObserver as any;
 
+  // Polyfill scrollIntoView for Mantine Combobox (not implemented by jsdom)
+  Element.prototype.scrollIntoView = vi.fn();
+
   // Mock window.electronAPI for renderer component testing
   (window as any).electronAPI = {
     platform: 'darwin',
