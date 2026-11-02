@@ -20,14 +20,12 @@
 .cm-live-mark-hidden {
   display: inline-block;
   width: 0 !important;
-  height: 0 !important;
-  font-size: 0 !important;
-  line-height: 0 !important;
   opacity: 0 !important;
   overflow: hidden !important;
+  white-space: nowrap !important;
   pointer-events: none;
   user-select: none;
-  vertical-align: middle;
+  vertical-align: bottom;
 }
 
 /* Revealed markdown delimiter when cursor is adjacent/inside */
@@ -55,8 +53,7 @@
   font-size: 1.55em !important;
   font-weight: 700 !important;
   padding-top: 8px !important;
-  padding-bottom: 4px !important;
-  margin-bottom: 6px !important;
+  padding-bottom: 10px !important;
   color: var(--mantine-color-text);
 }
 
@@ -64,8 +61,7 @@
   font-size: 1.3em !important;
   font-weight: 700 !important;
   padding-top: 8px !important;
-  padding-bottom: 3px !important;
-  margin-bottom: 4px !important;
+  padding-bottom: 7px !important;
   color: var(--mantine-color-text);
 }
 
@@ -310,7 +306,7 @@ a.cm-live-link {
 
 .cm-live-table-wrapper {
   position: relative;
-  margin: 14px 0;
+  margin: 0;
   border-radius: 8px;
   border: 1px solid var(--mantine-color-default-border);
   background-color: var(--mantine-color-body, #ffffff);
@@ -466,7 +462,6 @@ a.cm-live-link {
   border-top: 1px solid var(--codeblock-border, #d0d7de) !important;
   border-top-left-radius: 6px;
   border-top-right-radius: 6px;
-  margin-top: 8px !important;
 }
 
 .cm-live-codeblock-start:not(.cm-live-codeblock-active) {
@@ -545,11 +540,6 @@ a.cm-live-link {
   border-bottom-left-radius: 6px;
   border-bottom-right-radius: 6px;
   padding: 0 !important;
-  margin-bottom: 8px !important;
-}
-
-.cm-live-codeblock-end + .cm-live-codeblock-start {
-  margin-top: 10px !important;
 }
 
 .cm-live-codeblock-end:not(.cm-live-codeblock-active) {
@@ -578,7 +568,8 @@ a.cm-live-link {
 /* Image Widget Styling in Live Preview */
 .cm-live-image-widget {
   display: block;
-  margin: 10px 0;
+  padding: 10px 0;
+  margin: 0;
   max-width: 100%;
   user-select: none;
 }

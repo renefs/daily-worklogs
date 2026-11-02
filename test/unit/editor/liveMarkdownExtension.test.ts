@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { markdown } from '@codemirror/lang-markdown';
@@ -132,5 +134,31 @@ describe('live Markdown decorations', () => {
 
     view.destroy();
     parent.remove();
+  });
+
+  it('avoids unmeasured vertical margins on block/line elements and zero-height hidden marks in liveEditor.css', () => {
+    const cssPath = path.resolve(process.cwd(), 'src/styles/liveEditor.css');
+    const css = fs.readFileSync(cssPath, 'utf-8');
+
+    const getRuleBody = (selector: string): string => {
+      const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const match = css.match(new RegExp(`${escaped}\\s*\\{([^}]*)\\}`));
+      return match ? match[1] : '';
+    };
+
+    // Direct children of .cm-content (lines and block widgets) must not have vertical margins,
+    // because CodeMirror's heightMap measures getBoundingClientRect().height (which excludes margins).
+    expect(getRuleBody('.cm-live-h1')).not.toMatch(/margin-(top|bottom)\s*:/);
+    expect(getRuleBody('.cm-live-h2')).not.toMatch(/margin-(top|bottom)\s*:/);
+    expect(getRuleBody('.cm-live-table-wrapper')).toMatch(/margin\s*:\s*0\s*;/);
+    expect(getRuleBody('.cm-live-codeblock-start')).not.toMatch(/margin-(top|bottom)\s*:/);
+    expect(getRuleBody('.cm-live-codeblock-end')).not.toMatch(/margin-(top|bottom)\s*:/);
+
+    // Hidden inline delimiter marks must not collapse height/font-size to 0, which breaks
+    // CodeMirror's InlineCoordsScan vertical overlap check when clicking inline code.
+    const hiddenMarkBody = getRuleBody('.cm-live-mark-hidden');
+    expect(hiddenMarkBody).toMatch(/width\s*:\s*0/);
+    expect(hiddenMarkBody).not.toMatch(/height\s*:\s*0/);
+    expect(hiddenMarkBody).not.toMatch(/font-size\s*:\s*0/);
   });
 });
