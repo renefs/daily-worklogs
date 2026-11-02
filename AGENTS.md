@@ -22,7 +22,7 @@ This document defines the architecture, design principles, domain models, techno
 
 | Layer | Technologies |
 |---|---|
-| **Runtime & Platform** | Electron 34+, Node.js 18+, `electron-builder` |
+| **Runtime & Platform** | Electron 34+, Node.js 24+, `electron-builder` |
 | **Frontend Framework** | React 18, TypeScript 5, Vite 6 (`vite-plugin-electron`, `vite-plugin-electron-renderer`) |
 | **UI Components & Theme** | Mantine UI v7 (`@mantine/core`, `@mantine/hooks`, `@mantine/dates`, `@mantine/notifications`, `@mantine/spotlight`), Tabler Icons (`@tabler/icons-react`), Lucide React |
 | **Styling** | Mantine CSS styling system, CSS Modules (`*.module.css`), PostCSS with `postcss-preset-mantine` (Avoid TailwindCSS) |

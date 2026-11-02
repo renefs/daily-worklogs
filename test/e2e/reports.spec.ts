@@ -1,5 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import dayjs from 'dayjs';
+import 'dayjs/locale/es.js';
 import { test, expect } from './fixtures/electronApp';
 
 test('drills down from annual activity to a daily note and supports narrow layouts', async ({ page, testVaultDir }) => {
@@ -44,8 +46,10 @@ test('drills down from annual activity to a daily note and supports narrow layou
 
 
 test('respects Spanish labels, dark appearance, and Sunday-start reporting', async ({ page, testVaultDir }) => {
-  fs.mkdirSync(path.join(testVaultDir, '2026'), { recursive: true });
-  fs.writeFileSync(path.join(testVaultDir, '2026', '2026-10-01.md'), '# Worklog\n\n- [x] Review release notes\n');
+  // The picker opens on the current month, so the note has to be in it.
+  const today = dayjs();
+  fs.mkdirSync(path.join(testVaultDir, today.format('YYYY')), { recursive: true });
+  fs.writeFileSync(path.join(testVaultDir, today.format('YYYY'), `${today.format('YYYY-MM-DD')}.md`), '# Worklog\n\n- [x] Review release notes\n');
   await page.evaluate(async () => {
     const settings = await window.electronAPI.getSettings();
     await window.electronAPI.saveSettings({ ...settings, language: 'es', colorScheme: 'dark', weekStartDay: 0 });
@@ -65,7 +69,7 @@ test('respects Spanish labels, dark appearance, and Sunday-start reporting', asy
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('report-period-picker')).toBeFocused();
   await page.getByTestId('report-period-picker').click();
-  await page.getByRole('dialog').getByRole('button', { name: '1 octubre 2026', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: today.locale('es').format('D MMMM YYYY'), exact: true }).click();
   await expect(page.locator('[data-tone]')).toHaveCount(3);
 });
 

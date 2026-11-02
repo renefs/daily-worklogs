@@ -31,7 +31,7 @@ Current version: **1.15.3** — see the [changelog](CHANGELOG.md) for release de
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js (v18 or higher)
+- Node.js (v24 or higher)
 - npm (v9 or higher)
 
 ### Installation

@@ -4,6 +4,9 @@
   "description": "Cross-platform Daily Worklog Desktop Application",
   "main": "dist-electron/main.js",
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && electron-builder",
@@ -71,7 +74,7 @@
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
     "@types/hast": "^3.0.5",
-    "@types/node": "^22.13.4",
+    "@types/node": "^24.19.2",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
