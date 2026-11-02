@@ -161,7 +161,7 @@ When a user selects a vault folder, the application structures and persists file
 ### 5.5. Settings
 - Settings is a full page (`currentView: 'settings'`), not a modal. `openSettings(section?)` goes through the same view switch as every other view, so the open note and task draft are flushed first and nothing changes if that fails. `closeSettings()` returns to `settingsReturnView`; `previousView` stays reserved for the task editor.
 - Sections (`SettingsSectionId`): General, Editor, Appearance, Areas & Projects (`areas`), Task Board (`kanban`), Tags, Routines, About. Each renders a shared `SettingsSection` header. Sections whose data lives in `.daily-worklogs/config.json` set `scope="vault"` to show the sync hint; only `vaultPath` is per computer.
-- Esc leaves Settings only when no dialog, spotlight, select list or text field wants the key (`src/utils/escapeGuard.ts`, capture phase, plus `defaultPrevented` in the bubble phase). Editor dialogs inside sections stay one level deep so Esc closes just the dialog.
+- The Back control is the way out of Settings; Esc does not leave the page. Editor dialogs inside sections stay one level deep so Esc closes just the dialog.
 - Deleting or resetting Kanban columns, or hiding a column that still has tasks, always asks first and moves affected tasks through `moveTasksToStatus`, which uses the regular task status update path.
 - First-run defaults live in `src/shared/defaultData.ts` and apply only to keys a vault does not have. An explicitly empty `areas` list is valid and never re-seeded.
 

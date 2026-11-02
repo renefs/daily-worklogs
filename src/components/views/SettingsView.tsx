@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Kbd, ScrollArea, Text, Title } from '@mantine/core';
+import { Button, ScrollArea, Title } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { useAppStoreSelector } from '../../store/useAppStore';
@@ -8,7 +8,6 @@ import { isReportView } from '../../utils/reportPeriod';
 import { normalizeSettingsSection } from '../../utils/settingsSections';
 import { SettingsNav } from './settings/SettingsNav';
 import { SETTINGS_SECTION_META } from './settings/settingsSectionMeta';
-import { useEscapeToLeave } from './settings/useEscapeToLeave';
 import classes from './SettingsView.module.css';
 
 function getViewLabelKey(view: AppViewMode): string {
@@ -28,11 +27,6 @@ export const SettingsView: React.FC = () => {
     })
   );
 
-  const leave = () => {
-    void closeSettings();
-  };
-  useEscapeToLeave(leave);
-
   const activeSection = normalizeSettingsSection(settingsActiveTab);
   const { Component: ActiveSection } = SETTINGS_SECTION_META[activeSection];
   const backLabel = t('settings.backTo', { view: t(getViewLabelKey(settingsReturnView)) });
@@ -45,16 +39,13 @@ export const SettingsView: React.FC = () => {
           color="gray"
           size="sm"
           leftSection={<IconArrowLeft size={16} />}
-          onClick={leave}
+          onClick={() => void closeSettings()}
         >
           {backLabel}
         </Button>
         <Title order={1} size="h3" className={classes.title}>
           {t('settings.title')}
         </Title>
-        <Text size="xs" c="dimmed" className={classes.escapeHint}>
-          <Kbd size="xs">Esc</Kbd>
-        </Text>
       </div>
 
       <div className={classes.body}>

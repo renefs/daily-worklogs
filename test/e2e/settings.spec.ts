@@ -27,21 +27,13 @@ function writeTask(tasksDir: string, id: number, title: string, status: string, 
 }
 
 test.describe('Settings page', () => {
-  test('opens as a page, and Back or Esc return to the previous view', async ({ page }) => {
+  test('opens as a page, and Back returns to the previous view', async ({ page }) => {
     await page.getByRole('button', { name: 'Tasks', exact: true }).click();
     await openSettings(page);
     await expect(page.getByRole('button', { name: 'Close', exact: true })).toHaveCount(0);
 
     await page.getByRole('button', { name: 'Back to Tasks' }).click();
     await expect(page.getByTestId('settings-view')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Tasks', exact: true })).toHaveAttribute('aria-current', 'page');
-
-    await openSettings(page);
-    // An Esc sent within milliseconds of opening is occasionally lost before the bubble phase; cause unknown.
-    await expect(async () => {
-      await page.keyboard.press('Escape');
-      await expect(page.getByTestId('settings-view')).toHaveCount(0, { timeout: 1000 });
-    }).toPass();
     await expect(page.getByRole('button', { name: 'Tasks', exact: true })).toHaveAttribute('aria-current', 'page');
   });
 
@@ -55,9 +47,6 @@ test.describe('Settings page', () => {
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(page.getByTestId('settings-view')).toBeVisible();
-
-    await page.keyboard.press('Escape');
-    await expect(page.getByTestId('settings-view')).toHaveCount(0);
   });
 
   test('Esc closes an open select list without leaving Settings', async ({ page }) => {
