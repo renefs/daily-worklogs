@@ -8,11 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.16.0] - 2026-11-02
+
 ### Added
 - **Private `## Notes` Section in Daily Notes**: Content under a heading that is exactly `Notes` (any level, case-insensitive) is excluded from weekly, monthly and yearly reports, including KPIs, checklist items, the Daily Notes tab and Copy day. Days with only an untouched template or only Notes no longer count as logged. The Standard Worklog and Standup templates now end with a `## Notes` section (unmodified built-in templates are upgraded automatically), and the `### 📋 Task Log` fallback inserts task entries before Notes. Notes headings in daily notes show a muted "Not in reports" badge in every editor mode and in the rendered preview, and the Daily Notes tab explains that Notes sections are not included. A new "Add notes section" toolbar button in the daily note editor appends a `## Notes` heading at the end of the note (undoable, disabled when the note already has one).
 
 ### Changed
-- **Settings Is Now a Page**: Settings replaces the modal with a full-page view and a left section navigation (Preferences: General, Editor, Appearance; Workspace: Areas & Projects, Task Board, Tags, Routines; About). Every entry point (header, rail, command palette, app menu, routines panel) opens it, the rail highlights it, and a Back control or Esc returns to the previous view. Esc never leaves Settings while a dialog, the command palette, a select list or a text field is in use. Opening Settings first saves the open note or task draft, and returning to a task reopens the saved copy. The last visited section is remembered, and sections that follow the vault between computers say so.
+- **Node.js 24 Required for Development**: Building and developing the app now requires Node.js 24 or newer. The packaged app is unaffected.
+- **Settings Is Now a Page**: Settings replaces the modal with a full-page view and a left section navigation (Preferences: General, Editor, Appearance; Workspace: Areas & Projects, Task Board, Tags, Routines; About). Every entry point (header, rail, command palette, app menu, routines panel) opens it, the rail highlights it, and a Back control returns to the previous view. Opening Settings first saves the open note or task draft, and returning to a task reopens the saved copy. The last visited section is remembered, and sections that follow the vault between computers say so.
 - **Editor Section**: Auto-save and editor font size now live together in a new Editor section. The font size is saved once when you release the slider instead of on every step.
 - **Single Preferences Entry**: The native menu has one Settings entry (application menu on macOS, File menu on Windows and Linux), and the menu, file dialogs and About dialog follow the app language.
 - **Shared Settings Header and Theme Colors**: All Settings sections share one header with the theme's primary color, and the color mode and accent pickers are shared with the setup wizard. Accent color falls back to indigo everywhere.
