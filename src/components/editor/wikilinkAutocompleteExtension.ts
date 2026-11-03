@@ -5,6 +5,7 @@ import { syntaxTree } from '@codemirror/language';
 import type { DailyNoteMeta, TaskMeta, TagDefinition } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
 import { createTagCompletionSource } from './tagAutocompleteExtension';
+import { completionDisplayConfig, completionTheme } from './completionTheme';
 
 export interface WikilinkDataSource {
   getNotes: () => DailyNoteMeta[];
@@ -68,9 +69,9 @@ export function createWikilinkCompletionSource(dataSource: WikilinkDataSource) {
         if (!rawQuery || dateStr.toLowerCase().includes(rawQuery)) {
           options.push({
             label: dateStr,
-            displayLabel: `📅 ${dateStr}`,
+            displayLabel: dateStr,
             detail: 'Daily note',
-            type: 'text',
+            type: 'note',
             boost: dateStr.startsWith(rawQuery) ? 3 : 1,
             apply: (view: EditorView, completion: Completion, from: number, to: number) => {
               const insertText = `[[${completion.label}]]`;
@@ -151,9 +152,9 @@ export function createWikilinkCompletionSource(dataSource: WikilinkDataSource) {
       if (matches) {
         options.push({
           label: insertTarget,
-          displayLabel: `✓ ${taskDisplay}`,
+          displayLabel: taskDisplay,
           detail: `Task (${task.status || 'todo'})`,
-          type: 'keyword',
+          type: 'task',
           boost,
           apply: (view: EditorView, completion: Completion, from: number, to: number) => {
             const insertText = `[[${completion.label}]]`;
@@ -184,8 +185,9 @@ export function createWikilinkAutocompleteExtension(dataSource: WikilinkDataSour
     autocompletion({
       override: [createWikilinkCompletionSource(dataSource)],
       defaultKeymap: true,
-      icons: true,
+      ...completionDisplayConfig,
     }),
+    completionTheme,
     createWikilinkInputHandler(),
   ];
 }
@@ -205,8 +207,9 @@ export function createEditorAutocompleteExtension(options: {
         }),
       ],
       defaultKeymap: true,
-      icons: true,
+      ...completionDisplayConfig,
     }),
+    completionTheme,
     createWikilinkInputHandler(),
     createTagInputHandler(),
   ];

@@ -70,7 +70,7 @@ describe('Wikilink and Tag Autocomplete Extension', () => {
     const completions = currentCompletions(view.state);
     expect(completions.length).toBe(1);
     expect(completions[0].label).toBe('#42|Deploy App to Production');
-    expect(completions[0].displayLabel).toBe('✓ #42 - Deploy App to Production');
+    expect(completions[0].displayLabel).toBe('#42 - Deploy App to Production');
   });
 
   it('filters tasks by title when typing [[#login', async () => {

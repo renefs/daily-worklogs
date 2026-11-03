@@ -3,6 +3,8 @@ import { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
 import { TagDefinition } from '../../types';
+import { getTagColor } from '../../utils/tagUtils';
+import { completionDisplayConfig, completionTheme, TagCompletion } from './completionTheme';
 
 /**
  * Creates a CodeMirror extension that autocompletes `#tags`
@@ -44,12 +46,13 @@ export function createTagCompletionSource(
         if (!query) return true;
         return t.name.toLowerCase().includes(query);
       })
-      .map((t) => {
+      .map((t): TagCompletion & { boost: number } => {
         return {
           label: `#${t.name}`,
           displayLabel: `#${t.name}`,
           detail: t.description,
-          type: 'keyword',
+          type: 'tag',
+          tagColor: getTagColor(t.name, tagDefs),
           apply: (view: EditorView, completion: Completion, from: number, to: number) => {
             const insertText = `${completion.label} `;
             view.dispatch({
@@ -76,10 +79,13 @@ export function createTagCompletionSource(
 export function createTagAutocompleteExtension(
   getTags: () => TagDefinition[] | string[]
 ): Extension {
-  return autocompletion({
-    override: [createTagCompletionSource(getTags)],
-    defaultKeymap: true,
-    icons: true,
-  });
+  return [
+    autocompletion({
+      override: [createTagCompletionSource(getTags)],
+      defaultKeymap: true,
+      ...completionDisplayConfig,
+    }),
+    completionTheme,
+  ];
 }
 
