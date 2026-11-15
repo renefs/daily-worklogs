@@ -231,10 +231,11 @@ When implementing new features or refactoring existing ones:
 ### 6.5. AI Model Roles
 Thinking and reviewing must be separated from implementation, using the model assigned to each role:
 
-| Provider | Thinking & Reviewing | Implementation |
-|---|---|---|
-| **Gemini** | Gemini Argon | Gemini Flash |
-| **Claude** | Claude Opus | Claude Sonnet |
+| Provider | Thinking & Reviewing | Implementation | Agent Orchestration |
+|---|---|---|---|
+| **Gemini** | Gemini Argon | Gemini Flash | — |
+| **Claude** | Claude Opus | Claude Sonnet | Claude Haiku |
 
 - **Thinking & Reviewing**: Gemini Argon and Claude Opus analyze tasks, design solutions, plan the work, and review the finished changes.
 - **Implementation**: Gemini Flash and Claude Sonnet write the code, following the plan produced by the thinking model of the same provider.
+- **Agent Orchestration**: Claude Haiku coordinates multi-agent work (dispatching subagents, routing tasks, collecting results). It does not plan, review, or write code itself.
