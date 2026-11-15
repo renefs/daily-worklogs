@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.17.1] - 2026-11-15
+
+### Changed
+- **Command Palette Results**: Notes show their full localized date, tasks show their `#id` badge and Kanban column name, snippets are clipped around the match, and quick actions are filtered as you type. Exact `#id` and title matches are listed first, and a spinner shows while searching.
+
+### Fixed
+- **Scrolling in the Command Palette**: Long search result lists now scroll inside the palette instead of overflowing the window.
+- **Keyboard Selection in Search**: Enter and the arrow keys work as soon as results appear, and results from an earlier query can no longer replace the current ones.
+- **Tasks Hidden by Note Matches**: Notes and tasks are limited separately, so many matching notes no longer push tasks out of the results. The sidebar note filter is no longer capped at 100 notes.
+- **Task Search Precision**: Searching for frontmatter field names such as `priority` or `status` no longer matches every task.
+- **Search Text and Icons**: Result icons are shown again, and the remaining hardcoded English text in search results is translated.
+
 ## [1.17.0] - 2026-11-15
 
 ### Fixed
