@@ -56,9 +56,10 @@ const claudeColors: MantineColorsTuple = [
 ];
 
 export const App: React.FC = () => {
-  const { initApp, settings } = useAppStoreSelector((state) => ({
+  const { initApp, settings, appearancePreview } = useAppStoreSelector((state) => ({
     initApp: state.initApp,
     settings: state.settings,
+    appearancePreview: state.appearancePreview,
   }));
   const { i18n } = useTranslation();
 
@@ -94,8 +95,12 @@ export const App: React.FC = () => {
 
   const currentLocale = i18n.language === 'es' ? 'es' : 'en';
 
+  // The setup wizard previews appearance choices before they are saved.
+  const themeColor = appearancePreview?.themeColor || settings?.themeColor;
+  const colorScheme = appearancePreview?.colorScheme || settings?.colorScheme;
+
   const theme = useMemo(() => {
-    const primaryColorKey = settings?.themeColor || DEFAULT_THEME_COLOR;
+    const primaryColorKey = themeColor || DEFAULT_THEME_COLOR;
     const customPalettes: Record<string, MantineColorsTuple> = {
       blue: modernBlueColors,
       claude: claudeColors,
@@ -124,14 +129,14 @@ export const App: React.FC = () => {
       },
       defaultRadius: 'md',
     });
-  }, [settings?.themeColor]);
+  }, [themeColor]);
 
   return (
     <MantineProvider
       theme={theme}
       defaultColorScheme={(settings?.colorScheme as MantineColorScheme) || 'auto'}
     >
-      <ColorSchemeSync colorScheme={settings?.colorScheme} />
+      <ColorSchemeSync colorScheme={colorScheme} />
       <DatesProvider
         settings={{
           locale: currentLocale,

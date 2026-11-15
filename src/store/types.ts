@@ -19,6 +19,8 @@ import {
   TaskStatus,
 } from '../types';
 
+export type AppearancePreview = Partial<Pick<AppSettings, 'colorScheme' | 'themeColor'>>;
+
 export interface UiSlice {
   currentView: AppViewMode;
   selectedDate: string; // YYYY-MM-DD
@@ -28,6 +30,8 @@ export interface UiSlice {
   /** View to return to when leaving Settings. Kept apart from previousView, which belongs to the task editor. */
   settingsReturnView: AppViewMode;
   isOnboardingOpen: boolean;
+  /** Unsaved appearance choices shown live while the setup wizard is open. Saved settings win when null. */
+  appearancePreview: AppearancePreview | null;
   isSidebarCollapsed: boolean;
   /** Static build and runtime details, loaded once at startup for the About section. */
   appInfo: AppInfo | null;
@@ -45,6 +49,7 @@ export interface UiSlice {
   setSettingsActiveTab: (tab: SettingsSectionId) => void;
   openOnboarding: () => void;
   closeOnboarding: () => void;
+  setAppearancePreview: (preview: AppearancePreview | null) => void;
   completeOnboarding: (partial?: Partial<AppSettings>) => Promise<void>;
   toggleSidebarCollapse: (collapsed?: boolean) => void;
   openExternalUrl: (url: string) => Promise<void>;

@@ -59,6 +59,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
   settingsActiveTab: DEFAULT_SETTINGS_SECTION,
   settingsReturnView: 'daily',
   isOnboardingOpen: false,
+  appearancePreview: null,
   isSidebarCollapsed: false,
   appInfo: null,
 
@@ -122,7 +123,11 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
   },
 
   closeOnboarding: () => {
-    set({ isOnboardingOpen: false });
+    set({ isOnboardingOpen: false, appearancePreview: null });
+  },
+
+  setAppearancePreview: (preview) => {
+    set({ appearancePreview: preview });
   },
 
   completeOnboarding: async (partial) => {
@@ -131,7 +136,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       hasCompletedOnboarding: true,
     };
     await get().updateSettings(nextSettings);
-    set({ isOnboardingOpen: false });
+    set({ isOnboardingOpen: false, appearancePreview: null });
   },
 
   toggleSidebarCollapse: (collapsed?: boolean) => {

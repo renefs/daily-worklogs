@@ -1,0 +1,17 @@
+.title {
+  font-family: var(--font-display);
+}
+
+.softPanel {
+  background-color: var(--mantine-color-default-hover);
+}
+
+.vaultInputField {
+  font-family: var(--mantine-font-family-monospace);
+  font-size: rem(13px);
+}
+
+.folderList {
+  margin: 0;
+  padding-left: rem(18px);
+}

@@ -12,6 +12,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { ColorSchemeControl } from '../../settings/appearance/ColorSchemeControl';
 import { ThemeColorPicker } from '../../settings/appearance/ThemeColorPicker';
+import classes from './OnboardingStep.module.css';
 
 export interface StepAppearanceProps {
   autoSave: boolean;
@@ -35,7 +36,7 @@ export const StepAppearance: React.FC<StepAppearanceProps> = ({
   return (
     <Stack gap="md">
       <div>
-        <Title order={3} fw={700} style={{ fontFamily: 'var(--font-display)' }}>
+        <Title order={3} fw={700} className={classes.title}>
           {t('onboarding.stepEditorTitle')}
         </Title>
         <Text size="sm" c="dimmed" mt={4}>
@@ -43,7 +44,7 @@ export const StepAppearance: React.FC<StepAppearanceProps> = ({
         </Text>
       </div>
 
-      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+      <SimpleGrid cols={1} spacing="sm">
         {/* Auto Save Card */}
         <Card withBorder radius="md" p="md">
           <Stack gap="xs">
@@ -52,6 +53,7 @@ export const StepAppearance: React.FC<StepAppearanceProps> = ({
                 {t('settings.autoSave')}
               </Text>
               <Switch
+                aria-label={t('settings.autoSave')}
                 checked={autoSave}
                 onChange={(e) => onAutoSaveChange(e.currentTarget.checked)}
                 size="md"
@@ -69,6 +71,9 @@ export const StepAppearance: React.FC<StepAppearanceProps> = ({
           <Stack gap="xs">
             <Text size="sm" fw={600}>
               {t('settings.colorScheme')}
+            </Text>
+            <Text size="xs" c="dimmed">
+              {t('onboarding.appearancePreviewHint')}
             </Text>
             <ColorSchemeControl value={themeMode} onChange={onThemeModeChange} />
           </Stack>

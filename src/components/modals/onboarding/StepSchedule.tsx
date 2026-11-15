@@ -1,23 +1,38 @@
 import React from 'react';
-import { Stack, Title, Text, Card, Select, Paper } from '@mantine/core';
+import { Stack, Title, Text, Card, Select, Group, Switch } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { WeekStartDay } from '../../../types';
+import classes from './OnboardingStep.module.css';
 
 export interface StepScheduleProps {
   weekStartDay: WeekStartDay;
   onWeekStartDayChange: (val: WeekStartDay) => void;
+  enableDailyRoutines: boolean;
+  onEnableDailyRoutinesChange: (val: boolean) => void;
 }
+
+const WEEK_DAYS = [
+  { value: '1', key: 'monday' },
+  { value: '2', key: 'tuesday' },
+  { value: '3', key: 'wednesday' },
+  { value: '4', key: 'thursday' },
+  { value: '5', key: 'friday' },
+  { value: '6', key: 'saturday' },
+  { value: '0', key: 'sunday' },
+] as const;
 
 export const StepSchedule: React.FC<StepScheduleProps> = ({
   weekStartDay,
   onWeekStartDayChange,
+  enableDailyRoutines,
+  onEnableDailyRoutinesChange,
 }) => {
   const { t } = useTranslation();
 
   return (
     <Stack gap="md">
       <div>
-        <Title order={3} fw={700} style={{ fontFamily: 'var(--font-display)' }}>
+        <Title order={3} fw={700} className={classes.title}>
           {t('onboarding.stepScheduleTitle')}
         </Title>
         <Text size="sm" c="dimmed" mt={4}>
@@ -26,34 +41,40 @@ export const StepSchedule: React.FC<StepScheduleProps> = ({
       </div>
 
       <Card withBorder radius="md" p="md">
-        <Stack gap="sm">
+        <Stack gap="xs">
           <Text size="sm" fw={600}>
             {t('settings.weekStart')}
           </Text>
+          <Text size="xs" c="dimmed">
+            {t('onboarding.weekStartHelp')}
+          </Text>
           <Select
+            aria-label={t('settings.weekStart')}
             value={String(weekStartDay)}
-            onChange={(val) => onWeekStartDayChange(Number(val) as WeekStartDay)}
-            data={[
-              { value: '1', label: `${t('settings.monday')} (${t('onboarding.weekStartMonday')})` },
-              { value: '0', label: `${t('settings.sunday')} (${t('onboarding.weekStartSunday')})` },
-              { value: '6', label: `${t('settings.saturday')} (${t('onboarding.weekStartOther')})` },
-              { value: '2', label: t('settings.tuesday') },
-              { value: '3', label: t('settings.wednesday') },
-              { value: '4', label: t('settings.thursday') },
-              { value: '5', label: t('settings.friday') },
-            ]}
+            onChange={(val) => onWeekStartDayChange(Number(val ?? '1') as WeekStartDay)}
+            data={WEEK_DAYS.map(({ value, key }) => ({ value, label: t(`settings.${key}`) }))}
             allowDeselect={false}
           />
-          <Paper
-            p="xs"
-            radius="sm"
-            withBorder
-            style={{ backgroundColor: 'var(--mantine-color-default-hover)' }}
-          >
-            <Text size="xs" c="dimmed">
-              {t('onboarding.weekStartHelp')}
+        </Stack>
+      </Card>
+
+      <Card withBorder radius="md" p="md">
+        <Stack gap="xs">
+          <Group justify="space-between" align="center" wrap="nowrap">
+            <Text size="sm" fw={600}>
+              {t('settings.enableDailyRoutines')}
             </Text>
-          </Paper>
+            <Switch
+              aria-label={t('settings.enableDailyRoutines')}
+              checked={enableDailyRoutines}
+              onChange={(e) => onEnableDailyRoutinesChange(e.currentTarget.checked)}
+              size="md"
+              color="primary"
+            />
+          </Group>
+          <Text size="xs" c="dimmed">
+            {t('onboarding.routinesHelp')}
+          </Text>
         </Stack>
       </Card>
     </Stack>

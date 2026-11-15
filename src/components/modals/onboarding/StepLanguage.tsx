@@ -2,6 +2,7 @@ import React from 'react';
 import { Stack, Title, Text, SimpleGrid, Card, Group, ThemeIcon, Select } from '@mantine/core';
 import { IconLanguage } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
+import classes from './OnboardingStep.module.css';
 
 export interface StepLanguageProps {
   language: 'en' | 'es';
@@ -17,7 +18,7 @@ export const StepLanguage: React.FC<StepLanguageProps> = ({
   return (
     <Stack gap="md">
       <div>
-        <Title order={3} fw={700} style={{ fontFamily: 'var(--font-display)' }}>
+        <Title order={3} fw={700} className={classes.title}>
           {t('onboarding.stepLanguageTitle')}
         </Title>
         <Text size="sm" c="dimmed" mt={4}>
@@ -40,6 +41,7 @@ export const StepLanguage: React.FC<StepLanguageProps> = ({
               {t('onboarding.languageHelp')}
             </Text>
             <Select
+              aria-label={t('onboarding.languageSelect')}
               value={language}
               onChange={(val) => onLanguageChange((val as 'en' | 'es') || 'en')}
               data={[

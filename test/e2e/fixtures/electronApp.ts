@@ -8,9 +8,13 @@ interface ElectronAppFixture {
   page: Page;
   testVaultDir: string;
   testUserDataDir: string;
+  /** Extra settings merged into the seeded settings.json, e.g. to show the setup wizard. */
+  settingsOverrides: Record<string, unknown>;
 }
 
 export const test = base.extend<ElectronAppFixture>({
+  settingsOverrides: [{}, { option: true }],
+
   testUserDataDir: async ({}, use) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dw-e2e-user-data-'));
     await use(dir);
@@ -23,7 +27,7 @@ export const test = base.extend<ElectronAppFixture>({
     fs.rmSync(dir, { recursive: true, force: true });
   },
 
-  electronApp: async ({ testUserDataDir, testVaultDir }, use) => {
+  electronApp: async ({ testUserDataDir, testVaultDir, settingsOverrides }, use) => {
     // Seed settings.json so Electron boots straight into the test vault without onboarding modal
     const initialSettings = {
       vaultPath: testVaultDir,
@@ -33,6 +37,7 @@ export const test = base.extend<ElectronAppFixture>({
       themeColor: 'indigo',
       autoSave: true,
       autoSaveDelay: 500,
+      ...settingsOverrides,
     };
     fs.writeFileSync(
       path.join(testUserDataDir, 'settings.json'),

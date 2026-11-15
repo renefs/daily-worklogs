@@ -1,0 +1,47 @@
+.content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 rem(20px) rem(40px) rgba(0, 0, 0, 0.25);
+  border: rem(1px) solid var(--mantine-color-default-border);
+}
+
+/* Header, stepper and footer stay put; only the step content scrolls on short windows. */
+.body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.layout {
+  flex: 1;
+  min-height: 0;
+}
+
+.headerTitle {
+  font-family: var(--font-display);
+  line-height: 1.2;
+}
+
+.step {
+  padding: 0;
+}
+
+.stepLabel {
+  font-size: rem(11px);
+  font-weight: 600;
+}
+
+.stepBody {
+  flex: 0 1 auto;
+  min-height: min(rem(320px), 40dvh);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Centers short steps vertically without clipping tall ones when they scroll. */
+.stepBody > * {
+  margin-block: auto;
+}

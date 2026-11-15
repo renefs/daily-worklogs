@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Fixed
+- **Setup Wizard Language**: Choosing Spanish in the setup wizard no longer snaps the selector back to English and saves English on Finish.
+- **Setup Wizard Theme Preview**: Light/dark mode and the accent color now preview immediately while the wizard is open, instead of only after Finish.
+- **Setup Wizard Choices Kept**: Changing the vault folder no longer resets choices already made in the wizard.
+- **Setup Wizard Layout**: Header, steps and buttons stay visible on short windows and only the step content scrolls. The steps fit on one row.
+- **Setup Wizard Save Errors**: If saving fails, the wizard stays open and shows an error instead of failing silently.
+
+### Changed
+- **Setup Wizard Content**: The welcome step now covers tasks, Areas and Projects and yearly reports. The vault step explains the folder layout and that workspace settings sync with the vault. The week step adds the daily routines on/off switch. The final step lists only settings that exist (the non-existent "auto-archiving" item is gone) and points to Settings > General to run the wizard again.
+
 ## [1.16.0] - 2026-11-02
 
 ### Added

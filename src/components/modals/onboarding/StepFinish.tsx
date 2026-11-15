@@ -1,21 +1,26 @@
 import React from 'react';
-import {
-  Stack,
-  Group,
-  ThemeIcon,
-  Title,
-  Text,
-  Card,
-  SimpleGrid,
-} from '@mantine/core';
+import { Stack, Group, ThemeIcon, Title, Text, Card, SimpleGrid } from '@mantine/core';
 import {
   IconCheck,
   IconSettings,
   IconLayoutKanban,
   IconClock,
   IconAdjustments,
+  IconHierarchy2,
+  IconTags,
+  IconArchive,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
+import classes from './OnboardingStep.module.css';
+
+const SETTINGS_ITEMS = [
+  { key: 'settingsNoticeAreas', color: 'blue', Icon: IconHierarchy2 },
+  { key: 'settingsNoticeKanban', color: 'indigo', Icon: IconLayoutKanban },
+  { key: 'settingsNoticeClosedTasks', color: 'gray', Icon: IconArchive },
+  { key: 'settingsNoticeTags', color: 'orange', Icon: IconTags },
+  { key: 'settingsNoticeRoutines', color: 'teal', Icon: IconClock },
+  { key: 'settingsNoticeEditor', color: 'grape', Icon: IconAdjustments },
+] as const;
 
 export const StepFinish: React.FC = () => {
   const { t } = useTranslation();
@@ -27,7 +32,7 @@ export const StepFinish: React.FC = () => {
           <IconCheck size={26} stroke={2.5} />
         </ThemeIcon>
         <div>
-          <Title order={3} fw={700} style={{ fontFamily: 'var(--font-display)' }}>
+          <Title order={3} fw={700} className={classes.title}>
             {t('onboarding.stepFinishTitle')}
           </Title>
           <Text size="sm" c="dimmed">
@@ -36,13 +41,7 @@ export const StepFinish: React.FC = () => {
         </div>
       </Group>
 
-      {/* Informative Settings Notice Card */}
-      <Card
-        withBorder
-        radius="md"
-        p="md"
-        style={{ backgroundColor: 'var(--mantine-color-default-hover)' }}
-      >
+      <Card withBorder radius="md" p="md" className={classes.softPanel}>
         <Stack gap="xs">
           <Group gap="xs">
             <ThemeIcon size={24} radius="md" color="primary" variant="filled">
@@ -57,32 +56,16 @@ export const StepFinish: React.FC = () => {
           </Text>
 
           <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs" mt={4}>
-            <Group gap={8} wrap="nowrap">
-              <ThemeIcon size={20} radius="xl" color="indigo" variant="light">
-                <IconLayoutKanban size={12} />
-              </ThemeIcon>
-              <Text size="xs" fw={500}>
-                {t('onboarding.settingsNoticeKanban')}
-              </Text>
-            </Group>
-
-            <Group gap={8} wrap="nowrap">
-              <ThemeIcon size={20} radius="xl" color="teal" variant="light">
-                <IconClock size={12} />
-              </ThemeIcon>
-              <Text size="xs" fw={500}>
-                {t('onboarding.settingsNoticeRoutines')}
-              </Text>
-            </Group>
-
-            <Group gap={8} wrap="nowrap">
-              <ThemeIcon size={20} radius="xl" color="grape" variant="light">
-                <IconAdjustments size={12} />
-              </ThemeIcon>
-              <Text size="xs" fw={500}>
-                {t('onboarding.settingsNoticeArchiving')}
-              </Text>
-            </Group>
+            {SETTINGS_ITEMS.map(({ key, color, Icon }) => (
+              <Group key={key} gap={8} wrap="nowrap">
+                <ThemeIcon size={20} radius="xl" color={color} variant="light">
+                  <Icon size={12} />
+                </ThemeIcon>
+                <Text size="xs" fw={500}>
+                  {t(`onboarding.${key}`)}
+                </Text>
+              </Group>
+            ))}
           </SimpleGrid>
 
           <Text size="xs" c="dimmed" mt={4} fs="italic">
