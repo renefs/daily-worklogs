@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Setup Wizard Save Errors**: If saving fails, the wizard stays open and shows an error instead of failing silently.
 
 ### Changed
+- **Restyled Editor Autocomplete**: The tag and `[[` link suggestion popup now matches the app's look in light and dark mode: rounded card, accent-tinted selection, sans-serif font and dimmed details. Tags show a dot in their configured color, and notes and tasks use outline icons instead of emoji.
 - **Setup Wizard Content**: The welcome step now covers tasks, Areas and Projects and yearly reports. The vault step explains the folder layout and that workspace settings sync with the vault. The week step adds the daily routines on/off switch. The final step lists only settings that exist (the non-existent "auto-archiving" item is gone) and points to Settings > General to run the wizard again.
 
 ## [1.16.0] - 2026-11-02
