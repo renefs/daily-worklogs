@@ -1,0 +1,50 @@
+.action {
+  gap: var(--mantine-spacing-sm);
+  align-items: flex-start;
+}
+
+.icon {
+  display: flex;
+  flex-shrink: 0;
+  padding-top: rem(2px);
+  color: var(--mantine-color-dimmed);
+}
+
+.action[data-selected] .icon {
+  color: inherit;
+}
+
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: rem(2px);
+  min-width: 0;
+  flex: 1;
+}
+
+.resultHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  min-width: 0;
+}
+
+.resultTitle {
+  flex: 1;
+  min-width: 0;
+}
+
+.badge {
+  flex-shrink: 0;
+}
+
+.result .snippet {
+  color: var(--mantine-color-dimmed);
+  word-break: break-word;
+}
+
+/* The selected row uses the filled primary color, so dimmed text would lose contrast. */
+.action[data-selected] .result .snippet {
+  color: inherit;
+  opacity: 0.8;
+}

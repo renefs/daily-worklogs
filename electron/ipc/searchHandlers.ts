@@ -25,8 +25,9 @@ export function registerSearchHandlers(dependencies: SearchHandlerDependencies):
     if (!query) return [];
     try {
       const vaultPath = getVaultPath();
-      const results = await searchVault(vaultPath, query, 100);
-      return results.filter((r) => r.type === 'note').map((r) => r.id);
+      // The sidebar filters its full note list with these dates, so no limit applies.
+      const results = await searchVault(vaultPath, query, { types: ['note'], limitPerType: Number.POSITIVE_INFINITY });
+      return results.map((r) => r.id);
     } catch (error) {
       console.error('Error searching note contents:', error);
       return [];

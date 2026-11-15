@@ -4,6 +4,7 @@ import path from 'node:path';
 import matter from 'gray-matter';
 import { listDailyNoteFiles } from './vaultService';
 import { readTaskFiles, parseNumericTaskId } from './taskFileService';
+import { normalizeSearchQuery } from '../../src/shared/searchQuery';
 
 export interface VaultSearchResult {
   type: 'note' | 'task';
@@ -16,24 +17,32 @@ export interface VaultSearchResult {
   taskId?: number;
 }
 
+export interface VaultSearchOptions {
+  /** Maximum number of results per result type. */
+  limitPerType?: number;
+  /** Result types to search. Defaults to both notes and tasks. */
+  types?: ReadonlyArray<VaultSearchResult['type']>;
+}
+
 interface CachedNote {
-  filepath: string;
-  date: string;
-  mtimeMs: number;
+  lastModified: string;
   content: string;
+  contentLower: string;
 }
 
 interface CachedTask {
-  filepath: string;
-  filename: string;
   mtimeMs: number;
-  raw: string;
   title: string;
   status: string;
   tags: string[];
   taskId?: number;
   content: string;
+  /** Lowercased title, tags, area, project and body. Frontmatter keys are left out on purpose. */
+  searchText: string;
 }
+
+const SNIPPET_LENGTH = 140;
+const DEFAULT_LIMIT_PER_TYPE = 20;
 
 const noteCache = new Map<string, CachedNote>();
 const taskCache = new Map<string, CachedTask>();
@@ -43,158 +52,185 @@ export function invalidateVaultSearchCache(): void {
   taskCache.clear();
 }
 
-function extractSnippet(content: string, queryWords: string[]): { snippet: string; line: number } {
+function clipAroundMatch(line: string, matchIndex: number): string {
+  const trimmed = line.trim();
+  if (trimmed.length <= SNIPPET_LENGTH) return trimmed;
+
+  const offset = line.length - line.trimStart().length;
+  const index = Math.max(0, matchIndex - offset);
+  const start = Math.max(0, Math.min(index - Math.floor(SNIPPET_LENGTH / 3), trimmed.length - SNIPPET_LENGTH));
+  const end = start + SNIPPET_LENGTH;
+  return `${start > 0 ? '…' : ''}${trimmed.slice(start, end).trim()}${end < trimmed.length ? '…' : ''}`;
+}
+
+/**
+ * Returns the line that best matches the query: the first line containing every word,
+ * otherwise the first line containing any word, otherwise the first content line.
+ * The snippet is clipped around the match so the highlighted term stays visible.
+ */
+export function extractSnippet(content: string, queryWords: string[]): { snippet: string; line: number } {
   const lines = content.split('\n');
-  const lowerQueryWords = queryWords.map((w) => w.toLowerCase());
+  let firstPartial: { snippet: string; line: number } | null = null;
 
   for (let i = 0; i < lines.length; i++) {
     const lineLower = lines[i].toLowerCase();
-    const matchesAll = lowerQueryWords.some((word) => lineLower.includes(word));
-    if (matchesAll) {
-      const trimmed = lines[i].trim();
-      return {
-        snippet: trimmed.length > 120 ? `${trimmed.slice(0, 120)}...` : trimmed,
-        line: i + 1,
-      };
-    }
-  }
+    const positions = queryWords.map((word) => lineLower.indexOf(word));
+    const found = positions.filter((position) => position >= 0);
+    if (found.length === 0) continue;
 
-  // Fallback to first non-empty line
+    const match = { snippet: clipAroundMatch(lines[i], Math.min(...found)), line: i + 1 };
+    if (found.length === queryWords.length) return match;
+    firstPartial ??= match;
+  }
+  if (firstPartial) return firstPartial;
+
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim();
-    if (trimmed && !trimmed.startsWith('#')) {
-      return {
-        snippet: trimmed.length > 100 ? `${trimmed.slice(0, 100)}...` : trimmed,
-        line: i + 1,
-      };
+    if (trimmed && !trimmed.startsWith('#') && trimmed !== '---') {
+      return { snippet: clipAroundMatch(lines[i], 0), line: i + 1 };
     }
   }
 
   return { snippet: '', line: 1 };
 }
 
+async function searchNotes(vaultPath: string, query: string, queryWords: string[], limit: number): Promise<VaultSearchResult[]> {
+  const results: VaultSearchResult[] = [];
+  const noteFiles = await listDailyNoteFiles(vaultPath);
+  const seen = new Set<string>();
+
+  // listDailyNoteFiles sorts newest first, so results are ordered by recency.
+  for (const noteFile of noteFiles) {
+    seen.add(noteFile.filepath);
+    try {
+      let cached = noteCache.get(noteFile.filepath);
+      if (!cached || cached.lastModified !== noteFile.lastModified) {
+        const content = await fsp.readFile(noteFile.filepath, 'utf-8');
+        cached = { lastModified: noteFile.lastModified, content, contentLower: content.toLowerCase() };
+        noteCache.set(noteFile.filepath, cached);
+      }
+
+      if (results.length >= limit) continue;
+      const dateMatches = noteFile.date.includes(query);
+      const contentMatches = queryWords.every((word) => cached.contentLower.includes(word));
+      if (!dateMatches && !contentMatches) continue;
+
+      const { snippet, line } = extractSnippet(cached.content, queryWords);
+      results.push({ type: 'note', id: noteFile.date, title: noteFile.date, snippet, line });
+    } catch (err) {
+      console.warn(`Error reading note file ${noteFile.filepath} during search:`, err);
+    }
+  }
+
+  for (const filepath of noteCache.keys()) {
+    if (!seen.has(filepath)) noteCache.delete(filepath);
+  }
+  return results;
+}
+
+function toCachedTask(raw: string, filename: string, mtimeMs: number): CachedTask {
+  const parsed = matter(raw);
+  const data = (parsed.data || {}) as Record<string, unknown>;
+  let title = typeof data.title === 'string' && data.title.trim() ? data.title.trim() : '';
+  if (!title) {
+    const headingMatch = parsed.content.match(/^#\s+(.+)$/m);
+    title = headingMatch ? headingMatch[1].trim() : filename.replace(/\.md$/i, '').replace(/[-_]/g, ' ');
+  }
+  const tags = Array.isArray(data.tags) ? data.tags.map(String) : [];
+  const status = data.status ? String(data.status).trim() : 'todo';
+  const extra = [data.area, data.project].filter((value) => typeof value === 'string');
+
+  return {
+    mtimeMs,
+    title,
+    status,
+    tags,
+    taskId: parseNumericTaskId(data),
+    content: parsed.content,
+    searchText: [title, ...tags.map((tag) => `#${tag}`), ...extra, parsed.content].join('\n').toLowerCase(),
+  };
+}
+
+async function searchTasks(vaultPath: string, query: string, queryWords: string[], limit: number): Promise<VaultSearchResult[]> {
+  const tasksDir = path.join(vaultPath, 'tasks');
+  if (!fs.existsSync(tasksDir)) return [];
+
+  const idQuery = /^#?(\d+)$/.exec(query)?.[1];
+  const ranked: Array<{ rank: number; result: VaultSearchResult }> = [];
+  const seen = new Set<string>();
+
+  for (const read of await readTaskFiles(tasksDir)) {
+    seen.add(read.filepath);
+    let task = taskCache.get(read.filepath);
+    if (!task || task.mtimeMs !== read.stat.mtimeMs) {
+      try {
+        task = toCachedTask(read.raw, read.filename, read.stat.mtimeMs);
+        taskCache.set(read.filepath, task);
+      } catch (err) {
+        console.warn(`Error parsing task file ${read.filepath} during search:`, err);
+        continue;
+      }
+    }
+
+    const idExact = idQuery !== undefined && task.taskId !== undefined && String(task.taskId) === idQuery;
+    const idPrefix = query.startsWith('#') && idQuery !== undefined && task.taskId !== undefined && String(task.taskId).startsWith(idQuery);
+    const textMatches = queryWords.every((word) => task.searchText.includes(word));
+    if (!idExact && !idPrefix && !textMatches) continue;
+
+    const titleLower = task.title.toLowerCase();
+    const rank = idExact ? 0 : idPrefix ? 1 : queryWords.every((word) => titleLower.includes(word)) ? 2 : 3;
+    const { snippet, line } = extractSnippet(task.content, queryWords);
+    ranked.push({
+      rank,
+      result: {
+        type: 'task',
+        id: read.filename,
+        title: task.title,
+        snippet,
+        line,
+        tags: task.tags,
+        status: task.status,
+        taskId: task.taskId,
+      },
+    });
+  }
+
+  for (const filepath of taskCache.keys()) {
+    if (!seen.has(filepath)) taskCache.delete(filepath);
+  }
+
+  return ranked
+    .sort((a, b) => a.rank - b.rank || (b.result.taskId ?? 0) - (a.result.taskId ?? 0))
+    .slice(0, limit)
+    .map((entry) => entry.result);
+}
+
 export async function searchVault(
   vaultPath: string,
   rawQuery: string,
-  maxResults = 25
+  options: VaultSearchOptions = {}
 ): Promise<VaultSearchResult[]> {
-  const cleanQuery = rawQuery
-    .replace(/^\[\[/, '')
-    .replace(/\]\]$/, '')
-    .replace(/^\[/, '')
-    .replace(/\]$/, '')
-    .trim();
-
-  const query = cleanQuery.toLowerCase();
-  if (!query) return [];
-
+  const query = normalizeSearchQuery(rawQuery).toLowerCase();
   const queryWords = query.split(/\s+/).filter(Boolean);
   if (queryWords.length === 0) return [];
 
-  const results: VaultSearchResult[] = [];
+  const limit = options.limitPerType ?? DEFAULT_LIMIT_PER_TYPE;
+  const types = options.types ?? ['note', 'task'];
 
-  // 1. Refresh daily note cache as needed
-  try {
-    const noteFiles = await listDailyNoteFiles(vaultPath);
-    for (const noteFile of noteFiles) {
-      try {
-        const stat = await fsp.stat(noteFile.filepath);
-        const cached = noteCache.get(noteFile.filepath);
-        let content = cached?.content;
+  const [notes, tasks] = await Promise.all([
+    types.includes('note')
+      ? searchNotes(vaultPath, query, queryWords, limit).catch((err) => {
+          console.warn('Error searching notes:', err);
+          return [];
+        })
+      : [],
+    types.includes('task')
+      ? searchTasks(vaultPath, query, queryWords, limit).catch((err) => {
+          console.warn('Error searching tasks:', err);
+          return [];
+        })
+      : [],
+  ]);
 
-        if (!cached || cached.mtimeMs !== stat.mtimeMs) {
-          content = await fsp.readFile(noteFile.filepath, 'utf-8');
-          noteCache.set(noteFile.filepath, {
-            filepath: noteFile.filepath,
-            date: noteFile.date,
-            mtimeMs: stat.mtimeMs,
-            content,
-          });
-        }
-
-        if (content) {
-          const contentLower = content.toLowerCase();
-          const dateMatches = noteFile.date.includes(query);
-          const contentMatches = queryWords.every((word) => contentLower.includes(word));
-
-          if (dateMatches || contentMatches) {
-            const { snippet, line } = extractSnippet(content, queryWords);
-            results.push({
-              type: 'note',
-              id: noteFile.date,
-              title: noteFile.date,
-              snippet: snippet || `Daily note for ${noteFile.date}`,
-              line,
-            });
-          }
-        }
-      } catch (err) {
-        console.warn(`Error reading note file ${noteFile.filepath} during search:`, err);
-      }
-    }
-  } catch (err) {
-    console.warn('Error reading notes list during search:', err);
-  }
-
-  // 2. Refresh task cache as needed
-  try {
-    const tasksDir = path.join(vaultPath, 'tasks');
-    if (fs.existsSync(tasksDir)) {
-      const taskReads = await readTaskFiles(tasksDir);
-      for (const read of taskReads) {
-        const cached = taskCache.get(read.filepath);
-        let taskData = cached;
-
-        if (!cached || cached.mtimeMs !== read.stat.mtimeMs) {
-          const parsed = matter(read.raw);
-          const data = parsed.data || {};
-          let title = data.title;
-          if (!title) {
-            const headingMatch = parsed.content.match(/^#\s+(.+)$/m);
-            title = headingMatch ? headingMatch[1].trim() : read.filename.replace(/\.md$/i, '').replace(/[-_]/g, ' ');
-          }
-          const tags = Array.isArray(data.tags) ? data.tags : [];
-          const status = data.status ? String(data.status).trim() : 'todo';
-          const taskId = parseNumericTaskId(data);
-
-          taskData = {
-            filepath: read.filepath,
-            filename: read.filename,
-            mtimeMs: read.stat.mtimeMs,
-            raw: read.raw,
-            title,
-            status,
-            tags,
-            taskId,
-            content: parsed.content,
-          };
-          taskCache.set(read.filepath, taskData);
-        }
-
-        if (taskData) {
-          const fullTextLower = taskData.raw.toLowerCase();
-          const taskMatches = queryWords.every((word) => fullTextLower.includes(word));
-          const idMatches = taskData.taskId && `#${taskData.taskId}`.includes(query);
-
-          if (taskMatches || idMatches) {
-            const { snippet, line } = extractSnippet(taskData.content, queryWords);
-            results.push({
-              type: 'task',
-              id: taskData.filename,
-              title: taskData.taskId ? `#${taskData.taskId} ${taskData.title}` : taskData.title,
-              snippet: snippet || taskData.title,
-              line,
-              tags: taskData.tags,
-              status: taskData.status,
-              taskId: taskData.taskId,
-            });
-          }
-        }
-      }
-    }
-  } catch (err) {
-    console.warn('Error reading tasks during search:', err);
-  }
-
-  return results.slice(0, maxResults);
+  return [...notes, ...tasks];
 }

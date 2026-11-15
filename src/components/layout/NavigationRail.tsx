@@ -5,7 +5,7 @@ import {
   IconSearch,
   IconSettings,
 } from '@tabler/icons-react';
-import { spotlight } from '@mantine/spotlight';
+import { appSpotlight } from '../spotlight/appSpotlightStore';
 import { useTranslation } from 'react-i18next';
 import { useAppStoreSelector } from '../../store/useAppStore';
 import { SidebarNavigation } from './SidebarNavigation';
@@ -52,7 +52,7 @@ export function NavigationRail() {
           className={classes.railButton}
           mt="auto"
           aria-label={t('spotlight.searchVault', 'Search vault')}
-          onClick={() => spotlight.open()}
+          onClick={() => appSpotlight.open()}
         >
           <IconSearch size={18} />
         </UnstyledButton>

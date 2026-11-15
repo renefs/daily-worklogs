@@ -817,6 +817,9 @@
     "searchPlaceholder": "Escribe un comando, fecha o busca en las notas...",
     "quickActions": "Acciones Rápidas",
     "nothingFound": "No se encontraron notas ni tareas para \"{{query}}\"",
-    "searchVault": "Buscar en el almacén"
+    "searchVault": "Buscar en el almacén",
+    "notesGroup": "Notas diarias ({{count}})",
+    "tasksGroup": "Tareas ({{count}})",
+    "emptyNote": "Nota vacía"
   }
 }

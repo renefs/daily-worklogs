@@ -816,6 +816,9 @@
     "searchPlaceholder": "Type a command, date, or search vault...",
     "quickActions": "Quick Actions",
     "nothingFound": "No notes or tasks matching \"{{query}}\"",
-    "searchVault": "Search vault"
+    "searchVault": "Search vault",
+    "notesGroup": "Daily notes ({{count}})",
+    "tasksGroup": "Tasks ({{count}})",
+    "emptyNote": "Empty note"
   }
 }

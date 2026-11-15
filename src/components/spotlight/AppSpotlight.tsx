@@ -1,20 +1,10 @@
-import React, { useState, useEffect, useTransition } from 'react';
-import {
-  Badge,
-  Group,
-  Highlight,
-  Stack,
-  Text,
-} from '@mantine/core';
-import {
-  Spotlight,
-  spotlight,
-} from '@mantine/spotlight';
+import React, { useEffect, useState } from 'react';
+import { Badge, Loader, Text } from '@mantine/core';
+import { Spotlight } from '@mantine/spotlight';
 import {
   IconCalendar,
   IconChartBar,
   IconChecklist,
-  IconFileText,
   IconPlus,
   IconSearch,
   IconSettings,
@@ -22,212 +12,130 @@ import {
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import { useAppStoreSelector } from '../../store/useAppStore';
-import type { VaultSearchResult } from '../../types';
+import { DEFAULT_KANBAN_COLUMNS } from '../../types';
+import { appSpotlightStore, selectFirstSpotlightAction } from './appSpotlightStore';
+import { NoteResultAction, SpotlightRow, TaskResultAction } from './SpotlightResultActions';
+import { normalizeSearchQuery } from '../../shared/searchQuery';
+import { useVaultSearch } from './useVaultSearch';
+import classes from './AppSpotlight.module.css';
+
+interface SpotlightCommand {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  badge?: string;
+  run: () => void | Promise<void>;
+}
 
 export const AppSpotlight: React.FC = () => {
   const { t } = useTranslation();
-  const [, startTransition] = useTransition();
-
   const {
     setSelectedDate,
     setCurrentView,
     openReports,
     openTaskModal,
     openSettings,
+    kanbanColumns,
   } = useAppStoreSelector((state) => ({
     setSelectedDate: state.setSelectedDate,
     setCurrentView: state.setCurrentView,
     openReports: state.openReports,
     openTaskModal: state.openTaskModal,
     openSettings: state.openSettings,
+    kanbanColumns: state.settings?.kanbanColumns,
   }));
 
   const [query, setQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<VaultSearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const cleanQuery = normalizeSearchQuery(query);
+  const queryWords = cleanQuery.toLowerCase().split(/\s+/).filter(Boolean);
+  const { results, isSearching } = useVaultSearch(cleanQuery);
+  const columns = kanbanColumns && kanbanColumns.length > 0 ? kanbanColumns : DEFAULT_KANBAN_COLUMNS;
 
-  const cleanQuery = query
-    .replace(/^\[\[/, '')
-    .replace(/\]\]$/, '')
-    .replace(/^\[/, '')
-    .replace(/\]$/, '')
-    .trim();
-
-  useEffect(() => {
-    if (!cleanQuery) {
-      setSearchResults([]);
-      setIsSearching(false);
-      return;
-    }
-
-    setIsSearching(true);
-    const timeout = setTimeout(async () => {
-      if (window.electronAPI?.searchVault) {
-        try {
-          const results = await window.electronAPI.searchVault(cleanQuery);
-          startTransition(() => {
-            setSearchResults(results || []);
-            setIsSearching(false);
-          });
-        } catch (err) {
-          console.error('Spotlight search error:', err);
-          setIsSearching(false);
-        }
-      } else {
-        setIsSearching(false);
-      }
-    }, 150);
-
-    return () => clearTimeout(timeout);
-  }, [cleanQuery]);
-
-  const handleSelectDate = async (date: string) => {
-    spotlight.close();
+  const openDate = async (date: string) => {
     await setSelectedDate(date);
     await setCurrentView('daily');
   };
 
-  const handleSelectTask = async (filename: string) => {
-    spotlight.close();
-    await openTaskModal({ filename } as any);
-  };
+  const today = dayjs().format('YYYY-MM-DD');
+  const commands: SpotlightCommand[] = [
+    { id: 'today', label: t('nav.openToday'), icon: <IconCalendar size={18} />, badge: today, run: () => openDate(today) },
+    { id: 'reports', label: t('nav.reports'), icon: <IconChartBar size={18} />, run: () => openReports() },
+    { id: 'tasks', label: t('tasks.title'), icon: <IconChecklist size={18} />, run: () => setCurrentView('tasks') },
+    { id: 'new-task', label: t('tasks.newTask'), icon: <IconPlus size={18} />, run: () => openTaskModal() },
+    { id: 'settings', label: t('settings.title'), icon: <IconSettings size={18} />, run: () => openSettings() },
+  ];
+  const visibleCommands = commands.filter((command) => {
+    const label = command.label.toLowerCase();
+    return queryWords.every((word) => label.includes(word));
+  });
 
-  const handleCommand = async (action: () => void | Promise<void>) => {
-    spotlight.close();
-    await action();
-  };
+  const noteResults = results.filter((r) => r.type === 'note');
+  const taskResults = results.filter((r) => r.type === 'task');
+  const hasAnyAction = visibleCommands.length > 0 || results.length > 0;
 
-  const noteResults = searchResults.filter((r) => r.type === 'note');
-  const taskResults = searchResults.filter((r) => r.type === 'task');
+  // Results arrive after Spotlight already selected the first action of the previous list,
+  // so the selection is moved to the first row of the new list to keep Enter and arrows working.
+  useEffect(() => {
+    if (cleanQuery) selectFirstSpotlightAction();
+  }, [results, cleanQuery]);
 
   return (
     <Spotlight.Root
+      store={appSpotlightStore}
       shortcut={['mod + k', 'mod + p']}
       query={query}
       onQueryChange={setQuery}
       radius="md"
-      maxHeight={480}
+      size="lg"
+      scrollable
+      maxHeight={520}
     >
       <Spotlight.Search
-        placeholder={t('spotlight.searchPlaceholder', 'Type a command, date, or search vault...')}
+        placeholder={t('spotlight.searchPlaceholder')}
         leftSection={<IconSearch size={18} stroke={1.5} />}
+        rightSection={isSearching ? <Loader size="xs" /> : null}
+        aria-label={t('spotlight.searchVault')}
       />
       <Spotlight.ActionsList>
-        {/* Navigation Commands */}
-        {!query.trim() && (
-          <Spotlight.ActionsGroup label={t('spotlight.quickActions', 'Quick Actions')}>
-            <Spotlight.Action
-              onClick={() => handleCommand(() => handleSelectDate(dayjs().format('YYYY-MM-DD')))}
-              leftSection={<IconCalendar size={18} />}
-            >
-              <Group justify="space-between">
-                <Text size="sm">{t('nav.openToday', "Open Today's Note")}</Text>
-                <Badge size="xs" variant="light" color="indigo">{dayjs().format('YYYY-MM-DD')}</Badge>
-              </Group>
-            </Spotlight.Action>
-
-            <Spotlight.Action
-              onClick={() => handleCommand(() => openReports())}
-              leftSection={<IconChartBar size={18} />}
-            >
-              <Text size="sm">{t('nav.reports', 'Reports & Metrics')}</Text>
-            </Spotlight.Action>
-
-            <Spotlight.Action
-              onClick={() => handleCommand(() => setCurrentView('tasks'))}
-              leftSection={<IconChecklist size={18} />}
-            >
-              <Text size="sm">{t('nav.tasks', 'Task Board')}</Text>
-            </Spotlight.Action>
-
-            <Spotlight.Action
-              onClick={() => handleCommand(() => openTaskModal())}
-              leftSection={<IconPlus size={18} />}
-            >
-              <Text size="sm">{t('tasks.newTask', 'New Task')}</Text>
-            </Spotlight.Action>
-
-            <Spotlight.Action
-              onClick={() => handleCommand(() => openSettings())}
-              leftSection={<IconSettings size={18} />}
-            >
-              <Text size="sm">{t('settings.title', 'Preferences & Settings')}</Text>
-            </Spotlight.Action>
+        {visibleCommands.length > 0 && (
+          <Spotlight.ActionsGroup label={t('spotlight.quickActions')}>
+            {visibleCommands.map((command) => (
+              <SpotlightRow key={command.id} icon={command.icon} onSelect={() => void command.run()}>
+                <div className={classes.resultHeader}>
+                  <Text size="sm" className={classes.resultTitle}>{command.label}</Text>
+                  {command.badge && (
+                    <Badge size="xs" variant="default" className={classes.badge}>{command.badge}</Badge>
+                  )}
+                </div>
+              </SpotlightRow>
+            ))}
           </Spotlight.ActionsGroup>
         )}
 
-        {/* Note Search Results */}
         {noteResults.length > 0 && (
-          <Spotlight.ActionsGroup label={t('nav.notes', 'Daily Notes')}>
+          <Spotlight.ActionsGroup label={t('spotlight.notesGroup', { count: noteResults.length })}>
             {noteResults.map((result) => (
-              <Spotlight.Action
-                key={`note-${result.id}`}
-                onClick={() => handleSelectDate(result.id)}
-                leftSection={<IconFileText size={18} />}
-              >
-                <Stack gap={2}>
-                  <Group justify="space-between" align="center">
-                    <Text size="sm" fw={600}>{result.id}</Text>
-                    {result.line && (
-                      <Badge size="xs" variant="outline" color="gray">
-                        Line {result.line}
-                      </Badge>
-                    )}
-                  </Group>
-                  {result.snippet && (
-                    <Highlight
-                      highlight={cleanQuery.split(/\s+/)}
-                      size="xs"
-                      c="dimmed"
-                      lineClamp={1}
-                    >
-                      {result.snippet}
-                    </Highlight>
-                  )}
-                </Stack>
-              </Spotlight.Action>
+              <NoteResultAction key={`note-${result.id}`} result={result} highlight={queryWords} onSelect={(date) => void openDate(date)} />
             ))}
           </Spotlight.ActionsGroup>
         )}
 
-        {/* Task Search Results */}
         {taskResults.length > 0 && (
-          <Spotlight.ActionsGroup label={t('tasks.title', 'Tasks')}>
+          <Spotlight.ActionsGroup label={t('spotlight.tasksGroup', { count: taskResults.length })}>
             {taskResults.map((result) => (
-              <Spotlight.Action
+              <TaskResultAction
                 key={`task-${result.id}`}
-                onClick={() => handleSelectTask(result.id)}
-                leftSection={<IconChecklist size={18} />}
-              >
-                <Stack gap={2}>
-                  <Group justify="space-between" align="center">
-                    <Text size="sm" fw={600} lineClamp={1}>{result.title}</Text>
-                    {result.status && (
-                      <Badge size="xs" variant="light" color="blue">
-                        {result.status}
-                      </Badge>
-                    )}
-                  </Group>
-                  {result.snippet && (
-                    <Highlight
-                      highlight={cleanQuery.split(/\s+/)}
-                      size="xs"
-                      c="dimmed"
-                      lineClamp={1}
-                    >
-                      {result.snippet}
-                    </Highlight>
-                  )}
-                </Stack>
-              </Spotlight.Action>
+                result={result}
+                highlight={queryWords}
+                columns={columns}
+                onSelect={(filename) => void openTaskModal({ filename })}
+              />
             ))}
           </Spotlight.ActionsGroup>
         )}
 
-        {query.trim() && !isSearching && searchResults.length === 0 && (
-          <Spotlight.Empty>
-            {t('spotlight.nothingFound', 'No notes or tasks matching "{{query}}"', { query })}
-          </Spotlight.Empty>
+        {cleanQuery && !isSearching && !hasAnyAction && (
+          <Spotlight.Empty>{t('spotlight.nothingFound', { query: cleanQuery })}</Spotlight.Empty>
         )}
       </Spotlight.ActionsList>
     </Spotlight.Root>

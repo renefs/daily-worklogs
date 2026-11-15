@@ -254,7 +254,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             if (taskObj) {
               void openTaskEditor(taskObj);
             } else {
-              void openTaskEditor({ filename: firstTaskResult.id, title: firstTaskResult.title, taskId: firstTaskResult.taskId } as any);
+              void openTaskEditor({ filename: firstTaskResult.id, title: firstTaskResult.title, taskId: firstTaskResult.taskId });
             }
             return;
           }
