@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [1.17.0] - 2026-11-15
+
 ### Fixed
 - **Setup Wizard Language**: Choosing Spanish in the setup wizard no longer snaps the selector back to English and saves English on Finish.
 - **Setup Wizard Theme Preview**: Light/dark mode and the accent color now preview immediately while the wizard is open, instead of only after Finish.
